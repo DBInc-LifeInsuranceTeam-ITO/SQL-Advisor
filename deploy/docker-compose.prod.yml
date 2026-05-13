@@ -1,0 +1,116 @@
+name: sqladvisor
+
+services:
+  postgres:
+    image: pgvector/pgvector:pg16
+    container_name: sqladvisor-postgres
+    env_file:
+      - path: ./.env.prod
+        required: true
+    environment:
+      POSTGRES_DB: sqladvisor
+      POSTGRES_USER: sqladvisor
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+      - ../sqladvisor/init-db/postgres:/docker-entrypoint-initdb.d:ro
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U sqladvisor -d sqladvisor"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+    restart: unless-stopped
+    networks:
+      - sqladvisor-network
+
+  redis:
+    image: redis:7-alpine
+    container_name: sqladvisor-redis
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+    restart: unless-stopped
+    networks:
+      - sqladvisor-network
+
+  api:
+    build:
+      context: ../sqladvisor
+      dockerfile: Dockerfile
+    container_name: sqladvisor-api
+    env_file:
+      - path: ./.env.prod
+        required: true
+    environment:
+      SPRING_PROFILES_ACTIVE: prod
+      LOGGING_CONFIG: /app/config/logback-spring.xml
+      LOG_PATH: /app/logs
+      AWR_STORAGE_ROOT: /app/data/awr
+      AWR_WORKER_URL: http://worker:8081
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
+    volumes:
+      - awr_files:/app/data/awr
+      - api_logs:/app/logs
+      - ./config/application-prod.yml:/app/config/application-prod.yml:ro
+      - ./config/logback-spring.xml:/app/config/logback-spring.xml:ro
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    restart: unless-stopped
+    networks:
+      - sqladvisor-network
+
+  web:
+    build:
+      context: ../frontend
+      dockerfile: Dockerfile
+    container_name: sqladvisor-nginx
+    ports:
+      - "80:80"
+    volumes:
+      - ./nginx/prod.conf:/etc/nginx/conf.d/default.conf:ro
+    depends_on:
+      - api
+    restart: unless-stopped
+    networks:
+      - sqladvisor-network
+
+  worker:
+    build:
+      context: ../worker
+      dockerfile: Dockerfile
+    container_name: sqladvisor-worker
+    env_file:
+      - path: ./.env.prod
+        required: true
+    environment:
+      REDIS_URL: redis://redis:6379/0
+      API_BASE_URL: http://api:8080
+      AWR_STORAGE_ROOT: /app/data/awr
+      OCR_LANG: eng+kor
+      OCR_MAX_PAGES: 20
+    volumes:
+      - awr_files:/app/data/awr
+    depends_on:
+      api:
+        condition: service_started
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    restart: unless-stopped
+    networks:
+      - sqladvisor-network
+
+networks:
+  sqladvisor-network:
+    driver: bridge
+
+volumes:
+  postgres_data:
+  awr_files:
+  api_logs:

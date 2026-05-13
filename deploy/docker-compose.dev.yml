@@ -1,0 +1,116 @@
+name: sqladvisor
+
+services:
+  postgres:
+    image: pgvector/pgvector:pg16
+    container_name: sqladvisor-postgres
+    environment:
+      POSTGRES_DB: sqladvisor
+      POSTGRES_USER: sqladvisor
+      POSTGRES_PASSWORD: sqladvisor
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+      - ../sqladvisor/init-db/postgres:/docker-entrypoint-initdb.d:ro
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U sqladvisor -d sqladvisor"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+    networks:
+      - sqladvisor-network
+
+  redis:
+    image: redis:7-alpine
+    container_name: sqladvisor-redis
+    ports:
+      - "6379:6379"
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+    networks:
+      - sqladvisor-network
+
+  api:
+    build:
+      context: ../sqladvisor
+      dockerfile: Dockerfile
+    container_name: sqladvisor-api
+    env_file:
+      - path: ./.env.dev
+        required: false
+    environment:
+      SPRING_PROFILES_ACTIVE: dev
+      LOGGING_CONFIG: /app/config/logback-spring.xml
+      AWR_STORAGE_ROOT: /app/data/awr
+      AWR_WORKER_URL: http://worker:8081
+      SPRING_DATASOURCE_URL: jdbc:postgresql://postgres:5432/sqladvisor
+      SPRING_DATASOURCE_USERNAME: sqladvisor
+      SPRING_DATASOURCE_PASSWORD: sqladvisor
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
+    ports:
+      - "18080:8080"
+    volumes:
+      - awr_files:/app/data/awr
+      - api_logs:/app/logs
+      - ./config/application-dev.yml:/app/config/application-dev.yml:ro
+      - ./config/logback-spring.xml:/app/config/logback-spring.xml:ro
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    networks:
+      - sqladvisor-network
+
+  web:
+    build:
+      context: ../frontend
+      dockerfile: Dockerfile
+    container_name: sqladvisor-web
+    ports:
+      - "5173:80"
+    depends_on:
+      - api
+    networks:
+      - sqladvisor-network
+
+  worker:
+    build:
+      context: ../worker
+      dockerfile: Dockerfile
+    container_name: sqladvisor-worker
+    env_file:
+      - path: ./.env.dev
+        required: false
+    environment:
+      REDIS_URL: redis://redis:6379/0
+      DATABASE_URL: postgresql://sqladvisor:sqladvisor@postgres:5432/sqladvisor
+      API_BASE_URL: http://api:8080
+      AWR_STORAGE_ROOT: /app/data/awr
+      OCR_LANG: eng+kor
+      OCR_MAX_PAGES: 20
+    volumes:
+      - awr_files:/app/data/awr
+    depends_on:
+      api:
+        condition: service_started
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    networks:
+      - sqladvisor-network
+
+networks:
+  sqladvisor-network:
+    driver: bridge
+
+volumes:
+  postgres_data:
+  awr_files:
+  api_logs:

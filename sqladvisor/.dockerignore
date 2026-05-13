@@ -1,0 +1,7 @@
+.gradle
+.gradle-*
+build
+BOOT-INF
+data
+logs
+.DS_Store

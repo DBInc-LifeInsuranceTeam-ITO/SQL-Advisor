@@ -132,6 +132,7 @@ OPENAI_EMBEDDING_DIMENSION=1536
 | --- | --- |
 | [배포 README](deploy/README.md) | dev/prod Docker Compose 실행과 운영 Nginx 배포 안내 |
 | [프론트엔드 README](frontend/README.md) | Vue 프론트엔드 구조, 로컬 개발, 화면/API 연동 안내 |
+| [기술 스택](TECH_STACK.md) | Frontend, Backend, Worker, DB/RAG, AI provider, 배포 기술 정리 |
 | [YAML 설정 가이드](YML_CONFIGURATION_GUIDE.md) | dev/prod 설정 파일과 환경 변수 설명 |
 | [API 문서](API_DOCUMENTATION.md) | SQLAdvisor API 엔드포인트 상세 |
 | [사용자 매뉴얼](USER_MANUAL.md) | 화면 기준 사용 방법과 운영 흐름 |

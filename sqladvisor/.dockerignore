@@ -1,7 +1,11 @@
-.gradle
-.gradle-*
-build
-BOOT-INF
-data
-logs
+.gradle/
+.gradle_cache/
+.claude/
+build/
+BOOT-INF/
+data/
+logs/
+libs/
+gradle/wrapper/*.zip
+*.log
 .DS_Store

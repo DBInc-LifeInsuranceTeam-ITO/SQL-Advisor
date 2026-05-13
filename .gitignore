@@ -1,0 +1,119 @@
+# Claude AI configuration files
+CLAUDE.md
+request.md
+.claude/
+.WORKPLAN.md
+**/WORKPLAN.md
+**/.WORKPLAN.md
+
+# IDE files
+.idea/
+*.iws
+*.iml
+*.ipr
+.vscode/*
+!.vscode/extensions.json
+*.suo
+*.ntvs*
+*.njsproj
+*.sln
+*.sw?
+
+# OS files
+.DS_Store
+Thumbs.db
+
+# Local environment
+.env
+**/.env
+frontend/.env
+deploy/.env.dev
+deploy/.env.prod
+deploy/.env.local
+!.env.example
+!**/.env.example
+!deploy/.env.dev.example
+!deploy/.env.prod.example
+
+# Java/Spring Boot specific
+.gradle/
+.gradle_cache/
+**/gradle/wrapper/*.zip
+build/
+out/
+bin/
+BOOT-INF/
+!gradle/wrapper/gradle-wrapper.jar
+!**/src/main/**/build/
+!**/src/test/**/build/
+!**/src/main/**/bin/
+!**/src/test/**/bin/
+!**/src/main/**/out/
+!**/src/test/**/out/
+
+# Runtime data
+data/
+**/data/
+logs/
+*.log
+
+# Generated backend static bundles
+sqladvisor/src/main/resources/static/asset/
+sqladvisor/src/main/resources/static/assets/
+sqladvisor/src/main/resources/static/fonts/
+sqladvisor/src/main/resources/static/images/
+sqladvisor/src/main/resources/static/index.html
+sqladvisor/src/main/resources/static/favicon.ico
+sqladvisor/src/main/resources/static/logo.*
+sqladvisor/src/main/resources/static/s-logo.svg
+
+# STS
+.apt_generated
+.classpath
+.factorypath
+.project
+.settings
+.springBeans
+.sts4-cache
+
+# NetBeans
+/nbproject/private/
+/nbbuild/
+/dist/
+/nbdist/
+/.nb-gradle/
+
+# Kotlin
+.kotlin
+
+# Frontend/Node specific
+node_modules/
+node_modules.zip
+.vite/
+dist/
+dist-ssr/
+coverage/
+*.local
+*.tsbuildinfo
+
+# Package manager logs
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+pnpm-debug.log*
+lerna-debug.log*
+
+# Test artifacts
+test_for_json/
+/cypress/videos/
+/cypress/screenshots/
+
+# Misc
+HELP.md
+
+# JAR files
+*.jar
+production-deploy/*.jar
+license/production-deploy/*.jar
+!**/gradle/wrapper/gradle-wrapper.jar
+

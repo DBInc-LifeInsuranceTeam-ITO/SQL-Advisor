@@ -12,6 +12,7 @@ public final class AwrDtos {
     public record UploadResponse(
             Long id,
             String filename,
+            String visibility,
             String status,
             String message
     ) {
@@ -28,6 +29,8 @@ public final class AwrDtos {
             String dbTime,
             String status,
             LocalDateTime uploadedAt,
+            Long uploadedBy,
+            String visibility,
             int sectionCount,
             int topSqlCount,
             int waitEventCount
@@ -45,6 +48,8 @@ public final class AwrDtos {
             String dbTime,
             String status,
             LocalDateTime uploadedAt,
+            Long uploadedBy,
+            String visibility,
             String rawTextPreview,
             List<SectionResponse> sections,
             List<SqlMetricResponse> topSql,
@@ -150,6 +155,7 @@ public final class AwrDtos {
     public record ChatHistoryResponse(
             Long chatId,
             Long reportId,
+            Long userId,
             String question,
             String answer,
             List<String> citations,

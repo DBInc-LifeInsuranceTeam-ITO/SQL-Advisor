@@ -1,6 +1,7 @@
 package dbinc.sqladvisor.domain.awr.service;
 
 import dbinc.sqladvisor.domain.awr.dto.AwrDtos;
+import dbinc.sqladvisor.domain.auth.service.CurrentUserService;
 import jakarta.annotation.PostConstruct;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -30,6 +31,7 @@ public class AwrReportService {
     private final AwrRepository repository;
     private final AwrAiClient aiClient;
     private final AwrWorkerClient workerClient;
+    private final CurrentUserService currentUserService;
 
     @Value("${awr.storage.root:./data/awr}")
     private String storageRoot;
@@ -47,13 +49,18 @@ public class AwrReportService {
         log.info("AWR storage initialized at {}", root);
     }
 
-    public AwrDtos.UploadResponse upload(MultipartFile file) throws IOException {
+    public AwrDtos.UploadResponse upload(MultipartFile file, String visibility) throws IOException {
         if (file == null || file.isEmpty()) {
             throw new IllegalArgumentException("AWR 파일을 선택해주세요.");
         }
 
         String originalFilename = Optional.ofNullable(file.getOriginalFilename()).orElse("awr-report.txt");
-        long reportId = repository.createReport(originalFilename);
+        Long userId = currentUserService.currentUserIdOrNull();
+        String normalizedVisibility = normalizeVisibility(visibility);
+        if ("PRIVATE".equals(normalizedVisibility) && userId == null) {
+            throw new IllegalArgumentException("비공유 AWR 리포트는 로그인한 사용자만 업로드할 수 있습니다.");
+        }
+        long reportId = repository.createReport(originalFilename, userId, normalizedVisibility);
 
         byte[] bytes = file.getBytes();
         String safeFilename = reportId + "-" + sanitize(originalFilename);
@@ -71,6 +78,7 @@ public class AwrReportService {
             return new AwrDtos.UploadResponse(
                     reportId,
                     originalFilename,
+                    normalizedVisibility,
                     "QUEUED",
                     "AWR 파일을 저장했고 worker 큐에 등록했습니다. status API에서 추출/파싱/indexing 진행률을 확인할 수 있습니다."
             );
@@ -80,6 +88,7 @@ public class AwrReportService {
             return new AwrDtos.UploadResponse(
                     reportId,
                     originalFilename,
+                    normalizedVisibility,
                     "FAILED",
                     "AWR 파일은 저장했지만 worker 큐 등록에 실패했습니다: " + exception.getMessage()
             );
@@ -87,7 +96,10 @@ public class AwrReportService {
     }
 
     public List<AwrDtos.ReportSummaryResponse> listReports() {
-        return repository.listReports();
+        return repository.listReports(
+                currentUserService.currentUserIdOrNull(),
+                currentUserService.isCurrentUserAdmin()
+        );
     }
 
     public AwrDtos.ReportDetailResponse getReport(Long reportId) {
@@ -104,16 +116,22 @@ public class AwrReportService {
                 report.dbTime(),
                 report.status(),
                 report.uploadedAt(),
+                report.uploadedBy(),
+                report.visibility(),
                 report.rawTextPreview(),
                 repository.findSections(reportId),
                 sqlMetrics.stream().limit(20).toList(),
                 repository.findWaitEvents(reportId),
-                repository.findLatestAnalysis(reportId).orElse(null)
+                repository.findLatestAnalysis(reportId, currentUserService.currentUserIdOrNull()).orElse(null)
         );
     }
 
     public AwrDtos.StatusResponse getStatus(Long reportId) {
         AwrRepository.ReportRecord report = getReportRecord(reportId);
+        return buildStatus(reportId, report);
+    }
+
+    private AwrDtos.StatusResponse buildStatus(Long reportId, AwrRepository.ReportRecord report) {
         List<AwrDtos.SectionResponse> sections = repository.findSections(reportId);
         List<AwrDtos.SqlMetricResponse> sqlMetrics = repository.findSqlMetrics(reportId);
         boolean hasEmbeddedChunks = repository.hasEmbeddedChunks(reportId);
@@ -167,6 +185,7 @@ public class AwrReportService {
 
         long analysisId = repository.saveAnalysisResult(
                 reportId,
+                currentUserService.currentUserIdOrNull(),
                 selected.question(),
                 selected,
                 "analysis",
@@ -199,6 +218,7 @@ public class AwrReportService {
         AwrDtos.ChatResponse selected = llmAdvisor.chat(reportId, question, local, ragChunks).orElse(local);
         repository.saveAnalysisResult(
                 reportId,
+                currentUserService.currentUserIdOrNull(),
                 selected.question(),
                 selected,
                 "chat",
@@ -210,7 +230,11 @@ public class AwrReportService {
 
     public List<AwrDtos.ChatHistoryResponse> listChatHistory(Long reportId) {
         getReportRecord(reportId);
-        return repository.findChatHistory(reportId);
+        return repository.findChatHistory(
+                reportId,
+                currentUserService.currentUserIdOrNull(),
+                currentUserService.isCurrentUserAdmin()
+        );
     }
 
     public List<AwrDtos.SqlMetricResponse> listSql(Long reportId) {
@@ -227,22 +251,22 @@ public class AwrReportService {
     }
 
     public AwrDtos.AnalysisResponse getAnalysis(Long analysisId) {
-        return repository.findAnalysis(analysisId)
+        return repository.findAnalysis(analysisId, currentUserService.currentUserIdOrNull())
                 .orElseThrow(() -> new IllegalArgumentException("분석 결과를 찾을 수 없습니다: " + analysisId));
     }
 
     public AwrDtos.StatusResponse updateWorkerStatus(Long reportId, AwrDtos.WorkerStatusRequest request) {
-        AwrRepository.ReportRecord report = getReportRecord(reportId);
+        AwrRepository.ReportRecord report = getReportRecordInternal(reportId);
         String status = request == null || request.status() == null || request.status().isBlank()
                 ? report.status()
                 : request.status().trim().toUpperCase();
         List<String> warnings = mergeWarnings(report.warnings(), request == null ? List.of() : request.warnings());
         repository.updateReportStatus(reportId, status, warnings);
-        return getStatus(reportId);
+        return buildStatus(reportId, getReportRecordInternal(reportId));
     }
 
     public AwrDtos.StatusResponse completeWorkerExtraction(Long reportId, AwrDtos.WorkerExtractionRequest request) throws IOException {
-        AwrRepository.ReportRecord report = getReportRecord(reportId);
+        AwrRepository.ReportRecord report = getReportRecordInternal(reportId);
         if (request == null || request.textPath() == null || request.textPath().isBlank()) {
             throw new IllegalArgumentException("worker extraction textPath가 필요합니다.");
         }
@@ -272,15 +296,38 @@ public class AwrReportService {
         if ("INDEXED".equals(status)) {
             ragService.indexReport(reportId, parsed.sections(), parsed.sqlMetrics(), parsed.waitEvents());
         }
-        return getStatus(reportId);
+        return buildStatus(reportId, getReportRecordInternal(reportId));
     }
 
     private AwrRepository.ReportRecord getReportRecord(Long reportId) {
         if (reportId == null) {
             throw new IllegalArgumentException("AWR 리포트 ID가 필요합니다.");
         }
-        return repository.findReport(reportId)
+        return repository.findAccessibleReport(
+                        reportId,
+                        currentUserService.currentUserIdOrNull(),
+                        currentUserService.isCurrentUserAdmin()
+                )
                 .orElseThrow(() -> new IllegalArgumentException("AWR 리포트를 찾을 수 없습니다: " + reportId));
+    }
+
+    private AwrRepository.ReportRecord getReportRecordInternal(Long reportId) {
+        if (reportId == null) {
+            throw new IllegalArgumentException("AWR report ID is required.");
+        }
+        return repository.findReport(reportId)
+                .orElseThrow(() -> new IllegalArgumentException("AWR report not found: " + reportId));
+    }
+
+    private String normalizeVisibility(String visibility) {
+        if (visibility == null || visibility.isBlank()) {
+            return "SHARED";
+        }
+        String normalized = visibility.trim().toUpperCase();
+        if ("SHARED".equals(normalized) || "PRIVATE".equals(normalized)) {
+            return normalized;
+        }
+        throw new IllegalArgumentException("AWR visibility must be SHARED or PRIVATE.");
     }
 
     private String uploadMessage(String status, AwrRagService.AwrIndexResult indexResult) {

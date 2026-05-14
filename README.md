@@ -33,7 +33,7 @@ docker compose -f deploy/docker-compose.prod.yml up -d --build
 
 ## 기본 사용법
 
-1. 웹 화면에서 AWR 리포트를 업로드합니다.
+1. 웹 화면에서 AWR 리포트를 업로드하고 공유 범위를 선택합니다. 공유 리포트는 모든 사용자가 볼 수 있고, 비공유 리포트는 업로드한 본인과 관리자만 볼 수 있습니다.
 2. 업로드된 리포트 목록에서 분석할 리포트를 선택합니다.
 3. SQL 지표, Wait Event, 분석 결과를 확인합니다.
 4. Advisor Chat에서 리포트 기반 질문을 입력해 추가 설명을 받습니다.
@@ -103,6 +103,26 @@ OPENAI_EMBEDDING_MODEL=text-embedding-3-small
 OPENAI_EMBEDDING_DIMENSION=1536
 ```
 
+## 로그인 설정
+
+기본값은 로그인 비활성화입니다. 기존처럼 바로 사용하려면 그대로 두면 됩니다.
+
+Google 로그인과 사용자별 질문/채팅 히스토리 분리를 켜려면 `deploy/.env.prod` 또는 `deploy/.env.dev`에 아래 값을 설정합니다.
+
+```env
+APP_AUTH_ENABLED=true
+GOOGLE_CLIENT_ID=<Google OAuth Client ID>
+APP_ALLOWED_GOOGLE_DOMAINS=
+APP_ADMIN_EMAILS=admin@example.com
+APP_LOCAL_LOGIN_ENABLED=false
+APP_SESSION_TIMEOUT_MINUTES=120
+```
+
+- `GOOGLE_CLIENT_ID`가 설정되어야 웹 로그인 버튼이 표시됩니다.
+- `APP_ALLOWED_GOOGLE_DOMAINS`는 특정 Google Workspace 도메인만 허용할 때 사용합니다. 비워두면 검증된 Google 계정을 허용합니다.
+- `APP_LOCAL_LOGIN_ENABLED`는 향후 로컬 로그인 확장용이며 현재 기본값은 `false`입니다.
+- 로그인 상세 설계와 DB 구조는 [로그인 설계 문서](AUTH_DESIGN.md)를 참고합니다.
+
 ## API 엔드포인트
 
 기본 API prefix는 `/api`입니다.
@@ -137,3 +157,4 @@ OPENAI_EMBEDDING_DIMENSION=1536
 | [API 문서](API_DOCUMENTATION.md) | SQLAdvisor API 엔드포인트 상세 |
 | [사용자 매뉴얼](USER_MANUAL.md) | 화면 기준 사용 방법과 운영 흐름 |
 | [RAG 아키텍처](RAG_ARCHITECTURE.md) | pgvector 기반 RAG 구성도, 인덱싱/검색 흐름, 현재 AI provider 설정 |
+| [로그인 설계](AUTH_DESIGN.md) | Google 로그인, 향후 로컬 로그인 확장, 사용자별 히스토리 DB 구조 |

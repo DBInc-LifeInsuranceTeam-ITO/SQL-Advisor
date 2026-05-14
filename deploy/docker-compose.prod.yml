@@ -10,6 +10,8 @@ services:
     environment:
       POSTGRES_DB: sqladvisor
       POSTGRES_USER: sqladvisor
+    ports:
+      - "5432:5432"
     volumes:
       - postgres_data:/var/lib/postgresql/data
       - ../sqladvisor/init-db/postgres:/docker-entrypoint-initdb.d:ro

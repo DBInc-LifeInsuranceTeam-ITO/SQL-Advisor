@@ -7,6 +7,7 @@ import dbinc.sqladvisor.domain.awr.dto.AwrDtos;
 import jakarta.annotation.PostConstruct;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Qualifier;
+import org.springframework.context.annotation.DependsOn;
 import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.jdbc.core.RowMapper;
 import org.springframework.jdbc.support.GeneratedKeyHolder;
@@ -28,6 +29,7 @@ import java.util.stream.Collectors;
 
 @Slf4j
 @Repository
+@DependsOn("authRepository")
 public class AwrRepository {
 
     private static final TypeReference<Map<String, Object>> MAP_TYPE = new TypeReference<>() {
@@ -66,6 +68,8 @@ public class AwrRepository {
                 """);
         addColumnIfMissing("awr_report", "raw_text_preview", "TEXT");
         addColumnIfMissing("awr_report", "warnings", "JSONB DEFAULT '[]'::jsonb");
+        addColumnIfMissing("awr_report", "uploaded_by", "BIGINT REFERENCES app_user(id) ON DELETE SET NULL");
+        addColumnIfMissing("awr_report", "visibility", "TEXT NOT NULL DEFAULT 'SHARED'");
 
         jdbcTemplate.execute("""
                 CREATE TABLE IF NOT EXISTS awr_section (
@@ -145,6 +149,7 @@ public class AwrRepository {
                 )
                 """);
         addColumnIfMissing("analysis_result", "result_type", "TEXT DEFAULT 'analysis'");
+        addColumnIfMissing("analysis_result", "user_id", "BIGINT REFERENCES app_user(id) ON DELETE CASCADE");
 
         jdbcTemplate.execute("""
                 CREATE TABLE IF NOT EXISTS feedback (
@@ -155,6 +160,7 @@ public class AwrRepository {
                     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
                 )
                 """);
+        addColumnIfMissing("feedback", "user_id", "BIGINT REFERENCES app_user(id) ON DELETE SET NULL");
         jdbcTemplate.execute("""
                 CREATE TABLE IF NOT EXISTS awr_ai_setting (
                     setting_key TEXT PRIMARY KEY,
@@ -162,10 +168,15 @@ public class AwrRepository {
                     updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
                 )
                 """);
+        addColumnIfMissing("awr_ai_setting", "updated_by", "BIGINT REFERENCES app_user(id) ON DELETE SET NULL");
         jdbcTemplate.execute("CREATE INDEX IF NOT EXISTS idx_awr_sql_metric_report_sql ON awr_sql_metric(report_id, sql_id)");
         jdbcTemplate.execute("CREATE INDEX IF NOT EXISTS idx_awr_wait_event_report ON awr_wait_event(report_id)");
         jdbcTemplate.execute("CREATE INDEX IF NOT EXISTS idx_rag_chunk_report_sql ON rag_chunk(report_id, sql_id)");
         jdbcTemplate.execute("CREATE INDEX IF NOT EXISTS idx_rag_chunk_report_type ON rag_chunk(report_id, chunk_type)");
+        jdbcTemplate.execute("CREATE INDEX IF NOT EXISTS idx_awr_report_uploaded_by ON awr_report(uploaded_by)");
+        jdbcTemplate.execute("CREATE INDEX IF NOT EXISTS idx_awr_report_visibility_owner ON awr_report(visibility, uploaded_by, created_at DESC)");
+        jdbcTemplate.execute("CREATE INDEX IF NOT EXISTS idx_analysis_result_user_chat ON analysis_result(user_id, report_id, result_type, created_at DESC)");
+        jdbcTemplate.execute("CREATE INDEX IF NOT EXISTS idx_feedback_user ON feedback(user_id)");
         try {
             jdbcTemplate.execute("CREATE INDEX IF NOT EXISTS idx_rag_chunk_embedding ON rag_chunk USING ivfflat (embedding vector_cosine_ops)");
         } catch (RuntimeException exception) {
@@ -173,16 +184,22 @@ public class AwrRepository {
         }
     }
 
-    public long createReport(String filename) {
+    public long createReport(String filename, Long uploadedBy, String visibility) {
         KeyHolder keyHolder = new GeneratedKeyHolder();
         jdbcTemplate.update(connection -> {
             PreparedStatement statement = connection.prepareStatement(
-                    "INSERT INTO awr_report(filename, status, warnings) VALUES (?, ?, ?::jsonb)",
+                    "INSERT INTO awr_report(filename, uploaded_by, visibility, status, warnings) VALUES (?, ?, ?, ?, ?::jsonb)",
                     new String[]{"id"}
             );
             statement.setString(1, filename);
-            statement.setString(2, "UPLOADING");
-            statement.setString(3, "[]");
+            if (uploadedBy == null) {
+                statement.setObject(2, null);
+            } else {
+                statement.setLong(2, uploadedBy);
+            }
+            statement.setString(3, visibility == null || visibility.isBlank() ? "SHARED" : visibility);
+            statement.setString(4, "UPLOADING");
+            statement.setString(5, "[]");
             return statement;
         }, keyHolder);
         return keyHolder.getKey().longValue();
@@ -389,13 +406,17 @@ public class AwrRepository {
         }
     }
 
-    public List<AwrDtos.ReportSummaryResponse> listReports() {
+    public List<AwrDtos.ReportSummaryResponse> listReports(Long userId, boolean includePrivateReports) {
         return jdbcTemplate.query("""
                         SELECT r.*,
                                (SELECT count(*) FROM awr_section s WHERE s.report_id = r.id) section_count,
                                (SELECT count(*) FROM awr_sql_metric m WHERE m.report_id = r.id) top_sql_count,
                                (SELECT count(*) FROM awr_wait_event w WHERE w.report_id = r.id) wait_event_count
                           FROM awr_report r
+                         WHERE r.visibility = 'SHARED'
+                            OR ?
+                            OR (?::bigint IS NULL AND r.uploaded_by IS NULL)
+                            OR r.uploaded_by = ?::bigint
                          ORDER BY r.created_at DESC, r.id DESC
                         """, (rs, rowNum) -> new AwrDtos.ReportSummaryResponse(
                         rs.getLong("id"),
@@ -408,10 +429,15 @@ public class AwrRepository {
                         rs.getString("db_time"),
                         rs.getString("status"),
                         toLocalDateTime(rs.getTimestamp("created_at")),
+                        getLong(rs.getObject("uploaded_by")),
+                        rs.getString("visibility"),
                         rs.getInt("section_count"),
                         rs.getInt("top_sql_count"),
                         rs.getInt("wait_event_count")
-                )
+                ),
+                includePrivateReports,
+                userId,
+                userId
         );
     }
 
@@ -423,6 +449,25 @@ public class AwrRepository {
                         """,
                 reportMapper(),
                 reportId
+        );
+        return records.stream().findFirst();
+    }
+
+    public Optional<ReportRecord> findAccessibleReport(long reportId, Long userId, boolean includePrivateReports) {
+        List<ReportRecord> records = jdbcTemplate.query("""
+                        SELECT *
+                          FROM awr_report
+                         WHERE id = ?
+                           AND (visibility = 'SHARED'
+                                OR ?
+                                OR (?::bigint IS NULL AND uploaded_by IS NULL)
+                                OR uploaded_by = ?::bigint)
+                        """,
+                reportMapper(),
+                reportId,
+                includePrivateReports,
+                userId,
+                userId
         );
         return records.stream().findFirst();
     }
@@ -474,40 +519,47 @@ public class AwrRepository {
         );
     }
 
-    public Optional<AwrDtos.AnalysisResponse> findLatestAnalysis(long reportId) {
+    public Optional<AwrDtos.AnalysisResponse> findLatestAnalysis(long reportId, Long userId) {
         List<AwrDtos.AnalysisResponse> results = jdbcTemplate.query("""
                         SELECT answer_json
                           FROM analysis_result
                          WHERE report_id = ?
                            AND result_type = 'analysis'
+                           AND ((?::bigint IS NULL AND user_id IS NULL) OR user_id = ?::bigint)
                          ORDER BY created_at DESC, id DESC
                          LIMIT 1
                         """,
                 (rs, rowNum) -> fromJson(rs.getString("answer_json"), AwrDtos.AnalysisResponse.class),
-                reportId
+                reportId,
+                userId,
+                userId
         );
         return results.stream().findFirst();
     }
 
-    public Optional<AwrDtos.AnalysisResponse> findAnalysis(long analysisId) {
+    public Optional<AwrDtos.AnalysisResponse> findAnalysis(long analysisId, Long userId) {
         List<AwrDtos.AnalysisResponse> results = jdbcTemplate.query("""
                         SELECT answer_json
                           FROM analysis_result
                          WHERE id = ?
                            AND result_type = 'analysis'
+                           AND ((?::bigint IS NULL AND user_id IS NULL) OR user_id = ?::bigint)
                         """,
                 (rs, rowNum) -> fromJson(rs.getString("answer_json"), AwrDtos.AnalysisResponse.class),
-                analysisId
+                analysisId,
+                userId,
+                userId
         );
         return results.stream().findFirst();
     }
 
-    public List<AwrDtos.ChatHistoryResponse> findChatHistory(long reportId) {
+    public List<AwrDtos.ChatHistoryResponse> findChatHistory(long reportId, Long userId, boolean includeAllUsers) {
         return jdbcTemplate.query("""
-                        SELECT id, report_id, question, answer_json, model, created_at
+                        SELECT id, report_id, user_id, question, answer_json, model, created_at
                           FROM analysis_result
                          WHERE report_id = ?
                            AND result_type = 'chat'
+                           AND (? OR ((?::bigint IS NULL AND user_id IS NULL) OR user_id = ?::bigint))
                          ORDER BY created_at DESC, id DESC
                          LIMIT 100
                         """,
@@ -517,6 +569,7 @@ public class AwrRepository {
                     return new AwrDtos.ChatHistoryResponse(
                             rs.getLong("id"),
                             rs.getLong("report_id"),
+                            getLong(rs.getObject("user_id")),
                             question == null || question.isBlank() ? response.question() : question,
                             response.answer(),
                             response.citations() == null ? List.of() : response.citations(),
@@ -527,23 +580,31 @@ public class AwrRepository {
                             toLocalDateTime(rs.getTimestamp("created_at"))
                     );
                 },
-                reportId
+                reportId,
+                includeAllUsers,
+                userId,
+                userId
         );
     }
 
-    public long saveAnalysisResult(long reportId, String question, Object answer, String resultType, String model, List<String> citations) {
+    public long saveAnalysisResult(long reportId, Long userId, String question, Object answer, String resultType, String model, List<String> citations) {
         KeyHolder keyHolder = new GeneratedKeyHolder();
         jdbcTemplate.update(connection -> {
             PreparedStatement statement = connection.prepareStatement("""
-                            INSERT INTO analysis_result(report_id, question, answer_json, result_type, model, citations)
-                            VALUES (?, ?, ?::jsonb, ?, ?, ?::jsonb)
+                            INSERT INTO analysis_result(report_id, user_id, question, answer_json, result_type, model, citations)
+                            VALUES (?, ?, ?, ?::jsonb, ?, ?, ?::jsonb)
                             """, new String[]{"id"});
             statement.setLong(1, reportId);
-            statement.setString(2, question);
-            statement.setString(3, toJson(answer));
-            statement.setString(4, resultType);
-            statement.setString(5, model);
-            statement.setString(6, toJson(citations));
+            if (userId == null) {
+                statement.setObject(2, null);
+            } else {
+                statement.setLong(2, userId);
+            }
+            statement.setString(3, question);
+            statement.setString(4, toJson(answer));
+            statement.setString(5, resultType);
+            statement.setString(6, model);
+            statement.setString(7, toJson(citations));
             return statement;
         }, keyHolder);
         return keyHolder.getKey().longValue();
@@ -659,6 +720,8 @@ public class AwrRepository {
                 rs.getString("db_time"),
                 rs.getString("status"),
                 toLocalDateTime(rs.getTimestamp("created_at")),
+                getLong(rs.getObject("uploaded_by")),
+                rs.getString("visibility"),
                 rs.getString("raw_file_path"),
                 rs.getString("text_path"),
                 rs.getString("raw_text_preview"),
@@ -769,6 +832,8 @@ public class AwrRepository {
             String dbTime,
             String status,
             LocalDateTime uploadedAt,
+            Long uploadedBy,
+            String visibility,
             String rawFilePath,
             String textPath,
             String rawTextPreview,

@@ -14,6 +14,19 @@ spring:
 
 server:
   port: 8080
+  forward-headers-strategy: framework
+  servlet:
+    session:
+      timeout: ${APP_SESSION_TIMEOUT_MINUTES:120}m
+
+app:
+  auth:
+    enabled: ${APP_AUTH_ENABLED:false}
+    local-login-enabled: ${APP_LOCAL_LOGIN_ENABLED:false}
+    admin-emails: ${APP_ADMIN_EMAILS:}
+    google:
+      client-id: ${GOOGLE_CLIENT_ID:}
+      allowed-domains: ${APP_ALLOWED_GOOGLE_DOMAINS:}
 
 logging:
   level:

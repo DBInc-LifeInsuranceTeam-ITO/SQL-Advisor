@@ -1,0 +1,5 @@
+node_modules
+dist
+.npm-cache
+node_modules.zip
+.DS_Store

@@ -2,6 +2,7 @@
 CLAUDE.md
 request.md
 .claude/
+.codex-tmp/
 .WORKPLAN.md
 **/WORKPLAN.md
 **/.WORKPLAN.md
@@ -107,6 +108,16 @@ lerna-debug.log*
 test_for_json/
 /cypress/videos/
 /cypress/screenshots/
+
+# Python artifacts
+__pycache__/
+*.py[cod]
+
+# Office temp files
+~$*.xlsx
+
+# Project deliverables
+산출물/
 
 # Misc
 HELP.md

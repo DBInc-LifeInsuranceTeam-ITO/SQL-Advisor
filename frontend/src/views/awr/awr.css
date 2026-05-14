@@ -397,6 +397,44 @@
   font-weight: 800;
 }
 
+.awr-visibility-options {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 0.75rem;
+  margin-top: 1rem;
+}
+
+.awr-visibility-option {
+  display: grid;
+  grid-template-columns: auto 1fr;
+  gap: 0.25rem 0.55rem;
+  align-items: start;
+  border: 1px solid #d7e0e8;
+  border-radius: 8px;
+  padding: 0.85rem;
+  color: #223041;
+  cursor: pointer;
+}
+
+.awr-visibility-option.active {
+  border-color: #23875b;
+  background: #f1fbf6;
+}
+
+.awr-visibility-option input {
+  margin-top: 0.12rem;
+}
+
+.awr-visibility-option span {
+  font-weight: 900;
+}
+
+.awr-visibility-option small {
+  grid-column: 2;
+  color: #637083;
+  line-height: 1.35;
+}
+
 .awr-progress {
   width: 100%;
   height: 0.6rem;
@@ -702,6 +740,7 @@
   .ai-current-grid,
   .ai-provider-grid,
   .awr-form-grid,
+  .awr-visibility-options,
   .awr-finding-grid {
     grid-template-columns: 1fr;
   }

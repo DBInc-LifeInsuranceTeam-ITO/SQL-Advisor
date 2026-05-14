@@ -6,6 +6,7 @@ import type {
   AiConfigUpdateRequest,
   ChatHistoryResponse,
   ChatResponse,
+  ReportVisibility,
   ReportDetailResponse,
   ReportSummaryResponse,
   SqlMetricResponse,
@@ -13,9 +14,10 @@ import type {
   UploadResponse
 } from '@/types/awr'
 
-export async function uploadAwrReport(file: File) {
+export async function uploadAwrReport(file: File, visibility: ReportVisibility) {
   const formData = new FormData()
   formData.append('file', file)
+  formData.append('visibility', visibility)
   const response = await api.post<UploadResponse>('/reports', formData, {
     headers: {
       'Content-Type': 'multipart/form-data'

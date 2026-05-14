@@ -43,10 +43,12 @@ api.interceptors.response.use(
   },
   (error: AxiosError) => {
     console.error('[API Response Error]', error)
+    let message = error.message
 
     if (error.response) {
       const status = error.response.status
       const data = error.response.data as { error?: { message?: string }; message?: string }
+      message = data?.error?.message || data?.message || message
 
       switch (status) {
         case 400:
@@ -70,11 +72,12 @@ api.interceptors.response.use(
       }
     } else if (error.request) {
       console.error('네트워크 오류: 서버에 연결할 수 없습니다.')
+      message = '서버에 연결할 수 없습니다.'
     } else {
       console.error('요청 오류:', error.message)
     }
 
-    return Promise.reject(error)
+    return Promise.reject(new Error(message))
   }
 )
 

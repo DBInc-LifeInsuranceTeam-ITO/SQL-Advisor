@@ -1,6 +1,9 @@
+export type ReportVisibility = 'SHARED' | 'PRIVATE'
+
 export interface UploadResponse {
   id: number
   filename: string
+  visibility: ReportVisibility
   status: string
   message: string
 }
@@ -16,6 +19,8 @@ export interface ReportSummaryResponse {
   dbTime?: string | null
   status: string
   uploadedAt: string
+  uploadedBy?: number | null
+  visibility: ReportVisibility
   sectionCount: number
   topSqlCount: number
   waitEventCount: number
@@ -106,6 +111,7 @@ export interface ChatResponse {
 
 export interface ChatHistoryResponse extends ChatResponse {
   chatId: number
+  userId?: number | null
   model?: string | null
   createdAt: string
 }

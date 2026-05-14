@@ -22,6 +22,19 @@
           <div v-if="selectedFile" class="awr-file-name">{{ selectedFile.name }}</div>
         </div>
 
+        <div class="awr-visibility-options" aria-label="AWR 공유 범위">
+          <label :class="['awr-visibility-option', { active: visibility === 'SHARED' }]">
+            <input v-model="visibility" type="radio" value="SHARED" />
+            <span>공유</span>
+            <small>모든 사용자가 볼 수 있습니다.</small>
+          </label>
+          <label :class="['awr-visibility-option', { active: visibility === 'PRIVATE' }]">
+            <input v-model="visibility" type="radio" value="PRIVATE" />
+            <span>비공유</span>
+            <small>업로드한 본인만 볼 수 있습니다.</small>
+          </label>
+        </div>
+
         <div class="awr-actions" style="margin-top: 1rem;">
           <button class="awr-btn primary" type="button" :disabled="!selectedFile || isUploading" @click="upload">
             {{ isUploading ? '업로드 중' : '분석 시작' }}
@@ -67,13 +80,14 @@
 import { ref } from 'vue'
 import { useRouter } from 'vue-router'
 import { uploadAwrReport } from '@/api/awr'
-import type { UploadResponse } from '@/types/awr'
+import type { ReportVisibility, UploadResponse } from '@/types/awr'
 
 const router = useRouter()
 const selectedFile = ref<File | null>(null)
 const isUploading = ref(false)
 const errorMessage = ref('')
 const uploadResult = ref<UploadResponse | null>(null)
+const visibility = ref<ReportVisibility>('SHARED')
 
 function handleFileChange(event: Event) {
   const input = event.target as HTMLInputElement
@@ -87,7 +101,7 @@ async function upload() {
   isUploading.value = true
   errorMessage.value = ''
   try {
-    uploadResult.value = await uploadAwrReport(selectedFile.value)
+    uploadResult.value = await uploadAwrReport(selectedFile.value, visibility.value)
   } catch (error) {
     errorMessage.value = error instanceof Error ? error.message : '업로드에 실패했습니다.'
   } finally {

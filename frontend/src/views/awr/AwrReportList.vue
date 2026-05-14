@@ -49,6 +49,7 @@
               <th>파일명</th>
               <th>DB / Instance</th>
               <th>Snapshot</th>
+              <th>공유</th>
               <th>Status</th>
               <th>SQL</th>
               <th>Wait</th>
@@ -65,6 +66,7 @@
               </td>
               <td>{{ report.dbName }} / {{ report.instanceName }}</td>
               <td>{{ report.snapBegin || '-' }}<br />{{ report.snapEnd || '-' }}</td>
+              <td><span class="awr-badge">{{ report.visibility === 'PRIVATE' ? '비공유' : '공유' }}</span></td>
               <td><span :class="['awr-badge', report.status === 'INDEXED' ? 'ok' : 'warn']">{{ report.status }}</span></td>
               <td>{{ report.topSqlCount }}</td>
               <td>{{ report.waitEventCount }}</td>

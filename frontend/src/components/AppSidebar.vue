@@ -19,16 +19,30 @@
     </nav>
 
     <div class="sidebar-foot">
-      <div class="foot-title">SQL Advisor</div>
-      <div class="foot-text">DB Inc. Life Insurance Infra Team</div>
+      <template v-if="authStore.authEnabled && authStore.user?.authenticated">
+        <div class="user-row">
+          <img v-if="authStore.user.pictureUrl" class="user-avatar" :src="authStore.user.pictureUrl" alt="" />
+          <div class="user-meta">
+            <div class="foot-title">{{ authStore.user.displayName || authStore.user.email }}</div>
+            <div class="foot-text">{{ authStore.user.role }}</div>
+          </div>
+        </div>
+        <button class="logout-btn" type="button" @click="handleLogout">로그아웃</button>
+      </template>
+      <template v-else>
+        <div class="foot-title">SQL Advisor</div>
+        <div class="foot-text">DB Inc. Life Insurance Infra Team</div>
+      </template>
     </div>
   </aside>
 </template>
 
 <script setup lang="ts">
 import { useRouter } from 'vue-router'
+import { useAuthStore } from '@/stores/auth'
 
 const router = useRouter()
+const authStore = useAuthStore()
 
 const menuItems = [
   {
@@ -68,6 +82,11 @@ function isActive(item: MenuItem) {
 
 function go(name: string) {
   router.push({ name })
+}
+
+async function handleLogout() {
+  await authStore.logout()
+  router.push({ name: 'login' })
 }
 </script>
 
@@ -181,6 +200,46 @@ function go(name: string) {
 .foot-text {
   margin-top: 0.25rem;
   font-size: 0.72rem;
+}
+
+.user-row {
+  display: flex;
+  align-items: center;
+  gap: 0.55rem;
+}
+
+.user-avatar {
+  width: 2rem;
+  height: 2rem;
+  border-radius: 50%;
+  object-fit: cover;
+}
+
+.user-meta {
+  min-width: 0;
+}
+
+.user-meta .foot-title,
+.user-meta .foot-text {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.logout-btn {
+  width: 100%;
+  min-height: 2.2rem;
+  margin-top: 0.7rem;
+  border: 1px solid #3b4654;
+  border-radius: 8px;
+  background: transparent;
+  color: #d8e1eb;
+  font-weight: 800;
+  cursor: pointer;
+}
+
+.logout-btn:hover {
+  background: #222a34;
 }
 
 @media (max-width: 760px) {

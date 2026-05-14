@@ -1,5 +1,6 @@
 <template>
-  <div class="app">
+  <RouterView v-if="isLoginRoute" />
+  <div v-else class="app">
     <AppSidebar class="sidebar" />
     <div class="content-wrapper">
       <main class="main-content">
@@ -11,9 +12,14 @@
 </template>
 
 <script setup lang="ts">
+import { computed } from 'vue'
 import { RouterView } from 'vue-router'
+import { useRoute } from 'vue-router'
 import AppSidebar from '@/components/AppSidebar.vue'
 import SiteFooter from '@/components/SiteFooter.vue'
+
+const route = useRoute()
+const isLoginRoute = computed(() => route.name === 'login')
 </script>
 
 <style scoped>

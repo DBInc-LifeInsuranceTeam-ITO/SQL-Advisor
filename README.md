@@ -21,7 +21,7 @@ docker compose -f deploy/docker-compose.dev.yml up -d --build
 prod는 Nginx 웹 컨테이너가 정적 프론트엔드를 서빙하고 `/api` 요청을 내부 API로 프록시합니다.
 
 ```bash
-cp deploy/.env.prod.example deploy/.env.prod
+# cp deploy/.env.prod.example deploy/.env.prod
 # deploy/.env.prod의 change-me 값을 실제 운영 값으로 수정
 docker compose -f deploy/docker-compose.prod.yml up -d --build
 ```

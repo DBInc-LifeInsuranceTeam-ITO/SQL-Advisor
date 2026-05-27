@@ -142,7 +142,7 @@ public class AwrParser {
         for (String line : lines) {
             String cleaned = clean(line);
             Optional<String> marker = findSectionMarker(cleaned);
-            if (marker.isPresent()) {
+            if (marker.isPresent() && shouldStartNewSection(currentName, marker.get())) {
                 if (currentName != null && !currentLines.isEmpty()) {
                     sections.add(toSection(currentName, order++, currentLines));
                 }
@@ -223,6 +223,7 @@ public class AwrParser {
             }
 
             int rank = 1;
+            List<AwrDtos.SqlMetricResponse> sectionMetrics = new ArrayList<>();
             for (String line : section.rawText().split("\\R")) {
                 Matcher matcher = SQL_ID_PATTERN.matcher(line);
                 if (!matcher.find() || looksLikeHeader(line)) {
@@ -232,10 +233,13 @@ public class AwrParser {
                 String beforeSqlId = line.substring(0, matcher.start());
                 String afterSqlId = line.substring(matcher.end()).trim();
                 List<Double> nums = numbers(beforeSqlId);
+                if (nums.isEmpty()) {
+                    continue;
+                }
                 MetricValues values = mapMetricValues(section.sectionName(), nums);
                 String sqlText = afterSqlId.isBlank() ? null : afterSqlId;
                 Double score = score(values, rank);
-                sqlMetrics.add(new AwrDtos.SqlMetricResponse(
+                sectionMetrics.add(new AwrDtos.SqlMetricResponse(
                         sqlId,
                         section.sectionName(),
                         rank++,
@@ -252,12 +256,65 @@ public class AwrParser {
                         interpretationHint(values, section.sectionName())
                 ));
             }
+            if (sectionMetrics.isEmpty()) {
+                sectionMetrics.addAll(parseVerticalSqlRows(section, rank));
+            }
+            sqlMetrics.addAll(sectionMetrics);
         }
 
         return sqlMetrics.stream()
                 .sorted(Comparator.comparing(AwrDtos.SqlMetricResponse::score, Comparator.nullsLast(Comparator.reverseOrder())))
                 .limit(50)
                 .toList();
+    }
+
+    private List<AwrDtos.SqlMetricResponse> parseVerticalSqlRows(AwrDtos.SectionResponse section, int initialRank) {
+        List<String> lines = section.rawText().lines()
+                .map(this::clean)
+                .filter(this::isUsefulLine)
+                .toList();
+        List<AwrDtos.SqlMetricResponse> rows = new ArrayList<>();
+        boolean hasSqlModule = lines.stream().anyMatch(line -> "SQL Module".equalsIgnoreCase(line));
+        int rank = initialRank;
+
+        for (int index = 0; index < lines.size(); index++) {
+            String line = lines.get(index);
+            if (!isSqlIdLine(line)) {
+                continue;
+            }
+
+            String sqlId = line.toLowerCase(Locale.ROOT);
+            List<Double> nums = numbersBefore(lines, index);
+            if (nums.isEmpty()) {
+                continue;
+            }
+
+            int textStart = index + 1;
+            if (hasSqlModule && textStart < lines.size() && !looksLikeSqlText(lines.get(textStart))) {
+                textStart++;
+            }
+            String sqlText = collectSqlText(lines, textStart, nums.size());
+            MetricValues values = mapMetricValues(section.sectionName(), nums);
+            Double score = score(values, rank);
+            rows.add(new AwrDtos.SqlMetricResponse(
+                    sqlId,
+                    section.sectionName(),
+                    rank++,
+                    values.elapsedTimeSec(),
+                    values.cpuTimeSec(),
+                    values.bufferGets(),
+                    values.diskReads(),
+                    values.executions(),
+                    values.rowsProcessed(),
+                    values.planHashValue(),
+                    null,
+                    sqlText.isBlank() ? null : sqlText,
+                    score,
+                    interpretationHint(values, section.sectionName())
+            ));
+        }
+
+        return rows;
     }
 
     private MetricValues mapMetricValues(String sectionName, List<Double> nums) {
@@ -345,6 +402,12 @@ public class AwrParser {
                 .findFirst();
     }
 
+    private boolean shouldStartNewSection(String currentName, String marker) {
+        return currentName == null
+                || !"SQL Text".equals(marker)
+                || !currentName.toLowerCase(Locale.ROOT).startsWith("sql ordered by");
+    }
+
     private boolean isSectionTitle(String normalizedLine, String marker) {
         String normalizedMarker = normalizeForCompare(marker);
         if ("sql text".equals(normalizedMarker)) {
@@ -421,6 +484,70 @@ public class AwrParser {
                 || lower.contains("buffer gets")
                 || lower.contains("physical reads")
                 || lower.startsWith("---");
+    }
+
+    private boolean isSqlIdLine(String line) {
+        return SQL_ID_PATTERN.matcher(line).matches();
+    }
+
+    private boolean isNumericLine(String line) {
+        return !numbers(line).isEmpty() && removeNumbers(line).isBlank();
+    }
+
+    private boolean isControlLine(String line) {
+        String lower = line.toLowerCase(Locale.ROOT);
+        return lower.startsWith("back to ") || lower.startsWith("sql ordered by ");
+    }
+
+    private boolean looksLikeSqlText(String line) {
+        String lower = line.toLowerCase(Locale.ROOT);
+        return lower.startsWith("select ")
+                || lower.startsWith("insert ")
+                || lower.startsWith("update ")
+                || lower.startsWith("delete ")
+                || lower.startsWith("merge ")
+                || lower.startsWith("with ")
+                || lower.startsWith("begin ")
+                || lower.startsWith("call ")
+                || lower.contains("/*");
+    }
+
+    private List<Double> numbersBefore(List<String> lines, int index) {
+        List<Double> nums = new ArrayList<>();
+        for (int cursor = index - 1; cursor >= 0; cursor--) {
+            String line = lines.get(cursor);
+            if (!isNumericLine(line)) {
+                break;
+            }
+            nums.add(0, numbers(line).get(0));
+        }
+        return nums;
+    }
+
+    private String collectSqlText(List<String> lines, int start, int metricCount) {
+        List<String> parts = new ArrayList<>();
+        for (int cursor = start; cursor < lines.size(); cursor++) {
+            String line = lines.get(cursor);
+            if (isControlLine(line) || isRecordStart(lines, cursor, metricCount)) {
+                break;
+            }
+            if (!isSqlIdLine(line)) {
+                parts.add(line);
+            }
+        }
+        return String.join(" ", parts).replaceAll("\\s+", " ").trim();
+    }
+
+    private boolean isRecordStart(List<String> lines, int index, int metricCount) {
+        if (metricCount < 1 || index + metricCount >= lines.size()) {
+            return false;
+        }
+        for (int offset = 0; offset < metricCount; offset++) {
+            if (!isNumericLine(lines.get(index + offset))) {
+                return false;
+            }
+        }
+        return isSqlIdLine(lines.get(index + metricCount));
     }
 
     private List<Double> numbers(String text) {

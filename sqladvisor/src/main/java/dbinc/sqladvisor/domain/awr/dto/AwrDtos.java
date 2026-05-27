@@ -176,6 +176,8 @@ public final class AwrDtos {
             String openaiEmbeddingModel,
             String geminiChatModel,
             String geminiEmbeddingModel,
+            String internalBaseUrl,
+            String internalChatModel,
             String ollamaBaseUrl,
             String ollamaChatModel,
             String ollamaEmbeddingModel,
@@ -214,11 +216,15 @@ public final class AwrDtos {
             String geminiApiKey,
             String geminiChatModel,
             String geminiEmbeddingModel,
+            String internalApiKey,
+            String internalBaseUrl,
+            String internalChatModel,
             String ollamaBaseUrl,
             String ollamaChatModel,
             String ollamaEmbeddingModel,
             Boolean clearOpenaiApiKey,
-            Boolean clearGeminiApiKey
+            Boolean clearGeminiApiKey,
+            Boolean clearInternalApiKey
     ) {
     }
 
@@ -227,6 +233,7 @@ public final class AwrDtos {
             List<String> openaiEmbeddingModels,
             List<String> geminiChatModels,
             List<String> geminiEmbeddingModels,
+            List<String> internalChatModels,
             List<String> ollamaChatModels,
             List<String> ollamaEmbeddingModels,
             List<String> warnings

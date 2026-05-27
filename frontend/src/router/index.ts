@@ -52,6 +52,12 @@ const router = createRouter({
       component: () => import('@/views/awr/AwrChat.vue')
     },
     {
+      path: '/settings/ai',
+      name: 'awr-ai-settings',
+      meta: { requiresAuth: true },
+      component: () => import('@/views/awr/AwrAiSettings.vue')
+    },
+    {
       path: '/:pathMatch(.*)*',
       redirect: '/dashboard'
     }

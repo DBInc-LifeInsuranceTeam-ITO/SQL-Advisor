@@ -25,7 +25,7 @@ import java.util.Set;
 @RequiredArgsConstructor
 public class AwrAiConfigService {
 
-    private static final Set<String> LLM_PROVIDERS = Set.of("local", "openai", "gemini", "ollama");
+    private static final Set<String> LLM_PROVIDERS = Set.of("local", "openai", "gemini", "internal", "ollama");
     private static final Set<String> EMBEDDING_PROVIDERS = Set.of("none", "openai", "gemini", "ollama");
     private static final String KEY_LLM_PROVIDER = "llmProvider";
     private static final String KEY_EMBEDDING_PROVIDER = "embeddingProvider";
@@ -35,6 +35,9 @@ public class AwrAiConfigService {
     private static final String KEY_GEMINI_API_KEY = "geminiApiKey";
     private static final String KEY_GEMINI_CHAT_MODEL = "geminiChatModel";
     private static final String KEY_GEMINI_EMBEDDING_MODEL = "geminiEmbeddingModel";
+    private static final String KEY_INTERNAL_API_KEY = "internalApiKey";
+    private static final String KEY_INTERNAL_BASE_URL = "internalBaseUrl";
+    private static final String KEY_INTERNAL_CHAT_MODEL = "internalChatModel";
     private static final String KEY_OLLAMA_BASE_URL = "ollamaBaseUrl";
     private static final String KEY_OLLAMA_CHAT_MODEL = "ollamaChatModel";
     private static final String KEY_OLLAMA_EMBEDDING_MODEL = "ollamaEmbeddingModel";
@@ -68,6 +71,15 @@ public class AwrAiConfigService {
 
     @Value("${awr.ai.gemini-embedding-model:gemini-embedding-001}")
     private String geminiEmbeddingModel;
+
+    @Value("${awr.ai.internal-api-key:}")
+    private String internalApiKey;
+
+    @Value("${awr.ai.internal-base-url:}")
+    private String internalBaseUrl;
+
+    @Value("${awr.ai.internal-chat-model:gemma3-12b}")
+    private String internalChatModel;
 
     @Value("${awr.ai.ollama-base-url:http://host.docker.internal:11434}")
     private String ollamaBaseUrl;
@@ -103,6 +115,7 @@ public class AwrAiConfigService {
         List<String> configuredProviders = new ArrayList<>();
         addIfConfigured(configuredProviders, "openai", settings.openaiApiKey());
         addIfConfigured(configuredProviders, "gemini", settings.geminiApiKey());
+        addIfConfigured(configuredProviders, "internal", settings.internalBaseUrl());
         if ("ollama".equals(settings.llmProvider()) || "ollama".equals(settings.embeddingProvider())) {
             configuredProviders.add("ollama");
         }
@@ -131,6 +144,8 @@ public class AwrAiConfigService {
                 settings.openaiEmbeddingModel(),
                 settings.geminiChatModel(),
                 settings.geminiEmbeddingModel(),
+                settings.internalBaseUrl(),
+                settings.internalChatModel(),
                 settings.ollamaBaseUrl(),
                 settings.ollamaChatModel(),
                 settings.ollamaEmbeddingModel(),
@@ -160,6 +175,8 @@ public class AwrAiConfigService {
         upsertTextSetting(KEY_OPENAI_EMBEDDING_MODEL, request.openaiEmbeddingModel());
         upsertTextSetting(KEY_GEMINI_CHAT_MODEL, request.geminiChatModel());
         upsertTextSetting(KEY_GEMINI_EMBEDDING_MODEL, request.geminiEmbeddingModel());
+        upsertTextSetting(KEY_INTERNAL_BASE_URL, request.internalBaseUrl());
+        upsertTextSetting(KEY_INTERNAL_CHAT_MODEL, request.internalChatModel());
         upsertTextSetting(KEY_OLLAMA_BASE_URL, request.ollamaBaseUrl());
         upsertTextSetting(KEY_OLLAMA_CHAT_MODEL, request.ollamaChatModel());
         upsertTextSetting(KEY_OLLAMA_EMBEDDING_MODEL, request.ollamaEmbeddingModel());
@@ -174,6 +191,12 @@ public class AwrAiConfigService {
             repository.deleteAiSetting(KEY_GEMINI_API_KEY);
         } else {
             upsertSecretSetting(KEY_GEMINI_API_KEY, request.geminiApiKey());
+        }
+
+        if (Boolean.TRUE.equals(request.clearInternalApiKey())) {
+            repository.deleteAiSetting(KEY_INTERNAL_API_KEY);
+        } else {
+            upsertSecretSetting(KEY_INTERNAL_API_KEY, request.internalApiKey());
         }
 
         return getConfig();
@@ -207,6 +230,12 @@ public class AwrAiConfigService {
                 "Gemini embedding 모델 목록 조회 실패",
                 warnings
         );
+        List<String> internalChatModels = providerModels(
+                List.of(settings.internalChatModel(), "gemma3-12b"),
+                () -> internalModels(settings.internalBaseUrl(), settings.internalApiKey()),
+                "내부 모델 목록 조회 실패",
+                warnings
+        );
         List<String> ollamaModels = providerModels(
                 List.of(settings.ollamaChatModel(), settings.ollamaEmbeddingModel(), "llama3.1", "embeddinggemma", "nomic-embed-text"),
                 () -> ollamaModels(settings.ollamaBaseUrl()),
@@ -219,6 +248,7 @@ public class AwrAiConfigService {
                 openaiEmbeddingModels,
                 geminiChatModels,
                 geminiEmbeddingModels,
+                internalChatModels,
                 withDefaults(ollamaModels, List.of(settings.ollamaChatModel())),
                 withDefaults(ollamaModels, List.of(settings.ollamaEmbeddingModel())),
                 warnings
@@ -236,6 +266,9 @@ public class AwrAiConfigService {
                 value(saved, KEY_GEMINI_API_KEY, geminiApiKey),
                 value(saved, KEY_GEMINI_CHAT_MODEL, geminiChatModel),
                 value(saved, KEY_GEMINI_EMBEDDING_MODEL, geminiEmbeddingModel),
+                value(saved, KEY_INTERNAL_API_KEY, internalApiKey),
+                value(saved, KEY_INTERNAL_BASE_URL, internalBaseUrl),
+                value(saved, KEY_INTERNAL_CHAT_MODEL, internalChatModel),
                 value(saved, KEY_OLLAMA_BASE_URL, ollamaBaseUrl),
                 value(saved, KEY_OLLAMA_CHAT_MODEL, ollamaChatModel),
                 value(saved, KEY_OLLAMA_EMBEDDING_MODEL, ollamaEmbeddingModel),
@@ -253,6 +286,9 @@ public class AwrAiConfigService {
                 Map.entry(KEY_GEMINI_API_KEY, source(saved, KEY_GEMINI_API_KEY, geminiApiKey)),
                 Map.entry(KEY_GEMINI_CHAT_MODEL, source(saved, KEY_GEMINI_CHAT_MODEL, geminiChatModel)),
                 Map.entry(KEY_GEMINI_EMBEDDING_MODEL, source(saved, KEY_GEMINI_EMBEDDING_MODEL, geminiEmbeddingModel)),
+                Map.entry(KEY_INTERNAL_API_KEY, source(saved, KEY_INTERNAL_API_KEY, internalApiKey)),
+                Map.entry(KEY_INTERNAL_BASE_URL, source(saved, KEY_INTERNAL_BASE_URL, internalBaseUrl)),
+                Map.entry(KEY_INTERNAL_CHAT_MODEL, source(saved, KEY_INTERNAL_CHAT_MODEL, internalChatModel)),
                 Map.entry(KEY_OLLAMA_BASE_URL, source(saved, KEY_OLLAMA_BASE_URL, ollamaBaseUrl)),
                 Map.entry(KEY_OLLAMA_CHAT_MODEL, source(saved, KEY_OLLAMA_CHAT_MODEL, ollamaChatModel)),
                 Map.entry(KEY_OLLAMA_EMBEDDING_MODEL, source(saved, KEY_OLLAMA_EMBEDDING_MODEL, ollamaEmbeddingModel))
@@ -304,6 +340,20 @@ public class AwrAiConfigService {
                         "none"
                 ),
                 new AwrDtos.AiProviderConfigResponse(
+                        "internal",
+                        "Internal",
+                        "internal".equals(settings.llmProvider()),
+                        false,
+                        hasText(settings.internalBaseUrl()) && hasText(settings.internalApiKey()),
+                        source(saved, KEY_INTERNAL_API_KEY, internalApiKey),
+                        settings.internalChatModel(),
+                        source(saved, KEY_INTERNAL_CHAT_MODEL, internalChatModel),
+                        "",
+                        "none",
+                        settings.internalBaseUrl(),
+                        source(saved, KEY_INTERNAL_BASE_URL, internalBaseUrl)
+                ),
+                new AwrDtos.AiProviderConfigResponse(
                         "ollama",
                         "Ollama",
                         "ollama".equals(settings.llmProvider()),
@@ -324,6 +374,7 @@ public class AwrAiConfigService {
         return switch (provider) {
             case "openai" -> hasText(settings.openaiApiKey());
             case "gemini" -> hasText(settings.geminiApiKey());
+            case "internal" -> hasText(settings.internalBaseUrl()) && hasText(settings.internalApiKey()) && hasText(settings.internalChatModel());
             case "ollama" -> hasText(settings.ollamaBaseUrl()) && hasText(settings.ollamaChatModel());
             case "anthropic", "claude" -> hasText(anthropicApiKey);
             case "xai", "grok" -> hasText(xaiApiKey);
@@ -347,6 +398,7 @@ public class AwrAiConfigService {
         return switch (provider) {
             case "openai" -> settings.openaiChatModel();
             case "gemini" -> settings.geminiChatModel();
+            case "internal" -> settings.internalChatModel();
             case "ollama" -> settings.ollamaChatModel();
             case "anthropic", "claude" -> anthropicChatModel;
             case "xai", "grok" -> xaiChatModel;
@@ -367,6 +419,7 @@ public class AwrAiConfigService {
         return switch (provider) {
             case "openai" -> "OPENAI_API_KEY";
             case "gemini" -> "GEMINI_API_KEY";
+            case "internal" -> "INTERNAL_LLM_API_KEY";
             case "ollama" -> "OLLAMA_BASE_URL";
             case "anthropic", "claude" -> "ANTHROPIC_API_KEY";
             case "xai", "grok" -> "XAI_API_KEY";
@@ -464,6 +517,21 @@ public class AwrAiConfigService {
         return models;
     }
 
+    private List<String> internalModels(String baseUrl, String apiKey) {
+        if (!hasText(baseUrl)) {
+            return List.of();
+        }
+        JsonNode response = getJson(internalUri(baseUrl, "/v1/models"), hasText(apiKey) ? "Bearer " + apiKey : null);
+        List<String> models = new ArrayList<>();
+        for (JsonNode model : response.path("data")) {
+            String id = model.path("id").asText("");
+            if (hasText(id)) {
+                models.add(id);
+            }
+        }
+        return models;
+    }
+
     private boolean supportsMethod(JsonNode model, String method) {
         for (JsonNode supportedMethod : model.path("supportedGenerationMethods")) {
             if (method.equals(supportedMethod.asText())) {
@@ -499,6 +567,18 @@ public class AwrAiConfigService {
         String normalizedEndpoint = endpoint.startsWith("/") ? endpoint : "/" + endpoint;
         if (normalizedBaseUrl.endsWith("/api") && normalizedEndpoint.startsWith("/api/")) {
             normalizedEndpoint = normalizedEndpoint.substring(4);
+        }
+        return URI.create(normalizedBaseUrl + normalizedEndpoint);
+    }
+
+    private URI internalUri(String baseUrl, String endpoint) {
+        String normalizedBaseUrl = baseUrl.trim().replaceAll("/+$", "");
+        if (normalizedBaseUrl.endsWith("/chat/completions")) {
+            normalizedBaseUrl = normalizedBaseUrl.substring(0, normalizedBaseUrl.length() - "/chat/completions".length());
+        }
+        String normalizedEndpoint = endpoint.startsWith("/") ? endpoint : "/" + endpoint;
+        if (normalizedBaseUrl.endsWith("/v1") && normalizedEndpoint.startsWith("/v1/")) {
+            normalizedEndpoint = normalizedEndpoint.substring(3);
         }
         return URI.create(normalizedBaseUrl + normalizedEndpoint);
     }
@@ -559,6 +639,9 @@ public class AwrAiConfigService {
             String geminiApiKey,
             String geminiChatModel,
             String geminiEmbeddingModel,
+            String internalApiKey,
+            String internalBaseUrl,
+            String internalChatModel,
             String ollamaBaseUrl,
             String ollamaChatModel,
             String ollamaEmbeddingModel,

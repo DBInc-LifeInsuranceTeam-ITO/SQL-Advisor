@@ -125,6 +125,8 @@ export interface AiConfigResponse {
   openaiEmbeddingModel: string
   geminiChatModel: string
   geminiEmbeddingModel: string
+  internalBaseUrl: string
+  internalChatModel: string
   ollamaBaseUrl: string
   ollamaChatModel: string
   ollamaEmbeddingModel: string
@@ -163,11 +165,15 @@ export interface AiConfigUpdateRequest {
   geminiApiKey?: string
   geminiChatModel?: string
   geminiEmbeddingModel?: string
+  internalApiKey?: string
+  internalBaseUrl?: string
+  internalChatModel?: string
   ollamaBaseUrl?: string
   ollamaChatModel?: string
   ollamaEmbeddingModel?: string
   clearOpenaiApiKey?: boolean
   clearGeminiApiKey?: boolean
+  clearInternalApiKey?: boolean
 }
 
 export interface AiModelOptionsResponse {
@@ -175,6 +181,7 @@ export interface AiModelOptionsResponse {
   openaiEmbeddingModels: string[]
   geminiChatModels: string[]
   geminiEmbeddingModels: string[]
+  internalChatModels: string[]
   ollamaChatModels: string[]
   ollamaEmbeddingModels: string[]
   warnings: string[]

@@ -59,6 +59,9 @@ awr:
     gemini-api-key: ${GEMINI_API_KEY:}
     gemini-chat-model: ${GEMINI_CHAT_MODEL:gemini-3.1-flash-lite}
     gemini-embedding-model: ${GEMINI_EMBEDDING_MODEL:gemini-embedding-001}
+    internal-api-key: ${INTERNAL_LLM_API_KEY:}
+    internal-base-url: ${INTERNAL_LLM_BASE_URL:}
+    internal-chat-model: ${INTERNAL_LLM_CHAT_MODEL:gemma3-12b}
     ollama-base-url: ${OLLAMA_BASE_URL:http://host.docker.internal:11434}
     ollama-chat-model: ${OLLAMA_CHAT_MODEL:llama3.1}
     ollama-embedding-model: ${OLLAMA_EMBEDDING_MODEL:embeddinggemma}

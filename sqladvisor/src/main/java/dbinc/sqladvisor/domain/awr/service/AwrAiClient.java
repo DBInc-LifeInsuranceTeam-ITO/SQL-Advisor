@@ -43,6 +43,7 @@ public class AwrAiClient {
         AwrAiConfigService.ActiveAiSettings settings = configService.activeSettings();
         return ("openai".equals(settings.llmProvider()) && hasText(settings.openaiApiKey()))
                 || ("gemini".equals(settings.llmProvider()) && hasText(settings.geminiApiKey()))
+                || ("internal".equals(settings.llmProvider()) && hasText(settings.internalBaseUrl()) && hasText(settings.internalApiKey()) && hasText(settings.internalChatModel()))
                 || ("ollama".equals(settings.llmProvider()) && hasText(settings.ollamaBaseUrl()) && hasText(settings.ollamaChatModel()));
     }
 
@@ -58,6 +59,7 @@ public class AwrAiClient {
         return switch (settings.llmProvider()) {
             case "openai" -> "openai/" + settings.openaiChatModel();
             case "gemini" -> "gemini/" + settings.geminiChatModel();
+            case "internal" -> "internal/" + settings.internalChatModel();
             case "ollama" -> "ollama/" + settings.ollamaChatModel();
             default -> "rule-based-local-advisor";
         };
@@ -81,6 +83,9 @@ public class AwrAiClient {
             }
             if ("gemini".equals(settings.llmProvider()) && hasText(settings.geminiApiKey())) {
                 return Optional.of(callGeminiChat(settings, systemPrompt, userPrompt));
+            }
+            if ("internal".equals(settings.llmProvider()) && hasText(settings.internalBaseUrl()) && hasText(settings.internalApiKey()) && hasText(settings.internalChatModel())) {
+                return Optional.of(callInternalChat(settings, systemPrompt, userPrompt));
             }
             if ("ollama".equals(settings.llmProvider()) && hasText(settings.ollamaBaseUrl()) && hasText(settings.ollamaChatModel())) {
                 return Optional.of(callOllamaChat(settings, systemPrompt, userPrompt));
@@ -195,6 +200,30 @@ public class AwrAiClient {
         return new LlmResult("ollama", settings.ollamaChatModel(), content);
     }
 
+    private LlmResult callInternalChat(AwrAiConfigService.ActiveAiSettings settings, String systemPrompt, String userPrompt) {
+        ObjectNode body = objectMapper.createObjectNode();
+        body.put("model", settings.internalChatModel());
+        body.put("temperature", 0.2);
+        ArrayNode messages = body.putArray("messages");
+        messages.addObject()
+                .put("role", "system")
+                .put("content", systemPrompt);
+        messages.addObject()
+                .put("role", "user")
+                .put("content", userPrompt);
+
+        JsonNode response = postJson(
+                internalChatUri(settings.internalBaseUrl()),
+                body,
+                "Bearer " + settings.internalApiKey()
+        );
+        String content = response.path("choices").path(0).path("message").path("content").asText("");
+        if (!hasText(content)) {
+            throw new IllegalStateException("Internal LLM response did not contain message content");
+        }
+        return new LlmResult("internal", settings.internalChatModel(), content);
+    }
+
     private List<Double> callOpenAiEmbedding(AwrAiConfigService.ActiveAiSettings settings, String text) {
         ObjectNode body = objectMapper.createObjectNode();
         body.put("model", settings.openaiEmbeddingModel());
@@ -297,6 +326,17 @@ public class AwrAiClient {
             normalizedEndpoint = normalizedEndpoint.substring(4);
         }
         return URI.create(normalizedBaseUrl + normalizedEndpoint);
+    }
+
+    private URI internalChatUri(String baseUrl) {
+        String normalizedBaseUrl = baseUrl.trim().replaceAll("/+$", "");
+        if (normalizedBaseUrl.endsWith("/chat/completions")) {
+            return URI.create(normalizedBaseUrl);
+        }
+        if (normalizedBaseUrl.endsWith("/v1")) {
+            return URI.create(normalizedBaseUrl + "/chat/completions");
+        }
+        return URI.create(normalizedBaseUrl + "/v1/chat/completions");
     }
 
     private boolean hasText(String value) {

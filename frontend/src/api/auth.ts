@@ -11,8 +11,8 @@ export async function getCurrentUser() {
   return response.data
 }
 
-export async function loginWithGoogleCredential(credential: string) {
-  const response = await api.post<CurrentUserResponse>('/auth/google', { credential })
+export async function loginWithGoogleCredential(credential: string, nonce?: string) {
+  const response = await api.post<CurrentUserResponse>('/auth/google', { credential, nonce })
   return response.data
 }
 

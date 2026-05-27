@@ -44,8 +44,8 @@ export const useAuthStore = defineStore('auth', {
       this.user = await getCurrentUser()
       return this.user
     },
-    async loginWithGoogle(credential: string) {
-      this.user = await loginWithGoogleCredential(credential)
+    async loginWithGoogle(credential: string, nonce?: string) {
+      this.user = await loginWithGoogleCredential(credential, nonce)
       return this.user
     },
     async loginWithLocal(identifier: string) {

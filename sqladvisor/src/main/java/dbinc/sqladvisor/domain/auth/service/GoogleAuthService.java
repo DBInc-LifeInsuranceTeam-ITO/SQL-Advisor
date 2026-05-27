@@ -48,6 +48,10 @@ public class GoogleAuthService {
     }
 
     public GoogleProfile verify(String credential) {
+        return verify(credential, null);
+    }
+
+    public GoogleProfile verify(String credential, String nonce) {
         if (!hasText(googleClientId) || verifier == null) {
             throw new IllegalArgumentException("Google Client ID가 설정되어 있지 않습니다.");
         }
@@ -67,6 +71,10 @@ public class GoogleAuthService {
         }
 
         GoogleIdToken.Payload payload = idToken.getPayload();
+        if (hasText(nonce) && !nonce.trim().equals(stringClaim(payload, "nonce"))) {
+            throw new IllegalArgumentException("Google 로그인 nonce가 일치하지 않습니다.");
+        }
+
         Boolean emailVerified = payload.getEmailVerified();
         if (!Boolean.TRUE.equals(emailVerified)) {
             throw new IllegalArgumentException("Google 이메일 검증이 완료된 계정만 사용할 수 있습니다.");

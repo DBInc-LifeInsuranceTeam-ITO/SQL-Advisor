@@ -50,6 +50,7 @@ public class AuthController {
     ) {
         AppUserPrincipal principal = authService.authenticateGoogle(
                 request == null ? null : request.credential(),
+                request == null ? null : request.nonce(),
                 httpRequest
         );
         setSecurityContext(principal, httpRequest);

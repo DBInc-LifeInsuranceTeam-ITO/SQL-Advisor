@@ -16,7 +16,8 @@ public final class AuthDtos {
     }
 
     public record GoogleLoginRequest(
-            String credential
+            String credential,
+            String nonce
     ) {
     }
 

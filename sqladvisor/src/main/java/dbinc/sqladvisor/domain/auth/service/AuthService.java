@@ -39,10 +39,10 @@ public class AuthService {
         );
     }
 
-    public AppUserPrincipal authenticateGoogle(String credential, HttpServletRequest request) {
+    public AppUserPrincipal authenticateGoogle(String credential, String nonce, HttpServletRequest request) {
         String username = "";
         try {
-            GoogleProfile profile = googleAuthService.verify(credential);
+            GoogleProfile profile = googleAuthService.verify(credential, nonce);
             username = profile.email();
             AppUserPrincipal principal = authRepository.upsertGoogleUser(profile, adminEmails());
             if (!principal.enabled()) {

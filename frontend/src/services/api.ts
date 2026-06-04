@@ -1,6 +1,7 @@
 import axios, { type AxiosError, type AxiosInstance } from 'axios'
 
 const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || '/api'
+const INTERNAL_LOGIN_KEY = 'loginEno'
 
 export const api: AxiosInstance = axios.create({
   baseURL: API_BASE_URL,
@@ -14,6 +15,11 @@ export const api: AxiosInstance = axios.create({
 
 api.interceptors.request.use(
   (config) => {
+    const loginEno = localStorage.getItem(INTERNAL_LOGIN_KEY)?.trim()
+    if (loginEno) {
+      config.headers['X-Login-Eno'] = loginEno
+    }
+
     if (import.meta.env.DEV) {
       console.log(`[API Request] ${config.method?.toUpperCase()} ${config.url}`, maskSensitive(config.data))
     }

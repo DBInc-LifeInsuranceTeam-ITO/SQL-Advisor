@@ -1,13 +1,16 @@
 # SQLAdvisor 로그인 설계
 
-SQLAdvisor의 로그인은 Google 로그인을 먼저 지원하고, 나중에 로컬 로그인까지 확장할 수 있도록 사용자와 인증 수단을 분리합니다. 질문과 채팅 히스토리는 사용자별로 분리해서 저장합니다.
+SQLAdvisor의 로그인은 배포 환경에 따라 외부용 Google 로그인과 내부용 AD 계정 식별자 로그인을 선택할 수 있습니다. 사용자와 인증 수단은 분리해서 저장하며, 질문과 채팅 히스토리는 사용자별로 분리합니다.
 
 ## 실행 설정
 
-로그인은 기본 비활성화입니다. 활성화하려면 환경 파일에 아래 값을 설정합니다.
+로그인은 기본 비활성화입니다. 활성화하려면 환경 파일에서 `APP_AUTH_ENABLED=true`를 설정하고, `APP_AUTH_MODE`로 방식을 선택합니다.
+
+외부용 Google 로그인:
 
 ```env
 APP_AUTH_ENABLED=true
+APP_AUTH_MODE=external
 GOOGLE_CLIENT_ID=<Google OAuth Client ID>
 APP_ALLOWED_GOOGLE_DOMAINS=
 APP_ADMIN_EMAILS=admin@example.com
@@ -15,23 +18,45 @@ APP_LOCAL_LOGIN_ENABLED=false
 APP_SESSION_TIMEOUT_MINUTES=120
 ```
 
-`APP_AUTH_ENABLED=false`이면 기존처럼 로그인 없이 사용할 수 있습니다. `GOOGLE_CLIENT_ID`가 비어 있으면 로그인 화면에서 Google 버튼을 렌더링하지 않습니다.
+내부용 AD 계정 식별자 로그인:
+
+```env
+APP_AUTH_ENABLED=true
+APP_AUTH_MODE=internal
+APP_INTERNAL_AUTH_EMAIL_DOMAIN=internal.local
+APP_ADMIN_EMAILS=admin@example.com
+APP_LOCAL_LOGIN_ENABLED=false
+APP_SESSION_TIMEOUT_MINUTES=120
+```
+
+`APP_AUTH_ENABLED=false`이면 기존처럼 로그인 없이 사용할 수 있습니다. `APP_AUTH_MODE=external`이면 Google 로그인만 사용하고, `APP_AUTH_MODE=internal`이면 Google 로그인 대신 AD 계정 식별자 흐름을 사용합니다.
 
 ## 인증 흐름
 
-1. 프론트엔드가 Google Identity Services 버튼을 표시합니다.
+### 외부용 Google
+
+1. 프론트엔드가 Google 로그인으로 리다이렉트합니다.
 2. 사용자가 Google 계정으로 로그인하면 브라우저가 ID Token을 받습니다.
 3. 프론트엔드는 `POST /api/auth/google`로 ID Token을 서버에 전달합니다.
 4. 서버는 Google Client ID 기준으로 토큰을 검증하고, 이메일 인증 여부와 허용 도메인을 확인합니다.
-5. `app_user`와 `auth_identity`에 사용자를 생성하거나 갱신합니다.
+5. `app_user`와 `auth_identity(provider='google')`에 사용자를 생성하거나 갱신합니다.
 6. 서버 세션에 사용자 정보를 저장하고 HttpOnly 세션 쿠키로 유지합니다.
+
+### 내부용 AD 계정 식별자
+
+1. 내부 포털 또는 프록시가 `loginEno` 쿼리 파라미터나 `X-Login-Eno` 헤더로 AD 계정 식별자를 전달합니다.
+2. 프론트엔드는 `POST /api/auth/internal`을 호출합니다.
+3. 서버는 요청 body, `loginEno` 파라미터, `X-Login-Eno` 헤더, 기존 세션 순서로 식별자를 확인합니다.
+4. 식별자가 이메일 형식이면 그대로 사용하고, 아니면 `APP_INTERNAL_AUTH_EMAIL_DOMAIN`을 붙여 사용자 이메일을 만듭니다.
+5. `app_user`와 `auth_identity(provider='internal-ad')`에 사용자를 생성하거나 갱신합니다.
+6. `loginEno`가 없으면 로그인하지 않은 상태로 남으며, 화면에는 사용자 정보 없음 상태를 표시합니다.
 
 ## DB 테이블 구조
 
 | 테이블 | 용도 |
 | --- | --- |
-| `app_user` | 서비스 내부 사용자. Google/로컬 로그인과 무관한 공통 사용자 기준입니다. |
-| `auth_identity` | 로그인 수단. Google, 향후 로컬 로그인을 같은 사용자에 연결합니다. |
+| `app_user` | 서비스 내부 사용자. Google/내부 AD 계정 식별자와 무관한 공통 사용자 기준입니다. |
+| `auth_identity` | 로그인 수단. Google, 내부 AD 계정 식별자, 향후 로컬 로그인을 같은 사용자에 연결합니다. |
 | `auth_login_audit` | 로그인 성공/실패 이력입니다. |
 | `awr_report` | AWR 리포트 메타데이터. 업로드 사용자와 공개 범위를 보관합니다. |
 | `analysis_result` | 분석/채팅 결과. `user_id`로 사용자별 질문 히스토리를 분리합니다. |
@@ -47,7 +72,7 @@ APP_SESSION_TIMEOUT_MINUTES=120
 | `id` | 내부 사용자 ID |
 | `email` | 로그인 기준 이메일 |
 | `display_name` | 화면 표시 이름 |
-| `picture_url` | Google 프로필 이미지 |
+| `picture_url` | Google 프로필 이미지. 내부용 사용자는 비어 있을 수 있습니다. |
 | `role` | `USER`, `ADMIN` |
 | `status` | `ACTIVE`, `DISABLED` |
 | `last_login_at` | 마지막 로그인 시각 |
@@ -57,8 +82,8 @@ APP_SESSION_TIMEOUT_MINUTES=120
 | 컬럼 | 설명 |
 | --- | --- |
 | `user_id` | `app_user.id` 참조 |
-| `provider` | `google`, 향후 `local` |
-| `provider_user_id` | Google subject 또는 로컬 로그인 ID |
+| `provider` | `google`, `internal-ad`, 향후 `local` |
+| `provider_user_id` | Google subject, 내부 AD 계정 식별자, 향후 로컬 로그인 ID |
 | `email` | 인증 수단이 제공한 이메일 |
 | `password_hash` | 로컬 로그인 확장용 비밀번호 해시 |
 
@@ -74,4 +99,4 @@ APP_SESSION_TIMEOUT_MINUTES=120
 
 ## 향후 로컬 로그인 확장
 
-로컬 로그인을 추가할 때는 새 사용자 테이블을 만들지 않고 `auth_identity`에 `provider='local'` 행을 추가합니다. 비밀번호는 `password_hash`에 BCrypt 해시로 저장하고, 기존 `app_user`는 그대로 사용합니다.
+로컬 로그인을 추가할 때도 새 사용자 테이블을 만들지 않고 `auth_identity`에 `provider='local'` 행을 추가합니다. 비밀번호는 `password_hash`에 BCrypt 해시로 저장하고, 기존 `app_user`는 그대로 사용합니다.

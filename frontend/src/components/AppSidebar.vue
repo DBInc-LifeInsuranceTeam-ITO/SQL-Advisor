@@ -7,7 +7,7 @@
 
     <nav class="nav-menu">
       <button
-        v-for="item in menuItems"
+        v-for="item in visibleMenuItems"
         :key="item.name"
         type="button"
         :class="['nav-item', { active: isActive(item) }]"
@@ -21,13 +21,25 @@
     <div class="sidebar-foot">
       <template v-if="authStore.authEnabled && authStore.user?.authenticated">
         <div class="user-row">
-          <img v-if="authStore.user.pictureUrl" class="user-avatar" :src="authStore.user.pictureUrl" alt="" />
+          <img
+            v-if="authStore.user.pictureUrl && !avatarLoadFailed"
+            class="user-avatar"
+            :src="authStore.user.pictureUrl"
+            alt=""
+            referrerpolicy="no-referrer"
+            @error="avatarLoadFailed = true"
+          />
+          <div v-else class="user-avatar user-avatar-fallback" aria-hidden="true">{{ userInitial }}</div>
           <div class="user-meta">
             <div class="foot-title">{{ authStore.user.displayName || authStore.user.email }}</div>
             <div class="foot-text">{{ authStore.user.role }}</div>
           </div>
         </div>
         <button class="logout-btn" type="button" @click="handleLogout">로그아웃</button>
+      </template>
+      <template v-else-if="authStore.authEnabled">
+        <div class="foot-title">사용자 정보없음</div>
+        <div class="foot-text">로그인되어 있지 않습니다</div>
       </template>
       <template v-else>
         <div class="foot-title">SQL Advisor</div>
@@ -38,11 +50,21 @@
 </template>
 
 <script setup lang="ts">
+import { computed, ref, watch } from 'vue'
 import { useRouter } from 'vue-router'
 import { useAuthStore } from '@/stores/auth'
 
 const router = useRouter()
 const authStore = useAuthStore()
+const avatarLoadFailed = ref(false)
+const userInitial = computed(() => {
+  const name = authStore.user?.displayName || authStore.user?.email || 'U'
+  return name.trim().charAt(0).toUpperCase()
+})
+
+watch(() => authStore.user?.pictureUrl, () => {
+  avatarLoadFailed.value = false
+})
 
 const menuItems = [
   {
@@ -74,6 +96,13 @@ const menuItems = [
 
 type MenuItem = typeof menuItems[number]
 
+const visibleMenuItems = computed(() => {
+  if (authStore.authEnabled && !authStore.isAuthenticated) {
+    return menuItems.filter((item) => item.name === 'awr-dashboard')
+  }
+  return menuItems
+})
+
 function isActive(item: MenuItem) {
   const current = router.currentRoute.value
   if (item.name === 'awr-reports') {
@@ -91,6 +120,9 @@ function go(name: string) {
 
 async function handleLogout() {
   await authStore.logout()
+  if (authStore.authMode === 'internal') {
+    return
+  }
   router.push({ name: 'login' })
 }
 </script>
@@ -106,8 +138,8 @@ async function handleLogout() {
   flex-direction: column;
   gap: 1rem;
   padding: 1rem 0.75rem;
-  background: #12161c;
-  color: #f7fafc;
+  background: #ffffff;
+  color: #143225;
 }
 
 .brand {
@@ -135,7 +167,7 @@ async function handleLogout() {
 
 .brand-subtitle {
   width: 9.5rem;
-  color: #ffffff;
+  color: #00854A;
   font-size: 1.58rem;
   font-weight: 500;
   line-height: 1;
@@ -156,20 +188,23 @@ async function handleLogout() {
   width: 100%;
   min-height: 2.65rem;
   padding: 0.55rem 0.65rem;
-  border: 0;
+  border: 1px solid transparent;
   border-radius: 8px;
   background: transparent;
-  color: #d8e1eb;
+  color: #214438;
   cursor: pointer;
   text-align: left;
 }
 
 .nav-item:hover {
-  background: #222a34;
+  border-color: #b9d8c9;
+  background: #eef8f3;
+  color: #006d3d;
 }
 
 .nav-item.active {
-  background: #176ea8;
+  border-color: #00854A;
+  background: #00854A;
   color: #ffffff;
 }
 
@@ -192,9 +227,9 @@ async function handleLogout() {
 
 .sidebar-foot {
   margin-top: auto;
-  border-top: 1px solid #2d3642;
+  border-top: 1px solid #d7e8df;
   padding-top: 0.85rem;
-  color: #aab6c3;
+  color: #5d756b;
 }
 
 .foot-title {
@@ -214,10 +249,20 @@ async function handleLogout() {
 }
 
 .user-avatar {
+  display: inline-grid;
+  place-items: center;
   width: 2rem;
   height: 2rem;
+  flex: 0 0 2rem;
   border-radius: 50%;
   object-fit: cover;
+}
+
+.user-avatar-fallback {
+  background: #00854A;
+  color: #ffffff;
+  font-size: 0.82rem;
+  font-weight: 900;
 }
 
 .user-meta {
@@ -235,16 +280,16 @@ async function handleLogout() {
   width: 100%;
   min-height: 2.2rem;
   margin-top: 0.7rem;
-  border: 1px solid #3b4654;
+  border: 1px solid #b9d8c9;
   border-radius: 8px;
-  background: transparent;
-  color: #d8e1eb;
+  background: #ffffff;
+  color: #00854A;
   font-weight: 800;
   cursor: pointer;
 }
 
 .logout-btn:hover {
-  background: #222a34;
+  background: #e6f4ee;
 }
 
 @media (max-width: 760px) {

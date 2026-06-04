@@ -34,7 +34,7 @@ docker compose -f deploy/docker-compose.dev.yml up -d --build
 
 ## Prod
 
-prod는 Nginx가 웹 정적 파일을 서빙하고 `/api` 요청을 내부 API 컨테이너로 프록시합니다. 호스트에는 Nginx `80` 포트만 노출합니다.
+prod는 Nginx가 웹 정적 파일을 서빙하고 `/api` 요청을 내부 API 컨테이너로 프록시합니다. 호스트에는 Nginx `80` 포트와 외부 DB 클라이언트 접속용 PostgreSQL `5432` 포트를 노출합니다.
 
 ```bash
 cp deploy/.env.prod.example deploy/.env.prod
@@ -46,6 +46,7 @@ docker compose -f deploy/docker-compose.prod.yml up -d --build
 | --- | --- |
 | Web | `http://<server-host>/` |
 | API through Nginx | `http://<server-host>/api` |
+| PostgreSQL | `<server-host>:5432` |
 
 ## Required Prod Environment
 
@@ -57,6 +58,20 @@ SPRING_DATASOURCE_URL=jdbc:postgresql://postgres:5432/sqladvisor
 SPRING_DATASOURCE_USERNAME=sqladvisor
 SPRING_DATASOURCE_PASSWORD=change-me
 DATABASE_URL=postgresql://sqladvisor:change-me@postgres:5432/sqladvisor
+```
+
+인증을 사용할 때는 외부용/내부용 모드를 선택합니다.
+
+```env
+APP_AUTH_ENABLED=true
+APP_AUTH_MODE=external
+GOOGLE_CLIENT_ID=<Google OAuth Client ID>
+```
+
+```env
+APP_AUTH_ENABLED=true
+APP_AUTH_MODE=internal
+APP_INTERNAL_AUTH_EMAIL_DOMAIN=internal.local
 ```
 
 ## AI Provider Environment

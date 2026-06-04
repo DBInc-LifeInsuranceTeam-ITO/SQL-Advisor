@@ -35,6 +35,7 @@ flowchart LR
   Api --> AiClient["AwrAiClient"]
   AiClient --> Gemini["Gemini\nchat + embedding"]
   AiClient --> OpenAI["OpenAI\nchat + embedding"]
+  AiClient --> InternalLlm["Internal LLM\nchat"]
   AiClient --> Ollama["Ollama\nchat + embedding"]
 
   Pg --> Rag["RAG Retrieval\nSQL_ID 검색 + vector similarity + fallback"]
@@ -111,7 +112,7 @@ sequenceDiagram
 | `AwrParser` | AWR 텍스트에서 header, section, SQL metric, wait event를 추출합니다. |
 | `AwrRagService` | RAG chunk 생성, embedding 생성 요청, 검색, citation 생성을 담당합니다. |
 | `AwrRepository` | `rag_chunk` 저장, SQL_ID 검색, pgvector 유사도 검색, fallback 검색을 수행합니다. |
-| `AwrAiClient` | OpenAI, Gemini, Ollama chat/embedding API 호출을 담당합니다. |
+| `AwrAiClient` | OpenAI, Gemini, 내부 OpenAI-compatible endpoint, Ollama chat/embedding API 호출을 담당합니다. |
 | `AwrLlmAdvisor` | 로컬 분석 결과와 RAG evidence를 외부 LLM 프롬프트에 결합합니다. |
 | `AwrAdvisor` | 외부 LLM 없이도 동작하는 규칙 기반 분석/Chat 답변을 생성합니다. |
 
@@ -149,7 +150,7 @@ fallback 우선순위는 `sql_metric_row`, `wait_event`, `time_model`, `summary`
 ## 현재 제한사항
 
 - Cohere rerank는 환경 변수와 설정 항목만 있고, 현재 검색 파이프라인에는 rerank 단계가 없습니다.
-- Anthropic/xAI 설정 항목은 있지만, 현재 `AwrAiClient`의 실제 chat/embedding 호출 구현은 OpenAI, Gemini, Ollama 중심입니다.
+- Anthropic/xAI 설정 항목은 있지만, 현재 `AwrAiClient`의 실제 chat/embedding 호출 구현은 OpenAI, Gemini, 내부 OpenAI-compatible endpoint, Ollama 중심입니다.
 - Advisor 답변은 AWR에서 추출된 지표와 RAG evidence만 사용합니다. 실행계획, bind 값, DDL, object statistics, ASH, SQL Monitor가 없으면 원인 판단은 가설 수준입니다.
 
 ## 관련 파일

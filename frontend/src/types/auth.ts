@@ -1,7 +1,9 @@
 export interface AuthConfigResponse {
   authEnabled: boolean
+  authMode: string
   googleConfigured: boolean
   googleClientId: string
+  internalLoginEnabled: boolean
   localLoginEnabled: boolean
 }
 

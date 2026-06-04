@@ -1,15 +1,15 @@
 <template>
   <main class="auth-callback" aria-live="polite">
+    <p v-if="!errorMessage">로그인 처리 중입니다.</p>
     <p v-if="errorMessage" class="auth-callback__error">{{ errorMessage }}</p>
-    <p v-else>로그인 처리 중입니다.</p>
-    <button v-if="errorMessage && authStore.googleConfigured" type="button" @click="startGoogleLogin">
+    <button v-if="retryGoogleVisible" type="button" @click="startGoogleLogin">
       다시 로그인
     </button>
   </main>
 </template>
 
 <script setup lang="ts">
-import { onMounted, ref } from 'vue'
+import { computed, onMounted, ref } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { useAuthStore } from '@/stores/auth'
 
@@ -23,11 +23,14 @@ type GoogleRedirectResult = {
 const GOOGLE_STATE_KEY = 'sqladvisor.google.state'
 const GOOGLE_NONCE_KEY = 'sqladvisor.google.nonce'
 const GOOGLE_REDIRECT_KEY = 'sqladvisor.google.redirect'
+const INTERNAL_LOGIN_KEY = 'loginEno'
+const MISSING_INTERNAL_IDENTIFIER_MESSAGE = 'AD account identifier is required.'
 
 const router = useRouter()
 const route = useRoute()
 const authStore = useAuthStore()
 const errorMessage = ref('')
+const retryGoogleVisible = computed(() => Boolean(errorMessage.value && authStore.googleConfigured))
 
 onMounted(async () => {
   try {
@@ -37,14 +40,19 @@ onMounted(async () => {
       return
     }
 
-    const redirectResult = readGoogleRedirectResult()
-    if (redirectResult) {
-      await completeGoogleRedirect(redirectResult)
+    if (authStore.isAuthenticated) {
+      await router.replace(redirectTarget())
       return
     }
 
-    if (authStore.isAuthenticated) {
-      await router.replace(redirectTarget())
+    if (authStore.internalLoginEnabled) {
+      await startInternalLogin()
+      return
+    }
+
+    const redirectResult = readGoogleRedirectResult()
+    if (redirectResult) {
+      await completeGoogleRedirect(redirectResult)
       return
     }
 
@@ -57,6 +65,29 @@ onMounted(async () => {
     errorMessage.value = error instanceof Error ? error.message : '로그인을 처리하지 못했습니다.'
   }
 })
+
+async function startInternalLogin() {
+  errorMessage.value = ''
+  const candidate = internalIdentifierFromRoute() || storedInternalIdentifier()
+  try {
+    await completeInternalLogin(candidate || undefined)
+  } catch (error) {
+    if (error instanceof Error && error.message.includes(MISSING_INTERNAL_IDENTIFIER_MESSAGE)) {
+      await router.replace(redirectTarget())
+      return
+    }
+    throw error
+  }
+}
+
+async function completeInternalLogin(identifier?: string) {
+  const target = redirectTarget()
+  if (identifier) {
+    localStorage.setItem(INTERNAL_LOGIN_KEY, identifier)
+  }
+  await authStore.loginWithInternal(identifier)
+  await router.replace(target)
+}
 
 function startGoogleLogin() {
   errorMessage.value = ''
@@ -117,6 +148,20 @@ function readGoogleRedirectResult(): GoogleRedirectResult | null {
   }
 }
 
+function internalIdentifierFromRoute() {
+  return stringQueryValue(route.query.loginEno)
+    || stringQueryValue(route.query.adUser)
+    || stringQueryValue(route.query.user)
+}
+
+function storedInternalIdentifier() {
+  return localStorage.getItem(INTERNAL_LOGIN_KEY) || ''
+}
+
+function stringQueryValue(value: unknown) {
+  return typeof value === 'string' ? value.trim() : ''
+}
+
 function clearUrlHash() {
   const url = new URL(window.location.href)
   url.hash = ''
@@ -164,10 +209,10 @@ function randomToken() {
 .auth-callback button {
   min-height: 2.5rem;
   border: 0;
-  border-radius: 999px;
+  border-radius: 6px;
   background: #0b57d0;
   color: #ffffff;
-  padding: 0 1.4rem;
+  padding: 0 1.1rem;
   font-weight: 700;
   cursor: pointer;
 }

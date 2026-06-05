@@ -21,7 +21,7 @@ Dev URL:
 
 ## Prod 배포
 
-운영 배포용입니다. 웹은 Nginx 컨테이너가 정적 파일을 서빙하고 `/api` 요청을 내부 API 컨테이너로 프록시합니다. 호스트에는 Nginx `80` 포트만 노출합니다.
+운영 배포용입니다. 웹은 Nginx 컨테이너가 정적 파일을 서빙하고 `/api` 요청을 내부 API 컨테이너로 프록시합니다. 호스트에는 Nginx `80` 포트와 외부 DB 클라이언트 접속용 PostgreSQL `5432` 포트를 노출합니다.
 
 ```bash
 # cp deploy/.env.prod.example deploy/.env.prod
@@ -36,6 +36,7 @@ Prod URL:
 | --- | --- |
 | Web + API proxy | `http://<server-host>/` |
 | API through Nginx | `http://<server-host>/api` |
+| PostgreSQL | `<server-host>:5432` |
 
 ## Common Commands
 

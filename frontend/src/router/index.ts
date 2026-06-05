@@ -76,6 +76,9 @@ router.beforeEach(async (to) => {
   }
 
   if (to.meta.requiresAuth && authStore.authEnabled && !authStore.isAuthenticated) {
+    if (authStore.internalLoginEnabled) {
+      return true
+    }
     return {
       name: 'login',
       query: { redirect: to.fullPath }

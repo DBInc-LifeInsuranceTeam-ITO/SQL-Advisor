@@ -21,6 +21,11 @@ export async function loginWithLocalIdentifier(identifier: string) {
   return response.data
 }
 
+export async function loginWithInternalIdentifier(identifier?: string) {
+  const response = await api.post<CurrentUserResponse>('/auth/internal', identifier ? { identifier } : {})
+  return response.data
+}
+
 export async function logout() {
   await api.post<void>('/auth/logout')
 }

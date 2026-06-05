@@ -247,6 +247,59 @@ public class AuthRepository {
                 .orElseThrow(() -> new IllegalStateException("로그인 사용자를 다시 조회하지 못했습니다."));
     }
 
+    @Transactional
+    public AppUserPrincipal upsertInternalUser(String identifier, String email, String displayName, Set<String> adminEmails) {
+        Optional<AppUserPrincipal> identityUser = findUserByIdentity("internal-ad", identifier);
+        Long userId = identityUser
+                .map(AppUserPrincipal::id)
+                .orElseGet(() -> findUserByEmail(email)
+                        .map(AppUserPrincipal::id)
+                        .orElseGet(() -> createLocalUser(email, displayName, adminEmails.contains(normalize(email)))));
+
+        boolean admin = adminEmails.contains(normalize(email));
+        jdbcTemplate.update("""
+                        UPDATE app_user
+                           SET email = ?,
+                               display_name = ?,
+                               role = CASE WHEN ? THEN 'ADMIN' ELSE role END,
+                               enabled = true,
+                               last_login_at = CURRENT_TIMESTAMP,
+                               updated_at = CURRENT_TIMESTAMP
+                         WHERE id = ?
+                        """,
+                email,
+                displayName,
+                admin,
+                userId
+        );
+
+        jdbcTemplate.update("""
+                        INSERT INTO auth_identity(
+                            user_id, provider, provider_user_id, email, email_verified,
+                            provider_metadata, last_login_at, updated_at
+                        )
+                        VALUES (?, 'internal-ad', ?, ?, true, ?::jsonb, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP)
+                        ON CONFLICT (provider, provider_user_id)
+                        DO UPDATE SET user_id = EXCLUDED.user_id,
+                                      email = EXCLUDED.email,
+                                      email_verified = true,
+                                      provider_metadata = EXCLUDED.provider_metadata,
+                                      last_login_at = CURRENT_TIMESTAMP,
+                                      updated_at = CURRENT_TIMESTAMP
+                        """,
+                userId,
+                identifier,
+                email,
+                toJson(Map.of(
+                        "displayName", displayName,
+                        "loginEno", identifier
+                ))
+        );
+
+        return findUserById(userId)
+                .orElseThrow(() -> new IllegalStateException("Login user could not be reloaded."));
+    }
+
     public void recordLoginAttempt(Long userId, String provider, String username, boolean success,
                                    String failureReason, String ipAddress, String userAgent) {
         jdbcTemplate.update("""

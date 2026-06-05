@@ -128,3 +128,4 @@ production-deploy/*.jar
 license/production-deploy/*.jar
 !**/gradle/wrapper/gradle-wrapper.jar
 
+license/

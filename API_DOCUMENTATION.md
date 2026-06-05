@@ -4,11 +4,12 @@
 
 1. [개요](#개요)
 2. [공통 응답 구조](#공통-응답-구조)
-3. [AWR 분석 API](#awr-분석-api)
-4. [AI 설정 API](#ai-설정-api)
-5. [주요 데이터 타입](#주요-데이터-타입)
-6. [오류 응답](#오류-응답)
-7. [기존 호환 API](#기존-호환-api)
+3. [인증 API](#인증-api)
+4. [AWR 분석 API](#awr-분석-api)
+5. [AI 설정 API](#ai-설정-api)
+6. [주요 데이터 타입](#주요-데이터-타입)
+7. [오류 응답](#오류-응답)
+8. [기존 호환 API](#기존-호환-api)
 
 ---
 
@@ -58,6 +59,75 @@ http://localhost:18080/api
 | `timestamp` | string | 서버 응답 시각 |
 
 프론트엔드의 `src/services/api.ts`는 `success=true` 응답의 `data`를 자동으로 unwrap합니다.
+
+---
+
+## 인증 API
+
+### 인증 설정 조회
+
+**GET** `/api/auth/config`
+
+로그인 활성화 여부와 현재 인증 모드를 조회합니다.
+
+#### Response 200
+
+```json
+{
+  "success": true,
+  "message": "요청이 성공적으로 처리되었습니다.",
+  "data": {
+    "authEnabled": true,
+    "authMode": "external",
+    "googleConfigured": true,
+    "googleClientId": "<Google OAuth Client ID>",
+    "internalLoginEnabled": false,
+    "localLoginEnabled": false
+  },
+  "timestamp": "2026-05-10T22:30:00"
+}
+```
+
+`authMode`는 `external` 또는 `internal`입니다. `external`은 Google 로그인, `internal`은 AD 계정 식별자 로그인을 사용합니다.
+
+### 현재 사용자 조회
+
+**GET** `/api/auth/me`
+
+현재 세션의 사용자 정보를 조회합니다. 로그인하지 않은 상태면 `authenticated=false`로 응답합니다.
+
+### Google 로그인
+
+**POST** `/api/auth/google`
+
+외부용 로그인에서 Google ID Token을 검증하고 세션을 생성합니다.
+
+```json
+{
+  "credential": "<Google ID Token>",
+  "nonce": "<optional nonce>"
+}
+```
+
+### 내부용 AD 계정 식별자 로그인
+
+**POST** `/api/auth/internal`
+
+내부용 로그인에서 AD 계정 식별자를 사용해 세션을 생성합니다. 식별자는 request body의 `identifier`, `loginEno` 쿼리 파라미터, `X-Login-Eno` 헤더, 기존 세션 순서로 확인합니다.
+
+```json
+{
+  "identifier": "191723"
+}
+```
+
+식별자가 없으면 로그인하지 않은 상태로 남습니다.
+
+### 로그아웃
+
+**POST** `/api/auth/logout`
+
+현재 서버 세션을 종료합니다.
 
 ---
 
@@ -140,7 +210,7 @@ curl -X POST http://localhost:18080/api/reports \
 }
 ```
 
-현재 이 목록은 API 서버 메모리에 저장됩니다. 서버 재시작 후에는 초기화될 수 있습니다.
+리포트 목록과 분석 데이터는 PostgreSQL에 저장됩니다. 로그인 사용자는 공유 범위와 권한에 따라 조회 가능한 리포트가 달라질 수 있습니다.
 
 ---
 
@@ -435,7 +505,7 @@ curl -X POST http://localhost:18080/api/reports \
 }
 ```
 
-현재 외부 provider 값은 구성 상태 확인에 사용됩니다. Advisor 답변은 기본적으로 local rule 기반입니다.
+외부 또는 내부 LLM provider가 설정되어 있으면 Advisor 분석/Chat에서 실제 호출에 사용됩니다. provider가 비활성화되었거나 호출에 실패하면 로컬 rule 기반 Advisor 결과로 동작합니다.
 
 ---
 

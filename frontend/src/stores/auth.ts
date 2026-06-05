@@ -1,7 +1,8 @@
 import { defineStore } from 'pinia'
-import { getAuthConfig, getCurrentUser, loginWithGoogleCredential, loginWithLocalIdentifier, logout } from '@/api/auth'
+import { getAuthConfig, getCurrentUser, loginWithGoogleCredential, loginWithInternalIdentifier, loginWithLocalIdentifier, logout } from '@/api/auth'
 import type { AuthConfigResponse, CurrentUserResponse } from '@/types/auth'
 
+const INTERNAL_LOGIN_KEY = 'loginEno'
 let initializationPromise: Promise<void> | null = null
 
 export const useAuthStore = defineStore('auth', {
@@ -13,8 +14,10 @@ export const useAuthStore = defineStore('auth', {
   }),
   getters: {
     authEnabled: (state) => Boolean(state.config?.authEnabled),
+    authMode: (state) => state.config?.authMode || 'external',
     googleConfigured: (state) => Boolean(state.config?.googleConfigured),
     googleClientId: (state) => state.config?.googleClientId || '',
+    internalLoginEnabled: (state) => Boolean(state.config?.internalLoginEnabled),
     localLoginEnabled: (state) => Boolean(state.config?.localLoginEnabled),
     isAuthenticated: (state) => Boolean(state.user?.authenticated),
     isAdmin: (state) => state.user?.role === 'ADMIN'
@@ -52,8 +55,15 @@ export const useAuthStore = defineStore('auth', {
       this.user = await loginWithLocalIdentifier(identifier)
       return this.user
     },
+    async loginWithInternal(identifier?: string) {
+      this.user = await loginWithInternalIdentifier(identifier)
+      return this.user
+    },
     async logout() {
       await logout()
+      if (this.authMode === 'internal') {
+        localStorage.removeItem(INTERNAL_LOGIN_KEY)
+      }
       this.user = { authenticated: false, authProviders: [] }
     }
   }

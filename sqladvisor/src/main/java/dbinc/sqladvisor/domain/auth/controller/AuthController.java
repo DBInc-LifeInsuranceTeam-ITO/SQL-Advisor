@@ -70,6 +70,19 @@ public class AuthController {
         return ResponseEntity.ok(ApiResponse.success(authService.currentUserResponse(principal)));
     }
 
+    @PostMapping("/internal")
+    public ResponseEntity<ApiResponse<AuthDtos.CurrentUserResponse>> internal(
+            @RequestBody(required = false) AuthDtos.InternalLoginRequest request,
+            HttpServletRequest httpRequest
+    ) {
+        AppUserPrincipal principal = authService.authenticateInternal(
+                request == null ? null : request.identifier(),
+                httpRequest
+        );
+        setSecurityContext(principal, httpRequest);
+        return ResponseEntity.ok(ApiResponse.success(authService.currentUserResponse(principal)));
+    }
+
     @PostMapping("/logout")
     public ResponseEntity<ApiResponse<Void>> logout(HttpServletRequest request, HttpServletResponse response) {
         SecurityContextHolder.clearContext();

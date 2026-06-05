@@ -27,8 +27,11 @@ server:
 app:
   auth:
     enabled: ${APP_AUTH_ENABLED:false}
+    mode: ${APP_AUTH_MODE:external}
     local-login-enabled: ${APP_LOCAL_LOGIN_ENABLED:false}
     admin-emails: ${APP_ADMIN_EMAILS:}
+    internal:
+      email-domain: ${APP_INTERNAL_AUTH_EMAIL_DOMAIN:internal.local}
     google:
       client-id: ${GOOGLE_CLIENT_ID:}
       allowed-domains: ${APP_ALLOWED_GOOGLE_DOMAINS:}

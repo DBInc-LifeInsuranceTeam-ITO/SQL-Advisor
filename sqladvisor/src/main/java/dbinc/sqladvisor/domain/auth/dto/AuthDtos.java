@@ -9,8 +9,10 @@ public final class AuthDtos {
 
     public record AuthConfigResponse(
             boolean authEnabled,
+            String authMode,
             boolean googleConfigured,
             String googleClientId,
+            boolean internalLoginEnabled,
             boolean localLoginEnabled
     ) {
     }
@@ -22,6 +24,11 @@ public final class AuthDtos {
     }
 
     public record LocalLoginRequest(
+            String identifier
+    ) {
+    }
+
+    public record InternalLoginRequest(
             String identifier
     ) {
     }

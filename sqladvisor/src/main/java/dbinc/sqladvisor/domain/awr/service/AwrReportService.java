@@ -26,6 +26,7 @@ public class AwrReportService {
 
     private final AwrParser parser;
     private final AwrAdvisor localAdvisor;
+    private final AwrSqlTuningAdvisor sqlTuningAdvisor;
     private final AwrLlmAdvisor llmAdvisor;
     private final AwrRagService ragService;
     private final AwrRepository repository;
@@ -244,10 +245,81 @@ public class AwrReportService {
 
     public AwrDtos.SqlMetricResponse getSql(Long reportId, String sqlId) {
         getReportRecord(reportId);
-        return repository.findSqlMetrics(reportId).stream()
-                .filter(metric -> metric.sqlId().equalsIgnoreCase(sqlId))
-                .findFirst()
-                .orElseThrow(() -> new IllegalArgumentException("SQL_ID를 찾을 수 없습니다: " + sqlId));
+        return findSqlMetric(reportId, sqlId);
+    }
+
+    public AwrDtos.SqlTuningResponse tuneSql(Long reportId, String sqlId, AwrDtos.SqlTuningRequest request) {
+        getReportRecord(reportId);
+        AwrDtos.SqlMetricResponse metric = findSqlMetric(reportId, sqlId);
+        String question = tuningQuestion(sqlId, request);
+        List<AwrRagChunk> ragChunks = ragService.retrieve(reportId, "SQL_ID " + sqlId + " " + question);
+        List<String> citations = new ArrayList<>();
+        citations.add("awr_sql_metric / " + metric.sectionName() + " / SQL_ID " + metric.sqlId());
+        for (String citation : ragService.citations(ragChunks)) {
+            if (!citations.contains(citation)) {
+                citations.add(citation);
+            }
+        }
+
+        AwrDtos.SqlTuningResponse local = sqlTuningAdvisor.tune(
+                reportId,
+                metric.sqlId(),
+                question,
+                metric,
+                request,
+                citations
+        );
+        AwrDtos.SqlTuningResponse selected = llmAdvisor.tuneSql(
+                reportId,
+                metric.sqlId(),
+                request,
+                local,
+                ragChunks
+        ).orElse(local);
+
+        long tuningId = repository.saveAnalysisResult(
+                reportId,
+                currentUserService.currentUserIdOrNull(),
+                selected.question(),
+                selected,
+                "sql_tuning",
+                selected.model(),
+                selected.citations()
+        );
+        AwrDtos.SqlTuningResponse persisted = new AwrDtos.SqlTuningResponse(
+                tuningId,
+                reportId,
+                selected.sqlId(),
+                selected.question(),
+                selected.input(),
+                selected.metric(),
+                selected.summary(),
+                selected.symptoms(),
+                selected.indexRecommendations(),
+                selected.rewriteRecommendations(),
+                selected.validationSteps(),
+                selected.missingInputs(),
+                selected.citations(),
+                selected.model(),
+                selected.confidence(),
+                selected.createdAt() == null ? LocalDateTime.now() : selected.createdAt()
+        );
+        repository.updateAnalysisJson(tuningId, persisted);
+        return persisted;
+    }
+
+    public Optional<AwrDtos.SqlTuningResponse> getLatestSqlTuning(Long reportId, String sqlId) {
+        getReportRecord(reportId);
+        return repository.findLatestSqlTuning(reportId, sqlId, currentUserService.currentUserIdOrNull());
+    }
+
+    public List<AwrDtos.SqlTuningResponse> listSqlTuningHistory(Long reportId) {
+        getReportRecord(reportId);
+        return repository.findSqlTuningHistory(
+                reportId,
+                currentUserService.currentUserIdOrNull(),
+                currentUserService.isCurrentUserAdmin()
+        );
     }
 
     public AwrDtos.AnalysisResponse getAnalysis(Long analysisId) {
@@ -297,6 +369,23 @@ public class AwrReportService {
             ragService.indexReport(reportId, parsed.sections(), parsed.sqlMetrics(), parsed.waitEvents());
         }
         return buildStatus(reportId, getReportRecordInternal(reportId));
+    }
+
+    private AwrDtos.SqlMetricResponse findSqlMetric(Long reportId, String sqlId) {
+        if (sqlId == null || sqlId.isBlank()) {
+            throw new IllegalArgumentException("SQL_ID is required.");
+        }
+        return repository.findSqlMetrics(reportId).stream()
+                .filter(metric -> metric.sqlId().equalsIgnoreCase(sqlId))
+                .findFirst()
+                .orElseThrow(() -> new IllegalArgumentException("SQL_ID not found: " + sqlId));
+    }
+
+    private String tuningQuestion(String sqlId, AwrDtos.SqlTuningRequest request) {
+        if (request != null && request.question() != null && !request.question().isBlank()) {
+            return request.question();
+        }
+        return "Tune SQL_ID " + sqlId + " and recommend safe index candidates with validation steps.";
     }
 
     private AwrRepository.ReportRecord getReportRecord(Long reportId) {

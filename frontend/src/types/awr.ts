@@ -116,6 +116,44 @@ export interface ChatHistoryResponse extends ChatResponse {
   createdAt: string
 }
 
+export interface SqlTuningRequest {
+  sqlText?: string
+  question?: string
+  executionPlan?: string
+  schemaDdl?: string
+  existingIndexes?: string
+  bindSamples?: string
+}
+
+export interface SqlTuningResponse {
+  tuningId: number
+  reportId?: number | null
+  sqlId: string
+  question: string
+  input?: SqlTuningRequest | null
+  metric: SqlMetricResponse
+  summary: string
+  symptoms: string[]
+  indexRecommendations: IndexRecommendationResponse[]
+  rewriteRecommendations: string[]
+  validationSteps: string[]
+  missingInputs: string[]
+  citations: string[]
+  model: string
+  confidence: string
+  createdAt: string
+}
+
+export interface IndexRecommendationResponse {
+  tableName?: string | null
+  columns: string[]
+  ddlCandidate?: string | null
+  reason: string
+  expectedBenefit: string
+  risk: string
+  validationSql: string
+}
+
 export interface AiConfigResponse {
   llmProvider: string
   embeddingProvider: string

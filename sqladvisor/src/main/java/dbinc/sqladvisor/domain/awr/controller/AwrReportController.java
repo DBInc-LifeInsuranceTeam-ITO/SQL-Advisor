@@ -120,6 +120,28 @@ public class AwrReportController {
         return ResponseEntity.ok(ApiResponse.success(awrReportService.getSql(reportId, sqlId)));
     }
 
+    @PostMapping("/reports/{reportId}/sql/{sqlId}/tune")
+    public ResponseEntity<ApiResponse<AwrDtos.SqlTuningResponse>> tuneSql(
+            @PathVariable Long reportId,
+            @PathVariable String sqlId,
+            @RequestBody(required = false) AwrDtos.SqlTuningRequest request
+    ) {
+        return ResponseEntity.ok(ApiResponse.success(awrReportService.tuneSql(reportId, sqlId, request)));
+    }
+
+    @GetMapping("/reports/{reportId}/sql/{sqlId}/tuning/latest")
+    public ResponseEntity<ApiResponse<AwrDtos.SqlTuningResponse>> getLatestSqlTuning(
+            @PathVariable Long reportId,
+            @PathVariable String sqlId
+    ) {
+        return ResponseEntity.ok(ApiResponse.success(awrReportService.getLatestSqlTuning(reportId, sqlId).orElse(null)));
+    }
+
+    @GetMapping("/reports/{reportId}/sql/tuning/history")
+    public ResponseEntity<ApiResponse<List<AwrDtos.SqlTuningResponse>>> listSqlTuningHistory(@PathVariable Long reportId) {
+        return ResponseEntity.ok(ApiResponse.success(awrReportService.listSqlTuningHistory(reportId)));
+    }
+
     @GetMapping("/analysis/{analysisId}")
     public ResponseEntity<ApiResponse<AwrDtos.AnalysisResponse>> getAnalysis(@PathVariable Long analysisId) {
         return ResponseEntity.ok(ApiResponse.success(awrReportService.getAnalysis(analysisId)));

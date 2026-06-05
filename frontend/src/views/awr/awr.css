@@ -128,6 +128,52 @@
   background: #f7fbfd;
 }
 
+.awr-table tr.awr-priority-row td {
+  background: #eef7fc;
+  border-bottom-color: #8bbbd8;
+}
+
+.awr-table tr.awr-priority-row td:first-child {
+  box-shadow: inset 4px 0 0 #176ea8;
+}
+
+.awr-table tr.awr-priority-row:hover td {
+  background: #e2f1fa;
+}
+
+.awr-table tr.awr-priority-row.priority-1 td {
+  background: #fff1f1;
+  border-bottom-color: #efb1b1;
+}
+
+.awr-table tr.awr-priority-row.priority-1 td:first-child {
+  box-shadow: inset 4px 0 0 #b42318;
+}
+
+.awr-table tr.awr-priority-row.priority-1:hover td {
+  background: #ffe3e3;
+}
+
+.awr-table tr.awr-priority-row.priority-2 td {
+  background: #fff8e8;
+  border-bottom-color: #f1ce8a;
+}
+
+.awr-table tr.awr-priority-row.priority-2 td:first-child {
+  box-shadow: inset 4px 0 0 #c27a12;
+}
+
+.awr-table tr.awr-priority-row.priority-2:hover td {
+  background: #fff3d1;
+}
+
+.awr-sql-id-cell {
+  display: flex;
+  align-items: center;
+  gap: 0.45rem;
+  flex-wrap: wrap;
+}
+
 .awr-link {
   border: 0;
   background: transparent;
@@ -163,6 +209,12 @@
   color: #ffffff;
 }
 
+.awr-btn.compact {
+  min-height: 1.85rem;
+  padding: 0.25rem 0.55rem;
+  font-size: 0.75rem;
+}
+
 .awr-btn:disabled {
   cursor: not-allowed;
   opacity: 0.55;
@@ -184,6 +236,31 @@
 .awr-badge.warn {
   background: #fff5db;
   color: #93620c;
+}
+
+.awr-priority-badge {
+  display: inline-flex;
+  align-items: center;
+  min-height: 1.4rem;
+  padding: 0.1rem 0.45rem;
+  border-radius: 999px;
+  background: #c27a12;
+  color: #ffffff;
+  font-size: 0.7rem;
+  font-weight: 850;
+  white-space: nowrap;
+}
+
+.awr-priority-badge.priority-1 {
+  background: #b42318;
+}
+
+.awr-priority-badge.priority-2 {
+  background: #c27a12;
+}
+
+.awr-priority-badge.priority-other {
+  background: #176ea8;
 }
 
 .awr-badge.ok {
@@ -548,6 +625,63 @@
   font-size: 0.78rem;
 }
 
+.awr-side-panel .awr-code {
+  max-height: 12rem;
+}
+
+.sql-tuning-main-input {
+  min-height: 16rem;
+}
+
+.sql-tuning-summary-strip {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 0.6rem;
+  margin-bottom: 0.8rem;
+  padding: 0.7rem;
+  border: 1px solid #dce3ea;
+  border-radius: 8px;
+  background: #f8fafc;
+}
+
+.sql-tuning-summary-strip div {
+  display: flex;
+  flex-direction: column;
+  gap: 0.2rem;
+}
+
+.sql-tuning-summary-strip span {
+  color: #637083;
+  font-size: 0.72rem;
+  font-weight: 800;
+}
+
+.sql-tuning-summary-strip strong {
+  color: #1b2a3b;
+  font-size: 1rem;
+  font-weight: 850;
+}
+
+.sql-tuning-summary-text {
+  margin: 0 0 1rem;
+}
+
+.sql-tuning-ddl-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.75rem;
+  margin: 0.7rem 0 0.4rem;
+  color: #334155;
+  font-size: 0.78rem;
+}
+
+.awr-side-history {
+  margin-top: 1rem;
+  padding-top: 1rem;
+  border-top: 1px solid #e2e8ef;
+}
+
 .awr-chat-layout {
   display: grid;
   grid-template-columns: minmax(260px, 0.34fr) minmax(0, 0.66fr);
@@ -565,6 +699,11 @@
   padding: 0.5rem 0.65rem;
   font: inherit;
   resize: vertical;
+}
+
+.awr-textarea::placeholder {
+  color: #8a97a6;
+  opacity: 1;
 }
 
 .awr-form {
@@ -738,6 +877,10 @@
   overflow: auto;
 }
 
+.awr-history-list.compact {
+  max-height: 14rem;
+}
+
 .awr-history-item {
   display: flex;
   width: 100%;
@@ -793,6 +936,10 @@
   gap: 0.75rem;
 }
 
+.awr-finding-grid.compact {
+  grid-template-columns: 1fr;
+}
+
 .awr-finding ul {
   margin: 0.35rem 0 0;
   padding-left: 1.1rem;
@@ -827,5 +974,9 @@
 
   .awr-panel {
     padding: 0.85rem;
+  }
+
+  .sql-tuning-summary-strip {
+    grid-template-columns: 1fr;
   }
 }

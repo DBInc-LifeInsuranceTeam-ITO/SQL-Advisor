@@ -5,7 +5,6 @@ import dbinc.sqladvisor.domain.awr.dto.AwrDtos;
 import dbinc.sqladvisor.domain.sqltuning.dto.SqlTuningDtos;
 import dbinc.sqladvisor.domain.sqltuning.service.DirectDbSqlTuningService;
 import lombok.RequiredArgsConstructor;
-import lombok.extern.slf4j.Slf4j;
 import org.springframework.format.annotation.DateTimeFormat;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.ExceptionHandler;
@@ -21,7 +20,6 @@ import java.util.List;
 
 @RestController
 @RequiredArgsConstructor
-@Slf4j
 @RequestMapping("/api/sql-tuning/direct")
 public class DirectDbSqlTuningController {
 
@@ -68,7 +66,6 @@ public class DirectDbSqlTuningController {
 
     @ExceptionHandler(IllegalArgumentException.class)
     public ResponseEntity<ApiResponse<Void>> handleBadRequest(IllegalArgumentException exception) {
-        log.warn("Direct DB SQL tuning request failed: {}", exception.getMessage(), exception);
         return ResponseEntity
                 .badRequest()
                 .body(ApiResponse.badRequest(exception.getMessage()));

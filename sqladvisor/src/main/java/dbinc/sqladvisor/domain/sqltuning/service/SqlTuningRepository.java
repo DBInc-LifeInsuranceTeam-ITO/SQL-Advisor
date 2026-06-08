@@ -46,14 +46,20 @@ public class SqlTuningRepository {
                 """);
         jdbcTemplate.execute("CREATE INDEX IF NOT EXISTS idx_sql_tuning_result_user ON sql_tuning_result(user_id, created_at DESC)");
         jdbcTemplate.execute("CREATE INDEX IF NOT EXISTS idx_sql_tuning_result_source ON sql_tuning_result(source_type, created_at DESC)");
+        jdbcTemplate.execute("ALTER TABLE sql_tuning_result ADD COLUMN IF NOT EXISTS connection_id BIGINT");
+        jdbcTemplate.execute("CREATE INDEX IF NOT EXISTS idx_sql_tuning_result_connection ON sql_tuning_result(connection_id, created_at DESC)");
     }
 
     public long save(Long userId, String sourceType, String sqlId, String sqlText, Object input, AwrDtos.SqlTuningResponse result) {
+        return save(userId, sourceType, null, sqlId, sqlText, input, result);
+    }
+
+    public long save(Long userId, String sourceType, Long connectionId, String sqlId, String sqlText, Object input, AwrDtos.SqlTuningResponse result) {
         KeyHolder keyHolder = new GeneratedKeyHolder();
         jdbcTemplate.update(connection -> {
             PreparedStatement statement = connection.prepareStatement("""
-                            INSERT INTO sql_tuning_result(user_id, source_type, sql_id, sql_text, input_json, result_json, model, confidence)
-                            VALUES (?, ?, ?, ?, ?::jsonb, ?::jsonb, ?, ?)
+                            INSERT INTO sql_tuning_result(user_id, source_type, connection_id, sql_id, sql_text, input_json, result_json, model, confidence)
+                            VALUES (?, ?, ?, ?, ?, ?::jsonb, ?::jsonb, ?, ?)
                             """, new String[]{"id"});
             if (userId == null) {
                 statement.setObject(1, null);
@@ -61,12 +67,13 @@ public class SqlTuningRepository {
                 statement.setLong(1, userId);
             }
             statement.setString(2, sourceType);
-            statement.setString(3, sqlId);
-            statement.setString(4, sqlText);
-            statement.setString(5, toJson(input));
-            statement.setString(6, toJson(result));
-            statement.setString(7, result.model());
-            statement.setString(8, result.confidence());
+            statement.setObject(3, connectionId);
+            statement.setString(4, sqlId);
+            statement.setString(5, sqlText);
+            statement.setString(6, toJson(input));
+            statement.setString(7, toJson(result));
+            statement.setString(8, result.model());
+            statement.setString(9, result.confidence());
             return statement;
         }, keyHolder);
         return keyHolder.getKey().longValue();
@@ -91,7 +98,7 @@ public class SqlTuningRepository {
         return jdbcTemplate.query("""
                         SELECT input_json, result_json
                           FROM sql_tuning_result
-                         WHERE source_type IN ('MANUAL_SQL', 'DIRECT_DB_SQL')
+                         WHERE source_type IN ('MANUAL_SQL', 'DIRECT_DB')
                            AND (? OR ((?::bigint IS NULL AND user_id IS NULL) OR user_id = ?::bigint))
                          ORDER BY created_at DESC, id DESC
                          LIMIT 100
@@ -108,6 +115,7 @@ public class SqlTuningRepository {
                         SELECT input_json, result_json
                           FROM sql_tuning_result
                          WHERE id = ?
+                           AND source_type IN ('MANUAL_SQL', 'DIRECT_DB')
                            AND (? OR ((?::bigint IS NULL AND user_id IS NULL) OR user_id = ?::bigint))
                         """,
                 (rs, rowNum) -> withInput(rs.getString("result_json"), rs.getString("input_json")),

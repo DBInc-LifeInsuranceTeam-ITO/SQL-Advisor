@@ -1,10 +1,11 @@
 import api from '@/services/api'
 import type {
   DirectDbContextResponse,
+  DirectTopSqlOptions,
   DirectTuningRequest,
+  SqlMetricResponse,
   SqlTuningRequest,
   SqlTuningResponse,
-  SqlMetricResponse,
   TargetDbConnectionRequest,
   TargetDbConnectionResponse,
   TargetDbConnectionTestRequest,
@@ -36,8 +37,14 @@ export async function createTargetDbConnection(payload: TargetDbConnectionReques
   return response.data
 }
 
-export async function testTargetDbConnection(payload: TargetDbConnectionTestRequest) {
-  const response = await api.post<TargetDbConnectionTestResponse>('/db-connections/test', payload)
+export async function testTargetDbConnection(payload: TargetDbConnectionRequest) {
+  const request: TargetDbConnectionTestRequest = {
+    dbType: payload.dbType,
+    jdbcUrl: payload.jdbcUrl,
+    username: payload.username,
+    password: payload.password
+  }
+  const response = await api.post<TargetDbConnectionTestResponse>('/db-connections/test', request)
   return response.data
 }
 
@@ -60,9 +67,12 @@ export async function tuneDirectSql(payload: DirectTuningRequest) {
   return response.data
 }
 
-export async function getDirectTopSql(connectionId: number) {
+export async function getDirectTopSql(connectionId: number, options: DirectTopSqlOptions = {}) {
   const response = await api.get<SqlMetricResponse[]>('/sql-tuning/direct/top-sql', {
-    params: { connectionId }
+    params: {
+      connectionId,
+      ...options
+    }
   })
   return response.data
 }

@@ -67,6 +67,17 @@ export interface SqlMetricResponse {
   interpretationHint: string
 }
 
+export interface DirectTopSqlOptions {
+  source?: 'CURRENT' | 'HISTORY'
+  limit?: 20 | 50 | 100
+  sortBy?: 'ELAPSED' | 'BUFFER_GETS' | 'DISK_READS' | 'EXECUTIONS'
+  startTime?: string
+  endTime?: string
+  schema?: string
+  module?: string
+  program?: string
+}
+
 export interface WaitEventResponse {
   waitClass: string
   eventName: string
@@ -144,15 +155,32 @@ export interface SqlTuningResponse {
   createdAt: string
 }
 
+export interface IndexRecommendationResponse {
+  tableName?: string | null
+  columns: string[]
+  ddlCandidate?: string | null
+  reason: string
+  expectedBenefit: string
+  risk: string
+  validationSql: string
+}
+
 export interface TargetDbConnectionRequest {
-  name: string
-  dbType: string
-  jdbcUrl: string
-  username: string
+  name?: string
+  dbType?: string
+  jdbcUrl?: string
+  username?: string
   password?: string
   visibility?: string
   monitoringEnabled?: boolean
   monitoringIntervalSec?: number
+}
+
+export interface TargetDbConnectionTestRequest {
+  dbType?: string
+  jdbcUrl?: string
+  username?: string
+  password?: string
 }
 
 export interface TargetDbConnectionResponse {
@@ -168,24 +196,17 @@ export interface TargetDbConnectionResponse {
   updatedAt: string
 }
 
-export interface TargetDbConnectionTestRequest {
-  dbType: string
-  jdbcUrl: string
-  username: string
-  password: string
-}
-
 export interface TargetDbConnectionTestResponse {
   success: boolean
   message: string
   databaseProductName?: string | null
   databaseProductVersion?: string | null
-  capabilities: string[]
-  warnings: string[]
+  capabilities?: string[]
+  warnings?: string[]
 }
 
 export interface DirectTuningRequest {
-  connectionId: number
+  connectionId?: number | null
   sqlId?: string
   sqlText?: string
 }
@@ -199,16 +220,6 @@ export interface DirectDbContextResponse {
   collectedAt: string
 }
 
-export interface IndexRecommendationResponse {
-  tableName?: string | null
-  columns: string[]
-  ddlCandidate?: string | null
-  reason: string
-  expectedBenefit: string
-  risk: string
-  validationSql: string
-}
-
 export interface AiConfigResponse {
   llmProvider: string
   embeddingProvider: string
@@ -220,6 +231,8 @@ export interface AiConfigResponse {
   geminiEmbeddingModel: string
   internalBaseUrl: string
   internalChatModel: string
+  internalEmbeddingBaseUrl: string
+  internalEmbeddingModel: string
   ollamaBaseUrl: string
   ollamaChatModel: string
   ollamaEmbeddingModel: string
@@ -261,6 +274,8 @@ export interface AiConfigUpdateRequest {
   internalApiKey?: string
   internalBaseUrl?: string
   internalChatModel?: string
+  internalEmbeddingBaseUrl?: string
+  internalEmbeddingModel?: string
   ollamaBaseUrl?: string
   ollamaChatModel?: string
   ollamaEmbeddingModel?: string
@@ -275,6 +290,7 @@ export interface AiModelOptionsResponse {
   geminiChatModels: string[]
   geminiEmbeddingModels: string[]
   internalChatModels: string[]
+  internalEmbeddingModels: string[]
   ollamaChatModels: string[]
   ollamaEmbeddingModels: string[]
   warnings: string[]

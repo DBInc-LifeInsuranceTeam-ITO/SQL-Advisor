@@ -89,7 +89,6 @@
               LLM으로 사용
             </button>
             <button
-              v-if="provider.provider !== 'internal'"
               class="ai-provider-action"
               type="button"
               :disabled="aiForm.embeddingProvider === provider.provider"
@@ -187,6 +186,16 @@
                 <option v-for="model in internalChatModelChoices" :key="model" :value="model">{{ model }}</option>
               </select>
             </label>
+            <label v-if="provider.provider === 'internal'" class="awr-field">
+              <span>Embedding Base URL</span>
+              <input v-model="aiForm.internalEmbeddingBaseUrl" type="text" autocomplete="off" placeholder="http://<노드IP>:31936/embeddings" />
+            </label>
+            <label v-if="provider.provider === 'internal'" class="awr-field">
+              <span>Embedding Model</span>
+              <select v-model="aiForm.internalEmbeddingModel">
+                <option v-for="model in internalEmbeddingModelChoices" :key="model" :value="model">{{ model }}</option>
+              </select>
+            </label>
             <label v-if="provider.provider === 'ollama'" class="awr-field">
               <span>Base URL</span>
               <input v-model="aiForm.ollamaBaseUrl" type="text" autocomplete="off" />
@@ -248,7 +257,8 @@ const openaiChatModelChoices = computed(() => withSelected(modelOptions.value.op
 const openaiEmbeddingModelChoices = computed(() => withSelected(modelOptions.value.openaiEmbeddingModels, aiForm.value.openaiEmbeddingModel, 'text-embedding-3-small'))
 const geminiChatModelChoices = computed(() => withSelected(modelOptions.value.geminiChatModels, aiForm.value.geminiChatModel, 'gemini-3.1-flash-lite'))
 const geminiEmbeddingModelChoices = computed(() => withSelected(modelOptions.value.geminiEmbeddingModels, aiForm.value.geminiEmbeddingModel, 'gemini-embedding-001'))
-const internalChatModelChoices = computed(() => withSelected(modelOptions.value.internalChatModels, aiForm.value.internalChatModel, 'gemma3-12b'))
+const internalChatModelChoices = computed(() => withSelected(modelOptions.value.internalChatModels, aiForm.value.internalChatModel, 'gemma4-31b'))
+const internalEmbeddingModelChoices = computed(() => withSelected(modelOptions.value.internalEmbeddingModels, aiForm.value.internalEmbeddingModel, 'genai-bge-m3'))
 const ollamaChatModelChoices = computed(() => withSelected(modelOptions.value.ollamaChatModels, aiForm.value.ollamaChatModel, 'llama3.1'))
 const ollamaEmbeddingModelChoices = computed(() => withSelected(modelOptions.value.ollamaEmbeddingModels, aiForm.value.ollamaEmbeddingModel, 'embeddinggemma'))
 const realProviderConfigs = computed(() => aiConfig.value?.providerConfigs.filter((provider) => provider.provider !== 'local') || [])
@@ -279,6 +289,8 @@ async function saveAiConfig() {
       internalApiKey: aiForm.value.internalApiKey?.trim() || undefined,
       internalBaseUrl: aiForm.value.internalBaseUrl?.trim() || undefined,
       internalChatModel: aiForm.value.internalChatModel?.trim() || undefined,
+      internalEmbeddingBaseUrl: aiForm.value.internalEmbeddingBaseUrl?.trim() || undefined,
+      internalEmbeddingModel: aiForm.value.internalEmbeddingModel?.trim() || undefined,
       ollamaBaseUrl: aiForm.value.ollamaBaseUrl?.trim() || undefined,
       ollamaChatModel: aiForm.value.ollamaChatModel?.trim() || undefined,
       ollamaEmbeddingModel: aiForm.value.ollamaEmbeddingModel?.trim() || undefined,
@@ -320,7 +332,9 @@ function syncAiForm(config: AiConfigResponse) {
     geminiEmbeddingModel: config.geminiEmbeddingModel || 'gemini-embedding-001',
     internalApiKey: '',
     internalBaseUrl: config.internalBaseUrl || '',
-    internalChatModel: config.internalChatModel || 'gemma3-12b',
+    internalChatModel: config.internalChatModel || 'gemma4-31b',
+    internalEmbeddingBaseUrl: config.internalEmbeddingBaseUrl || '',
+    internalEmbeddingModel: config.internalEmbeddingModel || 'genai-bge-m3',
     ollamaBaseUrl: config.ollamaBaseUrl || 'http://host.docker.internal:11434',
     ollamaChatModel: config.ollamaChatModel || 'llama3.1',
     ollamaEmbeddingModel: config.ollamaEmbeddingModel || 'embeddinggemma',
@@ -344,7 +358,9 @@ function defaultAiForm(): AiConfigUpdateRequest {
     geminiEmbeddingModel: 'gemini-embedding-001',
     internalApiKey: '',
     internalBaseUrl: '',
-    internalChatModel: 'gemma3-12b',
+    internalChatModel: 'gemma4-31b',
+    internalEmbeddingBaseUrl: '',
+    internalEmbeddingModel: 'genai-bge-m3',
     ollamaBaseUrl: 'http://host.docker.internal:11434',
     ollamaChatModel: 'llama3.1',
     ollamaEmbeddingModel: 'embeddinggemma',
@@ -359,7 +375,8 @@ function emptyModelOptions(): AiModelOptionsResponse {
     openaiEmbeddingModels: ['text-embedding-3-small'],
     geminiChatModels: ['gemini-3.1-flash-lite'],
     geminiEmbeddingModels: ['gemini-embedding-001'],
-    internalChatModels: ['gemma3-12b'],
+    internalChatModels: ['gemma4-31b'],
+    internalEmbeddingModels: ['genai-bge-m3'],
     ollamaChatModels: ['llama3.1'],
     ollamaEmbeddingModels: ['embeddinggemma'],
     warnings: []
@@ -375,7 +392,7 @@ function activeModelSource(provider?: string, type?: 'chat' | 'embedding'): Conf
     return type === 'chat' ? sources.geminiChatModel : sources.geminiEmbeddingModel
   }
   if (provider === 'internal') {
-    return type === 'chat' ? sources.internalChatModel : 'none'
+    return type === 'chat' ? sources.internalChatModel : sources.internalEmbeddingModel
   }
   if (provider === 'ollama') {
     return type === 'chat' ? sources.ollamaChatModel : sources.ollamaEmbeddingModel

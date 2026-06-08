@@ -136,6 +136,11 @@ public class AwrLlmAdvisor {
                 Use only the supplied AWR metric, SQL text, optional user evidence, and RAG evidence.
                 Index recommendations must be candidates, not production-ready commands, unless execution plan,
                 schema DDL, existing indexes, and bind evidence are supplied.
+                When recommending indexes, explicitly consider table data volume and load/write volume from
+                NUM_ROWS, BLOCKS, LAST_ANALYZED, and recent INSERTS/UPDATES/DELETES evidence when supplied.
+                For large or write-heavy tables, include index maintenance, ETL/write-window impact, build time,
+                and stats gathering cost in risk and validation steps. If this evidence is unavailable, list it
+                in missing_inputs instead of assuming the index is safe.
                 Do not invent table names, column names, execution plans, DDL, bind values, or object statistics.
                 Return JSON only with this schema:
                 {

@@ -385,7 +385,7 @@ public class AwrReportService {
         if (request != null && request.question() != null && !request.question().isBlank()) {
             return request.question();
         }
-        return "Tune SQL_ID " + sqlId + " and recommend safe index candidates with validation steps.";
+        return "Tune SQL_ID " + sqlId + " and recommend safe index candidates considering table volume and load/write volume.";
     }
 
     private AwrRepository.ReportRecord getReportRecord(Long reportId) {

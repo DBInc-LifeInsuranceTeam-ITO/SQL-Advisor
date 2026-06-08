@@ -51,6 +51,7 @@ public class AwrAiClient {
         AwrAiConfigService.ActiveAiSettings settings = configService.activeSettings();
         return ("openai".equals(settings.embeddingProvider()) && hasText(settings.openaiApiKey()))
                 || ("gemini".equals(settings.embeddingProvider()) && hasText(settings.geminiApiKey()))
+                || ("internal".equals(settings.embeddingProvider()) && hasText(settings.internalEmbeddingBaseUrl()) && hasText(settings.internalEmbeddingModel()))
                 || ("ollama".equals(settings.embeddingProvider()) && hasText(settings.ollamaBaseUrl()) && hasText(settings.ollamaEmbeddingModel()));
     }
 
@@ -70,6 +71,7 @@ public class AwrAiClient {
         return switch (settings.embeddingProvider()) {
             case "openai" -> "openai/" + settings.openaiEmbeddingModel();
             case "gemini" -> "gemini/" + settings.geminiEmbeddingModel();
+            case "internal" -> "internal/" + settings.internalEmbeddingModel();
             case "ollama" -> "ollama/" + settings.ollamaEmbeddingModel();
             default -> "none";
         };
@@ -107,6 +109,10 @@ public class AwrAiClient {
             if ("gemini".equals(settings.embeddingProvider()) && hasText(settings.geminiApiKey())) {
                 List<Double> vector = normalizeDimension(callGeminiEmbedding(settings, normalizedText), settings.embeddingDimension());
                 return Optional.of(new EmbeddingResult("gemini", settings.geminiEmbeddingModel(), settings.embeddingDimension(), vector));
+            }
+            if ("internal".equals(settings.embeddingProvider()) && hasText(settings.internalEmbeddingBaseUrl()) && hasText(settings.internalEmbeddingModel())) {
+                List<Double> vector = normalizeDimension(callInternalEmbedding(settings, normalizedText), settings.embeddingDimension());
+                return Optional.of(new EmbeddingResult("internal", settings.internalEmbeddingModel(), settings.embeddingDimension(), vector));
             }
             if ("ollama".equals(settings.embeddingProvider()) && hasText(settings.ollamaBaseUrl()) && hasText(settings.ollamaEmbeddingModel())) {
                 List<Double> vector = normalizeDimension(callOllamaEmbedding(settings, normalizedText), settings.embeddingDimension());
@@ -270,6 +276,23 @@ public class AwrAiClient {
         return doubles(response.path("embeddings").path(0));
     }
 
+    private List<Double> callInternalEmbedding(AwrAiConfigService.ActiveAiSettings settings, String text) {
+        ObjectNode body = objectMapper.createObjectNode();
+        body.put("model", settings.internalEmbeddingModel());
+        body.put("input", text);
+
+        JsonNode response = postJson(
+                internalEmbeddingUri(settings.internalEmbeddingBaseUrl()),
+                body,
+                null
+        );
+        JsonNode embedding = response.path("data").path(0).path("embedding");
+        if (!embedding.isArray()) {
+            embedding = response.path("embedding");
+        }
+        return doubles(embedding);
+    }
+
     private JsonNode postJson(URI uri, JsonNode body, String authorizationHeader) {
         try {
             HttpRequest.Builder requestBuilder = HttpRequest.newBuilder(uri)
@@ -337,6 +360,14 @@ public class AwrAiClient {
             return URI.create(normalizedBaseUrl + "/chat/completions");
         }
         return URI.create(normalizedBaseUrl + "/v1/chat/completions");
+    }
+
+    private URI internalEmbeddingUri(String baseUrl) {
+        String normalizedBaseUrl = baseUrl.trim().replaceAll("/+$", "");
+        if (normalizedBaseUrl.endsWith("/embeddings")) {
+            return URI.create(normalizedBaseUrl);
+        }
+        return URI.create(normalizedBaseUrl + "/embeddings");
     }
 
     private boolean hasText(String value) {

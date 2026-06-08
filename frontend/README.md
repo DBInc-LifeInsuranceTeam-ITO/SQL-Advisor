@@ -9,15 +9,14 @@ Vue 3, TypeScript, Vite 기반의 SQLAdvisor 웹 화면입니다. AWR 업로드,
 Dev:
 
 ```bash
-cp deploy/.env.dev.example deploy/.env.dev
+sh deploy/init-env.sh --mode dev
 docker compose -f deploy/docker-compose.dev.yml up -d --build
 ```
 
 Prod:
 
 ```bash
-cp deploy/.env.prod.example deploy/.env.prod
-# deploy/.env.prod의 change-me 값을 실제 운영 값으로 수정
+sh deploy/init-env.sh --mode prod
 docker compose -f deploy/docker-compose.prod.yml up -d --build
 ```
 

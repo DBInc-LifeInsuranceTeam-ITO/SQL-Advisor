@@ -19,8 +19,8 @@ import java.util.List;
 @RequiredArgsConstructor
 public class SqlTuningService {
 
-    private static final String SOURCE_TYPE_MANUAL = "MANUAL_SQL";
-    private static final String SOURCE_TYPE_DIRECT = "DIRECT_DB_SQL";
+    private static final String SOURCE_TYPE = "MANUAL_SQL";
+    private static final String DIRECT_DB_SOURCE_TYPE = "DIRECT_DB";
 
     private final AwrSqlTuningAdvisor sqlTuningAdvisor;
     private final AwrLlmAdvisor llmAdvisor;
@@ -35,7 +35,7 @@ public class SqlTuningService {
         String sqlText = request.sqlText().trim();
         String sqlId = "manual-" + shortHash(sqlText);
         String question = request.question() == null || request.question().isBlank()
-                ? "Tune this SQL and recommend safe index candidates with validation steps."
+                ? "Tune this SQL and recommend safe index candidates considering table volume and load/write volume."
                 : request.question().trim();
         AwrDtos.SqlTuningRequest normalizedRequest = new AwrDtos.SqlTuningRequest(
                 sqlText,
@@ -61,73 +61,14 @@ public class SqlTuningService {
                 null,
                 "Manual SQL tuning request."
         );
-        return tuneInternal(SOURCE_TYPE_MANUAL, normalizedRequest, metric, List.of("manual sql input"));
-    }
 
-    public AwrDtos.SqlTuningResponse tuneDirect(SqlTuningDtos.DirectDbContextResponse context) {
-        if (context == null || context.input() == null || context.input().sqlText() == null || context.input().sqlText().isBlank()) {
-            throw new IllegalArgumentException("Direct DB SQL context is required.");
-        }
-
-        AwrDtos.SqlTuningRequest input = context.input();
-        String sqlText = input.sqlText().trim();
-        AwrDtos.SqlMetricResponse metric = context.metric() == null
-                ? new AwrDtos.SqlMetricResponse(
-                "direct-" + shortHash(sqlText),
-                "Direct DB SQL",
-                0,
-                null,
-                null,
-                null,
-                null,
-                null,
-                null,
-                null,
-                null,
-                sqlText,
-                null,
-                "Direct DB tuning request."
-        )
-                : context.metric();
-        String question = input.question() == null || input.question().isBlank()
-                ? "Tune SQL from direct database context and recommend safe index candidates."
-                : input.question().trim();
-        AwrDtos.SqlTuningRequest normalizedRequest = new AwrDtos.SqlTuningRequest(
-                sqlText,
-                question,
-                blankToNull(input.executionPlan()),
-                blankToNull(input.schemaDdl()),
-                blankToNull(input.existingIndexes()),
-                blankToNull(input.bindSamples())
-        );
-        return tuneInternal(
-                SOURCE_TYPE_DIRECT,
-                normalizedRequest,
-                metric,
-                context.warnings() == null || context.warnings().isEmpty()
-                        ? List.of("direct db context")
-                        : context.warnings()
-        );
-    }
-
-    private AwrDtos.SqlTuningResponse tuneInternal(
-            String sourceType,
-            AwrDtos.SqlTuningRequest normalizedRequest,
-            AwrDtos.SqlMetricResponse metric,
-            List<String> evidence
-    ) {
-        String sqlText = normalizedRequest.sqlText().trim();
-        String sqlId = metric.sqlId() == null || metric.sqlId().isBlank()
-                ? sourceType.toLowerCase() + "-" + shortHash(sqlText)
-                : metric.sqlId();
-        String question = normalizedRequest.question();
         AwrDtos.SqlTuningResponse local = sqlTuningAdvisor.tune(
                 null,
                 sqlId,
                 question,
                 metric,
                 normalizedRequest,
-                evidence
+                List.of("manual sql input")
         );
         AwrDtos.SqlTuningResponse selected = llmAdvisor.tuneSql(
                 null,
@@ -139,7 +80,7 @@ public class SqlTuningService {
 
         long tuningId = repository.save(
                 currentUserService.currentUserIdOrNull(),
-                sourceType,
+                SOURCE_TYPE,
                 selected.sqlId(),
                 sqlText,
                 normalizedRequest,
@@ -181,6 +122,89 @@ public class SqlTuningService {
                         currentUserService.isCurrentUserAdmin()
                 )
                 .orElseThrow(() -> new IllegalArgumentException("SQL tuning result not found: " + tuningId));
+    }
+
+    public AwrDtos.SqlTuningResponse tuneDirect(SqlTuningDtos.DirectDbContextResponse context) {
+        if (context == null || context.input() == null || context.input().sqlText() == null || context.input().sqlText().isBlank()) {
+            throw new IllegalArgumentException("Direct DB context must include SQL text.");
+        }
+        AwrDtos.SqlTuningRequest input = context.input();
+        AwrDtos.SqlMetricResponse metric = context.metric() == null
+                ? new AwrDtos.SqlMetricResponse(
+                        "direct-" + shortHash(input.sqlText()),
+                        "Direct DB SQL",
+                        0,
+                        null,
+                        null,
+                        null,
+                        null,
+                        null,
+                        null,
+                        null,
+                        null,
+                        input.sqlText(),
+                        null,
+                        "Direct DB context did not include runtime metrics."
+                )
+                : context.metric();
+        String sqlId = metric.sqlId() == null || metric.sqlId().isBlank()
+                ? "direct-" + shortHash(input.sqlText())
+                : metric.sqlId();
+        String question = input.question() == null || input.question().isBlank()
+                ? "Tune SQL from direct database context and recommend safe index candidates considering table volume and load/write volume."
+                : input.question();
+        List<String> citations = new java.util.ArrayList<>();
+        citations.add("target_db_connection / " + context.connectionName());
+        citations.add("direct_db_context / " + sqlId);
+        if (context.warnings() != null) {
+            context.warnings().forEach(warning -> citations.add("warning / " + warning));
+        }
+
+        AwrDtos.SqlTuningResponse local = sqlTuningAdvisor.tune(
+                null,
+                sqlId,
+                question,
+                metric,
+                input,
+                citations
+        );
+        AwrDtos.SqlTuningResponse selected = llmAdvisor.tuneSql(
+                null,
+                sqlId,
+                input,
+                local,
+                List.of()
+        ).orElse(local);
+
+        long tuningId = repository.save(
+                currentUserService.currentUserIdOrNull(),
+                DIRECT_DB_SOURCE_TYPE,
+                context.connectionId(),
+                selected.sqlId(),
+                input.sqlText(),
+                input,
+                selected
+        );
+        AwrDtos.SqlTuningResponse persisted = new AwrDtos.SqlTuningResponse(
+                tuningId,
+                null,
+                selected.sqlId(),
+                selected.question(),
+                input,
+                selected.metric(),
+                selected.summary(),
+                selected.symptoms(),
+                selected.indexRecommendations(),
+                selected.rewriteRecommendations(),
+                selected.validationSteps(),
+                selected.missingInputs(),
+                selected.citations(),
+                selected.model(),
+                selected.confidence(),
+                selected.createdAt() == null ? LocalDateTime.now() : selected.createdAt()
+        );
+        repository.updateResult(tuningId, persisted);
+        return persisted;
     }
 
     private String shortHash(String value) {

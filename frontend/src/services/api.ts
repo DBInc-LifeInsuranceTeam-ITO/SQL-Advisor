@@ -41,7 +41,7 @@ api.interceptors.response.use(
       if (response.data.success) {
         response.data = response.data.data || response.data
       } else {
-        return Promise.reject(new Error(response.data.error?.message || '요청 처리 실패'))
+        return Promise.reject(new Error(response.data.error?.message || response.data.message || '요청 처리 실패'))
       }
     }
     

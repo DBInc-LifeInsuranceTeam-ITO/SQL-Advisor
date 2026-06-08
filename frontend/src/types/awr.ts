@@ -67,6 +67,17 @@ export interface SqlMetricResponse {
   interpretationHint: string
 }
 
+export interface DirectTopSqlOptions {
+  source?: 'CURRENT' | 'HISTORY'
+  limit?: 20 | 50 | 100
+  sortBy?: 'ELAPSED' | 'BUFFER_GETS' | 'DISK_READS' | 'EXECUTIONS'
+  startTime?: string
+  endTime?: string
+  schema?: string
+  module?: string
+  program?: string
+}
+
 export interface WaitEventResponse {
   waitClass: string
   eventName: string
@@ -116,6 +127,99 @@ export interface ChatHistoryResponse extends ChatResponse {
   createdAt: string
 }
 
+export interface SqlTuningRequest {
+  sqlText?: string
+  question?: string
+  executionPlan?: string
+  schemaDdl?: string
+  existingIndexes?: string
+  bindSamples?: string
+}
+
+export interface SqlTuningResponse {
+  tuningId: number
+  reportId?: number | null
+  sqlId: string
+  question: string
+  input?: SqlTuningRequest | null
+  metric: SqlMetricResponse
+  summary: string
+  symptoms: string[]
+  indexRecommendations: IndexRecommendationResponse[]
+  rewriteRecommendations: string[]
+  validationSteps: string[]
+  missingInputs: string[]
+  citations: string[]
+  model: string
+  confidence: string
+  createdAt: string
+}
+
+export interface IndexRecommendationResponse {
+  tableName?: string | null
+  columns: string[]
+  ddlCandidate?: string | null
+  reason: string
+  expectedBenefit: string
+  risk: string
+  validationSql: string
+}
+
+export interface TargetDbConnectionRequest {
+  name?: string
+  dbType?: string
+  jdbcUrl?: string
+  username?: string
+  password?: string
+  visibility?: string
+  monitoringEnabled?: boolean
+  monitoringIntervalSec?: number
+}
+
+export interface TargetDbConnectionTestRequest {
+  dbType?: string
+  jdbcUrl?: string
+  username?: string
+  password?: string
+}
+
+export interface TargetDbConnectionResponse {
+  id: number
+  name: string
+  dbType: string
+  jdbcUrl: string
+  username: string
+  visibility: string
+  monitoringEnabled: boolean
+  monitoringIntervalSec: number
+  createdAt: string
+  updatedAt: string
+}
+
+export interface TargetDbConnectionTestResponse {
+  success: boolean
+  message: string
+  databaseProductName?: string | null
+  databaseProductVersion?: string | null
+  capabilities?: string[]
+  warnings?: string[]
+}
+
+export interface DirectTuningRequest {
+  connectionId?: number | null
+  sqlId?: string
+  sqlText?: string
+}
+
+export interface DirectDbContextResponse {
+  connectionId: number
+  connectionName: string
+  metric: SqlMetricResponse
+  input: SqlTuningRequest
+  warnings: string[]
+  collectedAt: string
+}
+
 export interface AiConfigResponse {
   llmProvider: string
   embeddingProvider: string
@@ -127,6 +231,8 @@ export interface AiConfigResponse {
   geminiEmbeddingModel: string
   internalBaseUrl: string
   internalChatModel: string
+  internalEmbeddingBaseUrl: string
+  internalEmbeddingModel: string
   ollamaBaseUrl: string
   ollamaChatModel: string
   ollamaEmbeddingModel: string
@@ -168,6 +274,8 @@ export interface AiConfigUpdateRequest {
   internalApiKey?: string
   internalBaseUrl?: string
   internalChatModel?: string
+  internalEmbeddingBaseUrl?: string
+  internalEmbeddingModel?: string
   ollamaBaseUrl?: string
   ollamaChatModel?: string
   ollamaEmbeddingModel?: string
@@ -182,6 +290,7 @@ export interface AiModelOptionsResponse {
   geminiChatModels: string[]
   geminiEmbeddingModels: string[]
   internalChatModels: string[]
+  internalEmbeddingModels: string[]
   ollamaChatModels: string[]
   ollamaEmbeddingModels: string[]
   warnings: string[]

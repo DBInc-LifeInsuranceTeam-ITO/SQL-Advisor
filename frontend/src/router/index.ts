@@ -52,6 +52,12 @@ const router = createRouter({
       component: () => import('@/views/awr/AwrChat.vue')
     },
     {
+      path: '/sql-tuning',
+      name: 'sql-tuning',
+      meta: { requiresAuth: true },
+      component: () => import('@/views/sql-tuning/SqlTuningWorkbench.vue')
+    },
+    {
       path: '/settings/ai',
       name: 'awr-ai-settings',
       meta: { requiresAuth: true },

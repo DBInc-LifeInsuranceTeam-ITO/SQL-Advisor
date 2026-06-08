@@ -9,6 +9,8 @@ import type {
   ReportVisibility,
   ReportDetailResponse,
   ReportSummaryResponse,
+  SqlTuningRequest,
+  SqlTuningResponse,
   SqlMetricResponse,
   StatusResponse,
   UploadResponse
@@ -79,5 +81,20 @@ export async function getAwrChatHistory(reportId: number) {
 
 export async function getAwrSql(reportId: number) {
   const response = await api.get<SqlMetricResponse[]>(`/reports/${reportId}/sql`)
+  return response.data
+}
+
+export async function tuneAwrSql(reportId: number, sqlId: string, payload?: SqlTuningRequest) {
+  const response = await api.post<SqlTuningResponse>(`/reports/${reportId}/sql/${sqlId}/tune`, payload || {})
+  return response.data
+}
+
+export async function getLatestAwrSqlTuning(reportId: number, sqlId: string) {
+  const response = await api.get<SqlTuningResponse | { success: boolean }>(`/reports/${reportId}/sql/${sqlId}/tuning/latest`)
+  return 'success' in response.data ? null : response.data
+}
+
+export async function getAwrSqlTuningHistory(reportId: number) {
+  const response = await api.get<SqlTuningResponse[]>(`/reports/${reportId}/sql/tuning/history`)
   return response.data
 }

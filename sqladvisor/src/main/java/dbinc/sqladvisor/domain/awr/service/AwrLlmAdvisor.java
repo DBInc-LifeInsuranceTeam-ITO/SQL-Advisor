@@ -119,6 +119,73 @@ public class AwrLlmAdvisor {
                 ));
     }
 
+    public Optional<AwrDtos.SqlTuningResponse> tuneSql(
+            Long reportId,
+            String sqlId,
+            AwrDtos.SqlTuningRequest request,
+            AwrDtos.SqlTuningResponse localTuning,
+            List<AwrRagChunk> ragChunks
+    ) {
+        if (!aiClient.isExternalLlmEnabled()) {
+            return Optional.empty();
+        }
+
+        String systemPrompt = """
+                You are SQLAdvisor, an Oracle SQL tuning advisor.
+                Answer in Korean, but return JSON only.
+                Use only the supplied AWR metric, SQL text, optional user evidence, and RAG evidence.
+                Index recommendations must be candidates, not production-ready commands, unless execution plan,
+                schema DDL, existing indexes, and bind evidence are supplied.
+                When recommending indexes, explicitly consider table data volume and load/write volume from
+                NUM_ROWS, BLOCKS, LAST_ANALYZED, and recent INSERTS/UPDATES/DELETES evidence when supplied.
+                For large or write-heavy tables, include index maintenance, ETL/write-window impact, build time,
+                and stats gathering cost in risk and validation steps. If this evidence is unavailable, list it
+                in missing_inputs instead of assuming the index is safe.
+                Do not invent table names, column names, execution plans, DDL, bind values, or object statistics.
+                Return JSON only with this schema:
+                {
+                  "summary": "string",
+                  "symptoms": ["string"],
+                  "index_recommendations": [
+                    {
+                      "table_name": "string",
+                      "columns": ["string"],
+                      "ddl_candidate": "string",
+                      "reason": "string",
+                      "expected_benefit": "string",
+                      "risk": "string",
+                      "validation_sql": "string"
+                    }
+                  ],
+                  "rewrite_recommendations": ["string"],
+                  "validation_steps": ["string"],
+                  "missing_inputs": ["string"],
+                  "confidence": "low|medium|high"
+                }
+                """;
+        String userPrompt = """
+                SQL_ID:
+                %s
+
+                Optional user request and evidence:
+                %s
+
+                Local rule-based tuning draft:
+                %s
+
+                Retrieved AWR evidence:
+                %s
+                """.formatted(
+                sqlId,
+                toJson(request),
+                toJson(localTuning),
+                ragService.evidenceBlock(ragChunks)
+        );
+
+        return aiClient.complete(systemPrompt, userPrompt)
+                .map(result -> toSqlTuning(reportId, sqlId, localTuning, ragChunks, result));
+    }
+
     private AwrDtos.AnalysisResponse toAnalysis(
             Long reportId,
             String question,
@@ -154,6 +221,55 @@ public class AwrLlmAdvisor {
         }
     }
 
+    private AwrDtos.SqlTuningResponse toSqlTuning(
+            Long reportId,
+            String sqlId,
+            AwrDtos.SqlTuningResponse localTuning,
+            List<AwrRagChunk> ragChunks,
+            AwrAiClient.LlmResult result
+    ) {
+        try {
+            JsonNode root = objectMapper.readTree(extractJsonObject(result.content()));
+            return new AwrDtos.SqlTuningResponse(
+                    localTuning.tuningId(),
+                    reportId,
+                    sqlId,
+                    localTuning.question(),
+                    localTuning.input(),
+                    localTuning.metric(),
+                    textOr(root, "summary", localTuning.summary()),
+                    stringList(root.path("symptoms"), localTuning.symptoms()),
+                    indexRecommendations(root.path("index_recommendations"), localTuning.indexRecommendations()),
+                    stringList(root.path("rewrite_recommendations"), localTuning.rewriteRecommendations()),
+                    stringList(root.path("validation_steps"), localTuning.validationSteps()),
+                    stringList(root.path("missing_inputs"), localTuning.missingInputs()),
+                    merge(localTuning.citations(), ragService.citations(ragChunks)),
+                    result.providerModel(),
+                    textOr(root, "confidence", localTuning.confidence()),
+                    LocalDateTime.now()
+            );
+        } catch (RuntimeException | JsonProcessingException exception) {
+            return new AwrDtos.SqlTuningResponse(
+                    localTuning.tuningId(),
+                    reportId,
+                    sqlId,
+                    localTuning.question(),
+                    localTuning.input(),
+                    localTuning.metric(),
+                    result.content(),
+                    localTuning.symptoms(),
+                    localTuning.indexRecommendations(),
+                    localTuning.rewriteRecommendations(),
+                    localTuning.validationSteps(),
+                    localTuning.missingInputs(),
+                    merge(localTuning.citations(), ragService.citations(ragChunks)),
+                    result.providerModel(),
+                    localTuning.confidence(),
+                    LocalDateTime.now()
+            );
+        }
+    }
+
     private List<AwrDtos.FindingResponse> findings(JsonNode node, List<AwrDtos.FindingResponse> fallback) {
         if (node == null || !node.isArray() || node.isEmpty()) {
             return fallback;
@@ -173,6 +289,28 @@ public class AwrLlmAdvisor {
             ));
         }
         return findings;
+    }
+
+    private List<AwrDtos.IndexRecommendationResponse> indexRecommendations(
+            JsonNode node,
+            List<AwrDtos.IndexRecommendationResponse> fallback
+    ) {
+        if (node == null || !node.isArray() || node.isEmpty()) {
+            return fallback;
+        }
+        List<AwrDtos.IndexRecommendationResponse> recommendations = new ArrayList<>();
+        for (JsonNode item : node) {
+            recommendations.add(new AwrDtos.IndexRecommendationResponse(
+                    textOr(item, "table_name", null),
+                    stringList(item.path("columns"), List.of()),
+                    textOr(item, "ddl_candidate", null),
+                    textOr(item, "reason", ""),
+                    textOr(item, "expected_benefit", ""),
+                    textOr(item, "risk", ""),
+                    textOr(item, "validation_sql", "")
+            ));
+        }
+        return recommendations.isEmpty() ? fallback : recommendations;
     }
 
     private String extractJsonObject(String value) {

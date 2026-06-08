@@ -553,6 +553,44 @@ public class AwrRepository {
         return results.stream().findFirst();
     }
 
+    public Optional<AwrDtos.SqlTuningResponse> findLatestSqlTuning(long reportId, String sqlId, Long userId) {
+        List<AwrDtos.SqlTuningResponse> results = jdbcTemplate.query("""
+                        SELECT answer_json
+                          FROM analysis_result
+                         WHERE report_id = ?
+                           AND result_type = 'sql_tuning'
+                           AND lower(answer_json ->> 'sqlId') = lower(?)
+                           AND ((?::bigint IS NULL AND user_id IS NULL) OR user_id = ?::bigint)
+                         ORDER BY created_at DESC, id DESC
+                         LIMIT 1
+                        """,
+                (rs, rowNum) -> fromJson(rs.getString("answer_json"), AwrDtos.SqlTuningResponse.class),
+                reportId,
+                sqlId,
+                userId,
+                userId
+        );
+        return results.stream().findFirst();
+    }
+
+    public List<AwrDtos.SqlTuningResponse> findSqlTuningHistory(long reportId, Long userId, boolean includeAllUsers) {
+        return jdbcTemplate.query("""
+                        SELECT answer_json
+                          FROM analysis_result
+                         WHERE report_id = ?
+                           AND result_type = 'sql_tuning'
+                           AND (? OR ((?::bigint IS NULL AND user_id IS NULL) OR user_id = ?::bigint))
+                         ORDER BY created_at DESC, id DESC
+                         LIMIT 100
+                        """,
+                (rs, rowNum) -> fromJson(rs.getString("answer_json"), AwrDtos.SqlTuningResponse.class),
+                reportId,
+                includeAllUsers,
+                userId,
+                userId
+        );
+    }
+
     public List<AwrDtos.ChatHistoryResponse> findChatHistory(long reportId, Long userId, boolean includeAllUsers) {
         return jdbcTemplate.query("""
                         SELECT id, report_id, user_id, question, answer_json, model, created_at

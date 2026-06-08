@@ -167,6 +167,83 @@ public final class AwrDtos {
     ) {
     }
 
+    public record SqlTuningRequest(
+            String sqlText,
+            String question,
+            String executionPlan,
+            String schemaDdl,
+            String existingIndexes,
+            String bindSamples
+    ) {
+    }
+
+    public record SqlTuningResponse(
+            Long tuningId,
+            Long reportId,
+            String sqlId,
+            String question,
+            SqlTuningRequest input,
+            SqlMetricResponse metric,
+            String summary,
+            List<String> symptoms,
+            List<IndexRecommendationResponse> indexRecommendations,
+            List<String> rewriteRecommendations,
+            List<String> validationSteps,
+            List<String> missingInputs,
+            List<String> citations,
+            String model,
+            String confidence,
+            LocalDateTime createdAt
+    ) {
+        public SqlTuningResponse(
+                Long tuningId,
+                Long reportId,
+                String sqlId,
+                String question,
+                SqlMetricResponse metric,
+                String summary,
+                List<String> symptoms,
+                List<IndexRecommendationResponse> indexRecommendations,
+                List<String> rewriteRecommendations,
+                List<String> validationSteps,
+                List<String> missingInputs,
+                List<String> citations,
+                String model,
+                String confidence,
+                LocalDateTime createdAt
+        ) {
+            this(
+                    tuningId,
+                    reportId,
+                    sqlId,
+                    question,
+                    null,
+                    metric,
+                    summary,
+                    symptoms,
+                    indexRecommendations,
+                    rewriteRecommendations,
+                    validationSteps,
+                    missingInputs,
+                    citations,
+                    model,
+                    confidence,
+                    createdAt
+            );
+        }
+    }
+
+    public record IndexRecommendationResponse(
+            String tableName,
+            List<String> columns,
+            String ddlCandidate,
+            String reason,
+            String expectedBenefit,
+            String risk,
+            String validationSql
+    ) {
+    }
+
     public record AiConfigResponse(
             String llmProvider,
             String embeddingProvider,
@@ -178,6 +255,8 @@ public final class AwrDtos {
             String geminiEmbeddingModel,
             String internalBaseUrl,
             String internalChatModel,
+            String internalEmbeddingBaseUrl,
+            String internalEmbeddingModel,
             String ollamaBaseUrl,
             String ollamaChatModel,
             String ollamaEmbeddingModel,
@@ -219,6 +298,8 @@ public final class AwrDtos {
             String internalApiKey,
             String internalBaseUrl,
             String internalChatModel,
+            String internalEmbeddingBaseUrl,
+            String internalEmbeddingModel,
             String ollamaBaseUrl,
             String ollamaChatModel,
             String ollamaEmbeddingModel,
@@ -234,6 +315,7 @@ public final class AwrDtos {
             List<String> geminiChatModels,
             List<String> geminiEmbeddingModels,
             List<String> internalChatModels,
+            List<String> internalEmbeddingModels,
             List<String> ollamaChatModels,
             List<String> ollamaEmbeddingModels,
             List<String> warnings

@@ -91,7 +91,7 @@ public class SqlTuningRepository {
         return jdbcTemplate.query("""
                         SELECT input_json, result_json
                           FROM sql_tuning_result
-                         WHERE source_type = 'MANUAL_SQL'
+                         WHERE source_type IN ('MANUAL_SQL', 'DIRECT_DB_SQL')
                            AND (? OR ((?::bigint IS NULL AND user_id IS NULL) OR user_id = ?::bigint))
                          ORDER BY created_at DESC, id DESC
                          LIMIT 100

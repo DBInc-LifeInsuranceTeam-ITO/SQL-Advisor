@@ -4,6 +4,7 @@ import dbinc.sqladvisor.domain.auth.service.CurrentUserService;
 import dbinc.sqladvisor.domain.awr.dto.AwrDtos;
 import dbinc.sqladvisor.domain.awr.service.AwrLlmAdvisor;
 import dbinc.sqladvisor.domain.awr.service.AwrSqlTuningAdvisor;
+import dbinc.sqladvisor.domain.sqltuning.dto.SqlTuningDtos;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 
@@ -18,7 +19,8 @@ import java.util.List;
 @RequiredArgsConstructor
 public class SqlTuningService {
 
-    private static final String SOURCE_TYPE = "MANUAL_SQL";
+    private static final String SOURCE_TYPE_MANUAL = "MANUAL_SQL";
+    private static final String SOURCE_TYPE_DIRECT = "DIRECT_DB_SQL";
 
     private final AwrSqlTuningAdvisor sqlTuningAdvisor;
     private final AwrLlmAdvisor llmAdvisor;
@@ -59,14 +61,73 @@ public class SqlTuningService {
                 null,
                 "Manual SQL tuning request."
         );
+        return tuneInternal(SOURCE_TYPE_MANUAL, normalizedRequest, metric, List.of("manual sql input"));
+    }
 
+    public AwrDtos.SqlTuningResponse tuneDirect(SqlTuningDtos.DirectDbContextResponse context) {
+        if (context == null || context.input() == null || context.input().sqlText() == null || context.input().sqlText().isBlank()) {
+            throw new IllegalArgumentException("Direct DB SQL context is required.");
+        }
+
+        AwrDtos.SqlTuningRequest input = context.input();
+        String sqlText = input.sqlText().trim();
+        AwrDtos.SqlMetricResponse metric = context.metric() == null
+                ? new AwrDtos.SqlMetricResponse(
+                "direct-" + shortHash(sqlText),
+                "Direct DB SQL",
+                0,
+                null,
+                null,
+                null,
+                null,
+                null,
+                null,
+                null,
+                null,
+                sqlText,
+                null,
+                "Direct DB tuning request."
+        )
+                : context.metric();
+        String question = input.question() == null || input.question().isBlank()
+                ? "Tune SQL from direct database context and recommend safe index candidates."
+                : input.question().trim();
+        AwrDtos.SqlTuningRequest normalizedRequest = new AwrDtos.SqlTuningRequest(
+                sqlText,
+                question,
+                blankToNull(input.executionPlan()),
+                blankToNull(input.schemaDdl()),
+                blankToNull(input.existingIndexes()),
+                blankToNull(input.bindSamples())
+        );
+        return tuneInternal(
+                SOURCE_TYPE_DIRECT,
+                normalizedRequest,
+                metric,
+                context.warnings() == null || context.warnings().isEmpty()
+                        ? List.of("direct db context")
+                        : context.warnings()
+        );
+    }
+
+    private AwrDtos.SqlTuningResponse tuneInternal(
+            String sourceType,
+            AwrDtos.SqlTuningRequest normalizedRequest,
+            AwrDtos.SqlMetricResponse metric,
+            List<String> evidence
+    ) {
+        String sqlText = normalizedRequest.sqlText().trim();
+        String sqlId = metric.sqlId() == null || metric.sqlId().isBlank()
+                ? sourceType.toLowerCase() + "-" + shortHash(sqlText)
+                : metric.sqlId();
+        String question = normalizedRequest.question();
         AwrDtos.SqlTuningResponse local = sqlTuningAdvisor.tune(
                 null,
                 sqlId,
                 question,
                 metric,
                 normalizedRequest,
-                List.of("manual sql input")
+                evidence
         );
         AwrDtos.SqlTuningResponse selected = llmAdvisor.tuneSql(
                 null,
@@ -78,7 +139,7 @@ public class SqlTuningService {
 
         long tuningId = repository.save(
                 currentUserService.currentUserIdOrNull(),
-                SOURCE_TYPE,
+                sourceType,
                 selected.sqlId(),
                 sqlText,
                 normalizedRequest,

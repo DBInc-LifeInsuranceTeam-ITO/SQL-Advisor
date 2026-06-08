@@ -31,6 +31,7 @@ dependencies {
 	implementation 'com.google.api-client:google-api-client:2.8.1'
 
 	runtimeOnly 'org.postgresql:postgresql'
+	runtimeOnly 'com.oracle.database.jdbc:ojdbc11:23.8.0.25.04'
 
 	compileOnly 'org.projectlombok:lombok'
 	annotationProcessor 'org.projectlombok:lombok'

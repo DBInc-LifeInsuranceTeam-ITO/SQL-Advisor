@@ -144,6 +144,61 @@ export interface SqlTuningResponse {
   createdAt: string
 }
 
+export interface TargetDbConnectionRequest {
+  name: string
+  dbType: string
+  jdbcUrl: string
+  username: string
+  password?: string
+  visibility?: string
+  monitoringEnabled?: boolean
+  monitoringIntervalSec?: number
+}
+
+export interface TargetDbConnectionResponse {
+  id: number
+  name: string
+  dbType: string
+  jdbcUrl: string
+  username: string
+  visibility: string
+  monitoringEnabled: boolean
+  monitoringIntervalSec: number
+  createdAt: string
+  updatedAt: string
+}
+
+export interface TargetDbConnectionTestRequest {
+  dbType: string
+  jdbcUrl: string
+  username: string
+  password: string
+}
+
+export interface TargetDbConnectionTestResponse {
+  success: boolean
+  message: string
+  databaseProductName?: string | null
+  databaseProductVersion?: string | null
+  capabilities: string[]
+  warnings: string[]
+}
+
+export interface DirectTuningRequest {
+  connectionId: number
+  sqlId?: string
+  sqlText?: string
+}
+
+export interface DirectDbContextResponse {
+  connectionId: number
+  connectionName: string
+  metric: SqlMetricResponse
+  input: SqlTuningRequest
+  warnings: string[]
+  collectedAt: string
+}
+
 export interface IndexRecommendationResponse {
   tableName?: string | null
   columns: string[]

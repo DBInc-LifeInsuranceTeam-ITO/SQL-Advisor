@@ -1,5 +1,5 @@
 <template>
-  <div class="awr-page">
+  <div class="awr-page sql-tuning-page">
     <div class="awr-page-header">
       <div>
         <h1>SQL 튜닝</h1>
@@ -59,9 +59,14 @@
                   </option>
                 </select>
               </label>
-              <label class="awr-field">
+              <label v-if="!showConnectionForm" class="awr-field">
                 SQL_ID
-                <input v-model="directSqlId" class="awr-input" placeholder="예) 7p6k1x9s2m3ab" />
+                <input
+                  v-model="directSqlId"
+                  class="awr-input sql-tuning-sql-id-input"
+                  placeholder="예) 7p6k1x9s2m3ab"
+                  @keydown.enter.prevent="fetchDirectContext"
+                />
               </label>
             </div>
 
@@ -90,27 +95,36 @@
             </div>
 
             <div class="awr-actions sql-tuning-action-bar">
-              <button v-if="showConnectionForm" class="awr-btn compact" type="button" :disabled="!canTestConnection || isTestingConnection" @click="testConnection">
-                {{ isTestingConnection ? 'Testing...' : 'Test Connection' }}
-              </button>
-              <button v-if="showConnectionForm" class="awr-btn compact" type="button" :disabled="!canSaveConnection || isSavingConnection" @click="saveConnection">
-                {{ isSavingConnection ? 'Saving...' : 'Save Connection' }}
-              </button>
-              <button class="awr-btn compact" type="button" :disabled="!selectedConnectionId || isTestingConnection" @click="testSelectedConnection">
-                {{ isTestingConnection ? 'Testing...' : 'Test Saved' }}
-              </button>
-              <button class="awr-btn compact danger" type="button" :disabled="!selectedConnectionId || isDeletingConnection" @click="deleteSelectedConnection">
-                {{ isDeletingConnection ? 'Deleting...' : 'Delete Saved' }}
-              </button>
-              <button class="awr-btn compact" type="button" :disabled="!canFetchDirectContext || isCollectingContext" @click="fetchDirectContext">
-                {{ isCollectingContext ? 'Fetching...' : 'Fetch Context' }}
-              </button>
-              <button class="awr-btn compact" type="button" @click="directManualFallback = !directManualFallback">
-                {{ directManualFallback ? 'Hide SQL Text' : 'SQL Text fallback' }}
+              <div class="sql-tuning-action-left">
+                <button v-if="showConnectionForm" class="awr-btn compact" type="button" :disabled="!canTestConnection || isTestingConnection" @click="testConnection">
+                  {{ isTestingConnection ? 'Testing...' : 'Test Connection' }}
+                </button>
+                <button v-if="showConnectionForm" class="awr-btn compact" type="button" :disabled="!canSaveConnection || isSavingConnection" @click="saveConnection">
+                  {{ isSavingConnection ? 'Saving...' : 'Save Connection' }}
+                </button>
+                <button class="awr-btn compact" type="button" :disabled="!selectedConnectionId || isTestingConnection" @click="testSelectedConnection">
+                  {{ isTestingConnection ? 'Testing...' : 'Test Connection' }}
+                </button>
+                <button class="awr-btn compact" type="button" @click="directManualFallback = !directManualFallback">
+                  {{ directManualFallback ? 'Hide SQL Text' : 'SQL Text fallback' }}
+                </button>
+              </div>
+              <button class="awr-btn compact danger sql-tuning-delete-action" type="button" :disabled="!selectedConnectionId || isDeletingConnection" @click="deleteSelectedConnection">
+                {{ isDeletingConnection ? 'Deleting...' : 'Delete Connection' }}
               </button>
             </div>
 
             <div class="sql-tuning-top-sql-controls">
+              <div class="sql-tuning-control-row">
+                <label class="awr-field compact">
+                  SQL Count
+                  <select v-model.number="topSqlLimit" class="awr-input compact" :disabled="isLoadingTopSql" @change="loadDirectTopSql">
+                    <option :value="20">Top 20</option>
+                    <option :value="50">Top 50</option>
+                    <option :value="100">Top 100</option>
+                  </select>
+                </label>
+              </div>
               <div class="sql-tuning-control-footer">
                 <div class="sql-tuning-footer-left">
                   <button
@@ -160,24 +174,32 @@
                     <th>Buffer Gets</th>
                     <th>Disk Reads</th>
                     <th>Executions</th>
-                    <th>Module</th>
-                    <th></th>
                   </tr>
                 </thead>
                 <tbody>
-                  <tr v-for="metric in displayedTopSql" :key="metric.sqlId">
+                  <tr
+                    v-for="metric in displayedTopSql"
+                    :key="metric.sqlId"
+                    :class="[
+                      directSqlId === metric.sqlId ? 'selected' : '',
+                      historyBySqlId.has(metric.sqlId) ? 'has-history' : ''
+                    ]"
+                  >
                     <td>
-                      <span class="sql-tuning-sql-id">{{ metric.sqlId }}</span>
+                      <button
+                        class="sql-tuning-sql-id-button"
+                        type="button"
+                        :disabled="isCollectingContext"
+                        @click="useTopSql(metric)"
+                      >
+                        {{ metric.sqlId }}
+                      </button>
                       <span v-if="tunedSqlIds.has(metric.sqlId)" class="awr-badge small">Tuned</span>
                     </td>
                     <td>{{ formatNumber(metric.elapsedTimeSec) }}</td>
                     <td>{{ formatNumber(metric.bufferGets) }}</td>
                     <td>{{ formatNumber(metric.diskReads) }}</td>
                     <td>{{ formatNumber(metric.executions) }}</td>
-                    <td>{{ metric.module || '-' }}</td>
-                    <td>
-                      <button class="awr-btn compact" type="button" :disabled="isCollectingContext" @click="useTopSql(metric)">Use + Fetch</button>
-                    </td>
                   </tr>
                 </tbody>
               </table>
@@ -188,7 +210,7 @@
             {{ directSqlTextLabel }}
             <textarea
               v-model="sqlText"
-              class="awr-textarea sql-tuning-main-input"
+              :class="['awr-textarea sql-tuning-main-input', sourceMode === 'DIRECT' ? 'sql-tuning-collected-sql' : '']"
               :readonly="sourceMode === 'DIRECT' && !directManualFallback"
               placeholder="예) SELECT *
 FROM orders o
@@ -392,6 +414,7 @@ const directContext = ref<DirectDbContextResponse | null>(null)
 const directTopSql = ref<SqlMetricResponse[]>([])
 const directManualFallback = ref(false)
 const excludeTunedTopSql = ref(false)
+const topSqlLimit = ref<20 | 50 | 100>(20)
 const connections = ref<TargetDbConnectionResponse[]>([])
 const selectedConnectionId = ref<number | null>(null)
 const showConnectionForm = ref(false)
@@ -461,6 +484,15 @@ const tunedSqlIds = computed(() => new Set(
     .map((item) => item.sqlId)
     .filter((sqlId): sqlId is string => Boolean(sqlId))
 ))
+const historyBySqlId = computed(() => {
+  const results = new Map<string, SqlTuningResponse>()
+  history.value.forEach((item) => {
+    if (item.sqlId && !results.has(item.sqlId)) {
+      results.set(item.sqlId, item)
+    }
+  })
+  return results
+})
 const displayedTopSql = computed(() =>
   excludeTunedTopSql.value
     ? directTopSql.value.filter((metric) => !tunedSqlIds.value.has(metric.sqlId))
@@ -722,7 +754,7 @@ async function loadDirectTopSql() {
 
 function topSqlOptions(): DirectTopSqlOptions {
   return {
-    limit: 20,
+    limit: topSqlLimit.value,
     sortBy: 'ELAPSED'
   }
 }
@@ -730,6 +762,11 @@ function topSqlOptions(): DirectTopSqlOptions {
 async function useTopSql(metric: SqlMetricResponse) {
   directSqlId.value = metric.sqlId
   sqlText.value = metric.sqlText || ''
+  selectedResult.value = null
+  const existingHistory = historyBySqlId.value.get(metric.sqlId)
+  if (existingHistory) {
+    selectResult(existingHistory)
+  }
   await fetchDirectContext()
 }
 

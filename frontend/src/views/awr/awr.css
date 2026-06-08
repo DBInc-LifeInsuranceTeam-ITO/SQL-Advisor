@@ -821,6 +821,39 @@
   min-height: 16rem;
 }
 
+.sql-tuning-page .awr-btn.primary {
+  border-color: #217a52;
+  background: #23875b;
+  color: #ffffff;
+}
+
+.sql-tuning-page .awr-btn:not(.primary):not(.danger) {
+  border-color: #b9c7d4;
+  color: #223041;
+}
+
+.sql-tuning-page .awr-btn:not(.primary):not(.danger):hover {
+  border-color: #23875b;
+  background: #ffffff;
+  color: #17603a;
+}
+
+.sql-tuning-page .awr-badge:not(.warn) {
+  background: #e7f6ee;
+  color: #217a52;
+}
+
+.sql-tuning-page .awr-input:focus,
+.sql-tuning-page .awr-textarea:focus {
+  outline: 2px solid #b7d6c3;
+  border-color: #23875b;
+}
+
+.sql-tuning-page .awr-table th {
+  background: #f3f7fa;
+  color: #465568;
+}
+
 .awr-textarea[readonly],
 .awr-input[readonly] {
   background: #f1f5f9;
@@ -851,7 +884,7 @@
 }
 
 .sql-tuning-mode-option.active {
-  background: #176ea8;
+  background: #23875b;
   color: #ffffff;
 }
 
@@ -899,7 +932,20 @@
 }
 
 .sql-tuning-action-bar {
+  display: flex;
+  justify-content: space-between;
   gap: 0.45rem;
+}
+
+.sql-tuning-action-left {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.45rem;
+  flex-wrap: wrap;
+}
+
+.sql-tuning-delete-action {
+  margin-left: auto;
 }
 
 .sql-tuning-top-sql-controls {
@@ -916,6 +962,17 @@
   display: grid;
   grid-template-columns: repeat(auto-fit, minmax(9rem, 1fr));
   gap: 0.55rem;
+}
+
+.sql-tuning-control-row .awr-field.compact {
+  min-width: 9rem;
+  max-width: 12rem;
+}
+
+.awr-input.compact {
+  min-height: 2rem;
+  padding: 0.3rem 0.55rem;
+  font-size: 0.76rem;
 }
 
 .sql-tuning-control-footer {
@@ -951,13 +1008,13 @@
 }
 
 .sql-tuning-filter-toggle:hover {
-  border-color: #176ea8;
-  color: #176ea8;
+  border-color: #23875b;
+  color: #17603a;
 }
 
 .sql-tuning-filter-toggle.active {
   border-color: #217a52;
-  background: #edf8f1;
+  background: #ffffff;
   color: #17603a;
 }
 
@@ -983,19 +1040,64 @@
 }
 
 .sql-tuning-load-status {
-  color: #637083;
+  color: #217a52;
   font-size: 0.74rem;
   font-weight: 800;
 }
 
-.sql-tuning-sql-id {
-  display: inline-block;
+.sql-tuning-sql-id-button {
+  display: inline-flex;
+  align-items: center;
   margin-right: 0.35rem;
+  border: 0;
+  background: transparent;
+  color: #17603a;
+  padding: 0;
+  font: inherit;
   font-weight: 850;
+  cursor: pointer;
+}
+
+.sql-tuning-sql-id-button:hover {
+  text-decoration: underline;
+}
+
+.sql-tuning-sql-id-button:disabled {
+  cursor: wait;
+  opacity: 0.6;
+}
+
+.sql-tuning-top-sql tr.has-history td {
+  background: #ffffff;
+}
+
+.sql-tuning-top-sql tr.selected td {
+  background: #f8fafc;
+  border-bottom-color: #dce3ea;
+}
+
+.sql-tuning-top-sql tr.selected td:first-child {
+  box-shadow: inset 4px 0 0 #23875b;
 }
 
 .sql-tuning-top-sql {
   max-height: 18rem;
+}
+
+.sql-tuning-collected-sql {
+  min-height: 9rem;
+  max-height: 18rem;
+  overflow: auto;
+  white-space: pre;
+  line-height: 1.55;
+  font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+  font-size: 0.82rem;
+}
+
+.sql-tuning-sql-id-input {
+  font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+  font-weight: 800;
+  letter-spacing: 0;
 }
 
 .sql-tuning-summary-strip {
@@ -1045,6 +1147,14 @@
   margin-top: 1rem;
   padding-top: 1rem;
   border-top: 1px solid #e2e8ef;
+}
+
+.sql-tuning-page .awr-side-history {
+  margin-top: 1.25rem;
+}
+
+.sql-tuning-page .awr-side-history .awr-history-list.compact {
+  max-height: 24rem;
 }
 
 .awr-chat-layout {

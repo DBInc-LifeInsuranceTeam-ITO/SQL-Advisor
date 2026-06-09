@@ -105,7 +105,7 @@
 
 .dashboard-focus-panel {
   border-color: #bfd7c8;
-  background: #fbfefc;
+  background: #ffffff;
 }
 
 .dashboard-panel-text {
@@ -357,8 +357,8 @@
 }
 
 .awr-btn.primary {
-  border-color: #146a9f;
-  background: #176ea8;
+  border-color: #217a52;
+  background: #23875b;
   color: #ffffff;
 }
 
@@ -753,7 +753,7 @@
 
 .awr-visibility-option.active {
   border-color: #23875b;
-  background: #f1fbf6;
+  background: #ffffff;
 }
 
 .awr-visibility-option input {
@@ -884,8 +884,9 @@
 }
 
 .sql-tuning-mode-option.active {
-  background: #23875b;
-  color: #ffffff;
+  border-color: #b9d8c9;
+  background: #eef8f3;
+  color: #006d3d;
 }
 
 .sql-tuning-direct-box {

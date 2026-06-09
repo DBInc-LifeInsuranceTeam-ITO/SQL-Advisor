@@ -5,16 +5,23 @@ MODE=prod
 OUTPUT_PATH=
 FORCE=0
 DRY_RUN=0
+INTERACTIVE=1
+
+if [ ! -t 0 ]; then
+    INTERACTIVE=0
+fi
 
 usage() {
     cat <<'EOF'
-Usage: sh deploy/init-env.sh [--mode dev|prod] [--output PATH] [--force] [--dry-run]
+Usage: sh deploy/init-env.sh [--mode dev|prod] [--output PATH] [--force] [--dry-run] [--interactive|--non-interactive]
 
 Options:
-  --mode, -m     Environment mode to initialize. Defaults to prod.
-  --output, -o   Output env file path. Defaults to deploy/.env.<mode>.
-  --force, -f    Overwrite an existing env file from the template.
-  --dry-run, -n  Validate and show the intended action without writing.
+  --mode, -m         Environment mode to initialize. Defaults to prod.
+  --output, -o       Output env file path. Defaults to deploy/.env.<mode>.
+  --force, -f        Overwrite an existing env file from the template.
+  --dry-run, -n      Validate and show the intended action without writing.
+  --interactive      Force onboarding prompts even when stdin is not a terminal.
+  --non-interactive  Skip onboarding prompts and only sync/validate templates.
 EOF
 }
 
@@ -36,6 +43,14 @@ while [ "$#" -gt 0 ]; do
             ;;
         --dry-run|-n)
             DRY_RUN=1
+            shift
+            ;;
+        --non-interactive)
+            INTERACTIVE=0
+            shift
+            ;;
+        --interactive)
+            INTERACTIVE=1
             shift
             ;;
         --help|-h)
@@ -71,14 +86,33 @@ else
     TARGET_PATH=$OUTPUT_PATH
 fi
 
-WORK_FILE="$SCRIPT_DIR/.init-env.$$"
-trap 'rm -f "$WORK_FILE"' EXIT INT TERM
+if command -v mktemp >/dev/null 2>&1; then
+    WORK_FILE=$(mktemp "$SCRIPT_DIR/.init-env.XXXXXX")
+else
+    WORK_FILE="$SCRIPT_DIR/.init-env.$$"
+fi
+TTY_STTY=
+
+cleanup() {
+    if [ -n "$TTY_STTY" ]; then
+        if [ -r /dev/tty ]; then
+            stty "$TTY_STTY" < /dev/tty 2>/dev/null || true
+        else
+            stty "$TTY_STTY" 2>/dev/null || true
+        fi
+        TTY_STTY=
+    fi
+    rm -f "$WORK_FILE"
+}
+
+trap cleanup EXIT INT TERM
 
 env_value() {
     awk -v key="$1" '
         BEGIN { pattern = "^[[:space:]]*" key "[[:space:]]*=" }
         $0 ~ pattern {
             sub(/^[^=]*=/, "")
+            sub(/\r$/, "")
             print
             exit
         }
@@ -192,6 +226,519 @@ lower() {
     printf '%s' "$1" | tr '[:upper:]' '[:lower:]'
 }
 
+current_or_default() {
+    key=$1
+    default_value=$2
+    file=$3
+    current_value=$(env_value "$key" "$file")
+
+    if is_empty_or_placeholder "$current_value"; then
+        printf '%s' "$default_value"
+    else
+        printf '%s' "$current_value"
+    fi
+}
+
+PROMPT_RESULT=
+CHOICE_RESULT=
+READ_HEX_RESULT=
+READ_KEY_RESULT=
+UI_READ_RESULT=
+
+tty_ready() {
+    if [ "$INTERACTIVE" -ne 1 ]; then
+        return 1
+    fi
+    if [ ! -e /dev/tty ]; then
+        return 1
+    fi
+    if ( : < /dev/tty > /dev/tty ) 2>/dev/null; then
+        return 0
+    fi
+    return 1
+}
+
+ui_printf() {
+    if tty_ready; then
+        printf "$@" > /dev/tty
+    else
+        printf "$@"
+    fi
+}
+
+ui_read_line() {
+    if tty_ready; then
+        IFS= read -r UI_READ_RESULT < /dev/tty || UI_READ_RESULT=
+    else
+        IFS= read -r UI_READ_RESULT || UI_READ_RESULT=
+    fi
+}
+
+prompt_line() {
+    PL_LABEL=$1
+    PL_DEFAULT=$2
+
+    if [ -n "$PL_DEFAULT" ]; then
+        ui_printf '%s [%s]: ' "$PL_LABEL" "$PL_DEFAULT"
+    else
+        ui_printf '%s: ' "$PL_LABEL"
+    fi
+
+    ui_read_line
+    PL_ANSWER=$UI_READ_RESULT
+    if ! tty_ready && [ ! -t 0 ]; then
+        ui_printf '\n'
+    fi
+    if [ -z "$PL_ANSWER" ]; then
+        PL_ANSWER=$PL_DEFAULT
+    fi
+    PROMPT_RESULT=$PL_ANSWER
+}
+
+prompt_choice() {
+    PC_LABEL=$1
+    PC_DEFAULT=$2
+    PC_CHOICES=$3
+
+    if tty_ready; then
+        prompt_choice_tty "$PC_LABEL" "$PC_DEFAULT" "$PC_CHOICES"
+        return
+    fi
+
+    while :; do
+        ui_printf '\n%s\n' "$PC_LABEL"
+        PC_INDEX=1
+        for PC_CHOICE in $PC_CHOICES; do
+            if [ "$PC_CHOICE" = "$PC_DEFAULT" ]; then
+                PC_MARKER='[x]'
+            else
+                PC_MARKER='[ ]'
+            fi
+            ui_printf '  %s %s) %s\n' "$PC_MARKER" "$PC_INDEX" "$PC_CHOICE"
+            PC_INDEX=$((PC_INDEX + 1))
+        done
+
+        prompt_line "Select number or value" "$PC_DEFAULT"
+        PC_ANSWER=$(lower "$PROMPT_RESULT")
+        if [ -n "$PC_ANSWER" ] && [ "$PC_ANSWER" -eq "$PC_ANSWER" ] 2>/dev/null; then
+            PC_INDEX=1
+            for PC_CHOICE in $PC_CHOICES; do
+                if [ "$PC_ANSWER" = "$PC_INDEX" ]; then
+                    CHOICE_RESULT=$PC_CHOICE
+                    return
+                fi
+                PC_INDEX=$((PC_INDEX + 1))
+            done
+        fi
+
+        for PC_CHOICE in $PC_CHOICES; do
+            if [ "$PC_ANSWER" = "$PC_CHOICE" ]; then
+                CHOICE_RESULT=$PC_ANSWER
+                return
+            fi
+        done
+        ui_printf 'Choose a listed number or one of: %s\n' "$PC_CHOICES"
+    done
+}
+
+choice_value_at() {
+    CVA_TARGET=$1
+    CVA_INDEX=1
+    CHOICE_RESULT=
+    for CVA_CHOICE in $2; do
+        if [ "$CVA_INDEX" = "$CVA_TARGET" ]; then
+            CHOICE_RESULT=$CVA_CHOICE
+            return
+        fi
+        CVA_INDEX=$((CVA_INDEX + 1))
+    done
+}
+
+read_hex_byte() {
+    if tty_ready; then
+        READ_HEX_RESULT=$(dd bs=1 count=1 2>/dev/null < /dev/tty | od -An -tx1 | tr -d ' \n')
+    else
+        READ_HEX_RESULT=$(dd bs=1 count=1 2>/dev/null | od -An -tx1 | tr -d ' \n')
+    fi
+}
+
+read_choice_key() {
+    READ_KEY_RESULT=
+    read_hex_byte
+    case "$READ_HEX_RESULT" in
+        1b)
+            read_hex_byte
+            if [ "$READ_HEX_RESULT" = 5b ]; then
+                read_hex_byte
+                case "$READ_HEX_RESULT" in
+                    41) READ_KEY_RESULT=up ;;
+                    42) READ_KEY_RESULT=down ;;
+                    43) READ_KEY_RESULT=right ;;
+                    44) READ_KEY_RESULT=left ;;
+                esac
+            elif [ "$READ_HEX_RESULT" = 4f ]; then
+                read_hex_byte
+                case "$READ_HEX_RESULT" in
+                    41) READ_KEY_RESULT=up ;;
+                    42) READ_KEY_RESULT=down ;;
+                    43) READ_KEY_RESULT=right ;;
+                    44) READ_KEY_RESULT=left ;;
+                esac
+            fi
+            ;;
+        20) READ_KEY_RESULT=space ;;
+        0a|0d|'') READ_KEY_RESULT=enter ;;
+    esac
+}
+
+render_choice_tty() {
+    RCT_LABEL=$1
+    RCT_CHOICES=$2
+    RCT_CURSOR=$3
+    RCT_SELECTED=$4
+
+    ui_printf '%s\n' "$RCT_LABEL"
+    RCT_INDEX=1
+    for RCT_CHOICE in $RCT_CHOICES; do
+        if [ "$RCT_INDEX" = "$RCT_SELECTED" ]; then
+            RCT_MARKER='[x]'
+        else
+            RCT_MARKER='[ ]'
+        fi
+        if [ "$RCT_INDEX" = "$RCT_CURSOR" ]; then
+            RCT_POINTER='>'
+        else
+            RCT_POINTER=' '
+        fi
+        ui_printf ' %s %s %s) %s\n' "$RCT_POINTER" "$RCT_MARKER" "$RCT_INDEX" "$RCT_CHOICE"
+        RCT_INDEX=$((RCT_INDEX + 1))
+    done
+    ui_printf 'Use Up/Down to move, Space to check, Enter to continue.\n'
+}
+
+prompt_choice_tty() {
+    PCT_LABEL=$1
+    PCT_DEFAULT=$2
+    PCT_CHOICES=$3
+    PCT_INDEX=1
+    PCT_SELECTED=1
+
+    for PCT_CHOICE in $PCT_CHOICES; do
+        if [ "$PCT_CHOICE" = "$PCT_DEFAULT" ]; then
+            PCT_SELECTED=$PCT_INDEX
+        fi
+        PCT_INDEX=$((PCT_INDEX + 1))
+    done
+    PCT_COUNT=$((PCT_INDEX - 1))
+    PCT_CURSOR=$PCT_SELECTED
+    PCT_LINES=$((PCT_COUNT + 2))
+
+    TTY_STTY=$(stty -g < /dev/tty 2>/dev/null || true)
+    if [ -n "$TTY_STTY" ]; then
+        stty -echo -icanon min 1 time 0 < /dev/tty 2>/dev/null || true
+    fi
+
+    ui_printf '\n'
+    render_choice_tty "$PCT_LABEL" "$PCT_CHOICES" "$PCT_CURSOR" "$PCT_SELECTED"
+    while :; do
+        read_choice_key
+        case "$READ_KEY_RESULT" in
+            up)
+                if [ "$PCT_CURSOR" -le 1 ]; then
+                    PCT_CURSOR=$PCT_COUNT
+                else
+                    PCT_CURSOR=$((PCT_CURSOR - 1))
+                fi
+                ;;
+            down)
+                if [ "$PCT_CURSOR" -ge "$PCT_COUNT" ]; then
+                    PCT_CURSOR=1
+                else
+                    PCT_CURSOR=$((PCT_CURSOR + 1))
+                fi
+                ;;
+            space|right)
+                PCT_SELECTED=$PCT_CURSOR
+                ;;
+            enter)
+                if [ -n "$TTY_STTY" ]; then
+                    stty "$TTY_STTY" < /dev/tty 2>/dev/null || true
+                    TTY_STTY=
+                fi
+                choice_value_at "$PCT_SELECTED" "$PCT_CHOICES"
+                return
+                ;;
+            *) continue ;;
+        esac
+
+        ui_printf '\033[%sA\033[J' "$PCT_LINES"
+        render_choice_tty "$PCT_LABEL" "$PCT_CHOICES" "$PCT_CURSOR" "$PCT_SELECTED"
+    done
+}
+
+prompt_env_value() {
+    PEV_KEY=$1
+    PEV_LABEL=$2
+    PEV_DEFAULT_VALUE=$3
+    PEV_FILE=$4
+    PEV_PROMPT_DEFAULT=$(current_or_default "$PEV_KEY" "$PEV_DEFAULT_VALUE" "$PEV_FILE")
+    prompt_line "$PEV_LABEL" "$PEV_PROMPT_DEFAULT"
+    set_env_value "$PEV_KEY" "$PROMPT_RESULT" "$PEV_FILE"
+}
+
+prompt_secret_env_value() {
+    PSE_KEY=$1
+    PSE_LABEL=$2
+    PSE_FILE=$3
+    PSE_CURRENT_VALUE=$(env_value "$PSE_KEY" "$PSE_FILE")
+
+    if is_empty_or_placeholder "$PSE_CURRENT_VALUE"; then
+        ui_printf '%s: ' "$PSE_LABEL"
+    else
+        ui_printf '%s (press Enter to keep existing): ' "$PSE_LABEL"
+    fi
+
+    if tty_ready; then
+        PSE_OLD_STTY=$(stty -g < /dev/tty 2>/dev/null || true)
+    else
+        PSE_OLD_STTY=$(stty -g 2>/dev/null || true)
+    fi
+    if [ -n "$PSE_OLD_STTY" ]; then
+        if tty_ready; then
+            stty -echo < /dev/tty 2>/dev/null || true
+        else
+            stty -echo 2>/dev/null || true
+        fi
+    fi
+    ui_read_line
+    PSE_SECRET_ANSWER=$UI_READ_RESULT
+    if [ -n "$PSE_OLD_STTY" ]; then
+        if tty_ready; then
+            stty "$PSE_OLD_STTY" < /dev/tty 2>/dev/null || true
+        else
+            stty "$PSE_OLD_STTY" 2>/dev/null || true
+        fi
+        ui_printf '\n'
+    elif ! tty_ready && [ ! -t 0 ]; then
+        ui_printf '\n'
+    fi
+
+    if [ -n "$PSE_SECRET_ANSWER" ]; then
+        set_env_value "$PSE_KEY" "$PSE_SECRET_ANSWER" "$PSE_FILE"
+    fi
+}
+
+secret_state() {
+    value=$(env_value "$1" "$2")
+    if is_empty_or_placeholder "$value"; then
+        printf 'empty'
+    else
+        printf 'set'
+    fi
+}
+
+show_onboarding_summary() {
+    file=$1
+    auth_mode=$(env_value APP_AUTH_MODE "$file")
+    llm_provider=$(env_value AWR_LLM_PROVIDER "$file")
+    embedding_provider=$(env_value AWR_EMBEDDING_PROVIDER "$file")
+
+    ui_printf '\nReview settings\n'
+    ui_printf '  Deployment: %s\n' "$auth_mode"
+    if [ "$auth_mode" = external ]; then
+        ui_printf '  Google client ID: %s\n' "$(secret_state GOOGLE_CLIENT_ID "$file")"
+        ui_printf '  Allowed Google domains: %s\n' "$(current_or_default APP_ALLOWED_GOOGLE_DOMAINS '-' "$file")"
+    else
+        ui_printf '  Internal email domain: %s\n' "$(current_or_default APP_INTERNAL_AUTH_EMAIL_DOMAIN '-' "$file")"
+    fi
+    ui_printf '  Admin emails: %s\n' "$(current_or_default APP_ADMIN_EMAILS '-' "$file")"
+    ui_printf '  LLM provider: %s\n' "$llm_provider"
+    case "$llm_provider" in
+        openai)
+            ui_printf '  OpenAI API key: %s\n' "$(secret_state OPENAI_API_KEY "$file")"
+            ui_printf '  OpenAI chat model: %s\n' "$(current_or_default OPENAI_CHAT_MODEL '-' "$file")"
+            ;;
+        gemini)
+            ui_printf '  Gemini API key: %s\n' "$(secret_state GEMINI_API_KEY "$file")"
+            ui_printf '  Gemini chat model: %s\n' "$(current_or_default GEMINI_CHAT_MODEL '-' "$file")"
+            ;;
+        internal)
+            ui_printf '  Internal LLM base URL: %s\n' "$(current_or_default INTERNAL_LLM_BASE_URL '-' "$file")"
+            ui_printf '  Internal LLM API key: %s\n' "$(secret_state INTERNAL_LLM_API_KEY "$file")"
+            ui_printf '  Internal LLM chat model: %s\n' "$(current_or_default INTERNAL_LLM_CHAT_MODEL '-' "$file")"
+            ;;
+        ollama)
+            ui_printf '  Ollama base URL: %s\n' "$(current_or_default OLLAMA_BASE_URL '-' "$file")"
+            ui_printf '  Ollama chat model: %s\n' "$(current_or_default OLLAMA_CHAT_MODEL '-' "$file")"
+            ;;
+        anthropic)
+            ui_printf '  Anthropic API key: %s\n' "$(secret_state ANTHROPIC_API_KEY "$file")"
+            ui_printf '  Anthropic chat model: %s\n' "$(current_or_default ANTHROPIC_CHAT_MODEL '-' "$file")"
+            ;;
+        xai)
+            ui_printf '  xAI API key: %s\n' "$(secret_state XAI_API_KEY "$file")"
+            ui_printf '  xAI chat model: %s\n' "$(current_or_default XAI_CHAT_MODEL '-' "$file")"
+            ;;
+    esac
+
+    ui_printf '  Embedding provider: %s\n' "$embedding_provider"
+    case "$embedding_provider" in
+        openai)
+            ui_printf '  OpenAI embedding model: %s\n' "$(current_or_default OPENAI_EMBEDDING_MODEL '-' "$file")"
+            ui_printf '  OpenAI embedding dimension: %s\n' "$(current_or_default OPENAI_EMBEDDING_DIMENSION '-' "$file")"
+            ;;
+        gemini)
+            ui_printf '  Gemini embedding model: %s\n' "$(current_or_default GEMINI_EMBEDDING_MODEL '-' "$file")"
+            ;;
+        internal)
+            ui_printf '  Internal embedding base URL: %s\n' "$(current_or_default INTERNAL_EMBEDDING_BASE_URL '-' "$file")"
+            ui_printf '  Internal embedding model: %s\n' "$(current_or_default INTERNAL_EMBEDDING_MODEL '-' "$file")"
+            ;;
+        ollama)
+            ui_printf '  Ollama embedding model: %s\n' "$(current_or_default OLLAMA_EMBEDDING_MODEL '-' "$file")"
+            ;;
+    esac
+}
+
+confirm_onboarding() {
+    show_onboarding_summary "$1"
+    prompt_line "Continue and validate these settings? (y/n)" "y"
+    answer=$(lower "$PROMPT_RESULT")
+    case "$answer" in
+        y|yes) ;;
+        *)
+            echo "Onboarding cancelled."
+            exit 1
+            ;;
+    esac
+}
+
+configure_auth_onboarding() {
+    file=$1
+
+    ui_printf '\nDeployment type\n'
+    ui_printf '  internal: internal network or company SSO/header login mode\n'
+    ui_printf '  external: public/external deployment with Google OAuth\n'
+
+    auth_default=$(current_or_default APP_AUTH_MODE external "$file")
+    auth_default=$(lower "$auth_default")
+    case "$auth_default" in
+        internal|external) ;;
+        *) auth_default=external ;;
+    esac
+
+    prompt_choice "Deployment type (internal/external)" "$auth_default" "internal external"
+    deployment_type=$CHOICE_RESULT
+    set_env_value APP_AUTH_ENABLED true "$file"
+    set_env_value APP_AUTH_MODE "$deployment_type" "$file"
+    set_env_value APP_LOCAL_LOGIN_ENABLED false "$file"
+
+    if [ "$deployment_type" = external ]; then
+        prompt_env_value GOOGLE_CLIENT_ID "Google OAuth client ID" "" "$file"
+        prompt_env_value APP_ALLOWED_GOOGLE_DOMAINS "Allowed Google domains, comma-separated (optional)" "" "$file"
+    else
+        prompt_env_value APP_INTERNAL_AUTH_EMAIL_DOMAIN "Internal email domain" "internal.local" "$file"
+    fi
+
+    prompt_env_value APP_ADMIN_EMAILS "Admin emails, comma-separated (optional)" "" "$file"
+}
+
+configure_llm_provider() {
+    file=$1
+
+    ui_printf '\nLLM provider\n'
+    llm_default=$(current_or_default AWR_LLM_PROVIDER local "$file")
+    llm_default=$(lower "$llm_default")
+    case "$llm_default" in
+        local|openai|gemini|internal|ollama|anthropic|xai) ;;
+        *) llm_default=local ;;
+    esac
+
+    prompt_choice "LLM provider (local/openai/gemini/internal/ollama/anthropic/xai)" "$llm_default" "local openai gemini internal ollama anthropic xai"
+    llm_provider=$CHOICE_RESULT
+    set_env_value AWR_LLM_PROVIDER "$llm_provider" "$file"
+
+    case "$llm_provider" in
+        openai)
+            prompt_secret_env_value OPENAI_API_KEY "OpenAI API key" "$file"
+            prompt_env_value OPENAI_CHAT_MODEL "OpenAI chat model" "gpt-4.1-mini" "$file"
+            ;;
+        gemini)
+            prompt_secret_env_value GEMINI_API_KEY "Gemini API key" "$file"
+            prompt_env_value GEMINI_CHAT_MODEL "Gemini chat model" "gemini-3.1-flash-lite" "$file"
+            ;;
+        internal)
+            prompt_env_value INTERNAL_LLM_BASE_URL "Internal LLM base URL" "" "$file"
+            prompt_secret_env_value INTERNAL_LLM_API_KEY "Internal LLM API key, if required" "$file"
+            prompt_env_value INTERNAL_LLM_CHAT_MODEL "Internal LLM chat model" "gemma4-31b" "$file"
+            ;;
+        ollama)
+            prompt_env_value OLLAMA_BASE_URL "Ollama base URL" "http://host.docker.internal:11434" "$file"
+            prompt_env_value OLLAMA_CHAT_MODEL "Ollama chat model" "llama3.1" "$file"
+            ;;
+        anthropic)
+            prompt_secret_env_value ANTHROPIC_API_KEY "Anthropic API key" "$file"
+            prompt_env_value ANTHROPIC_CHAT_MODEL "Anthropic chat model" "claude-3-5-sonnet-latest" "$file"
+            ;;
+        xai)
+            prompt_secret_env_value XAI_API_KEY "xAI API key" "$file"
+            prompt_env_value XAI_CHAT_MODEL "xAI chat model" "grok-2-latest" "$file"
+            ;;
+        local)
+            ;;
+    esac
+}
+
+configure_embedding_provider() {
+    file=$1
+
+    ui_printf '\nEmbedding provider\n'
+    embedding_default=$(current_or_default AWR_EMBEDDING_PROVIDER none "$file")
+    embedding_default=$(lower "$embedding_default")
+    case "$embedding_default" in
+        none|openai|gemini|internal|ollama) ;;
+        *) embedding_default=none ;;
+    esac
+
+    prompt_choice "Embedding provider (none/openai/gemini/internal/ollama)" "$embedding_default" "none openai gemini internal ollama"
+    embedding_provider=$CHOICE_RESULT
+    set_env_value AWR_EMBEDDING_PROVIDER "$embedding_provider" "$file"
+
+    case "$embedding_provider" in
+        openai)
+            prompt_secret_env_value OPENAI_API_KEY "OpenAI API key" "$file"
+            prompt_env_value OPENAI_EMBEDDING_MODEL "OpenAI embedding model" "text-embedding-3-small" "$file"
+            prompt_env_value OPENAI_EMBEDDING_DIMENSION "OpenAI embedding dimension" "1536" "$file"
+            ;;
+        gemini)
+            prompt_secret_env_value GEMINI_API_KEY "Gemini API key" "$file"
+            prompt_env_value GEMINI_EMBEDDING_MODEL "Gemini embedding model" "gemini-embedding-001" "$file"
+            ;;
+        internal)
+            prompt_env_value INTERNAL_EMBEDDING_BASE_URL "Internal embedding base URL" "" "$file"
+            prompt_env_value INTERNAL_EMBEDDING_MODEL "Internal embedding model" "genai-bge-m3" "$file"
+            ;;
+        ollama)
+            prompt_env_value OLLAMA_BASE_URL "Ollama base URL" "http://host.docker.internal:11434" "$file"
+            prompt_env_value OLLAMA_EMBEDDING_MODEL "Ollama embedding model" "embeddinggemma" "$file"
+            ;;
+        none)
+            ;;
+    esac
+}
+
+run_onboarding() {
+    file=$1
+
+    ui_printf '\nSQLAdvisor environment onboarding\n'
+    ui_printf 'Press Enter to keep the value shown in brackets.\n'
+
+    configure_auth_onboarding "$file"
+    configure_llm_provider "$file"
+    configure_embedding_provider "$file"
+    confirm_onboarding "$file"
+}
+
 ERROR_COUNT=0
 WARNINGS=
 
@@ -299,6 +846,10 @@ fi
 
 if [ "$MODE" = prod ]; then
     sync_prod_database_settings "$WORK_FILE"
+fi
+
+if [ "$INTERACTIVE" -eq 1 ]; then
+    run_onboarding "$WORK_FILE"
 fi
 
 validate_env

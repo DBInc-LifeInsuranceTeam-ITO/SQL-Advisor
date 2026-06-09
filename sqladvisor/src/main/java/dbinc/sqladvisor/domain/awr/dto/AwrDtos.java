@@ -177,6 +177,23 @@ public final class AwrDtos {
     ) {
     }
 
+    public record SqlTuningQuestionRequest(
+            String question
+    ) {
+    }
+
+    public record SqlTuningQuestionResponse(
+            Long questionId,
+            Long tuningId,
+            String question,
+            String answer,
+            List<String> citations,
+            String model,
+            String confidence,
+            LocalDateTime createdAt
+    ) {
+    }
+
     public record SqlTuningResponse(
             Long tuningId,
             Long reportId,
@@ -237,6 +254,8 @@ public final class AwrDtos {
             String tableName,
             List<String> columns,
             String ddlCandidate,
+            List<String> buildSteps,
+            List<String> postCreateSteps,
             String reason,
             String expectedBenefit,
             String risk,

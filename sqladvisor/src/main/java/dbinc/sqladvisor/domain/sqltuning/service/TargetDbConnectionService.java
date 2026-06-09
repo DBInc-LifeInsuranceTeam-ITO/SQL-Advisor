@@ -146,8 +146,23 @@ public class TargetDbConnectionService {
         addCapability(connection, capabilities, warnings, "v$sql_plan", "SELECT 1 FROM v$sql_plan WHERE ROWNUM < 1");
         addCapability(connection, capabilities, warnings, "v$sql_plan_statistics_all", "SELECT 1 FROM v$sql_plan_statistics_all WHERE ROWNUM < 1");
         addCapability(connection, capabilities, warnings, "v$sql_bind_capture", "SELECT 1 FROM v$sql_bind_capture WHERE ROWNUM < 1");
-        addCapability(connection, capabilities, warnings, "all_tables", "SELECT 1 FROM all_tables WHERE ROWNUM < 1");
-        addCapability(connection, capabilities, warnings, "all_indexes", "SELECT 1 FROM all_indexes WHERE ROWNUM < 1");
+        addCapability(connection, capabilities, warnings, "v$active_session_history", "SELECT 1 FROM v$active_session_history WHERE ROWNUM < 1");
+        addCapability(connection, capabilities, warnings, "gv$sqlarea", "SELECT 1 FROM gv$sqlarea WHERE ROWNUM < 1");
+        addCapability(connection, capabilities, warnings, "gv$sqlstats", "SELECT 1 FROM gv$sqlstats WHERE ROWNUM < 1");
+        addCapability(connection, capabilities, warnings, "gv$sql", "SELECT 1 FROM gv$sql WHERE ROWNUM < 1");
+        addCapability(connection, capabilities, warnings, "gv$sql_plan", "SELECT 1 FROM gv$sql_plan WHERE ROWNUM < 1");
+        addCapability(connection, capabilities, warnings, "gv$sql_plan_statistics_all", "SELECT 1 FROM gv$sql_plan_statistics_all WHERE ROWNUM < 1");
+        addCapability(connection, capabilities, warnings, "gv$sql_bind_capture", "SELECT 1 FROM gv$sql_bind_capture WHERE ROWNUM < 1");
+        addCapability(connection, capabilities, warnings, "gv$active_session_history", "SELECT 1 FROM gv$active_session_history WHERE ROWNUM < 1");
+        addCapability(connection, capabilities, warnings, "dba_constraints", "SELECT 1 FROM dba_constraints WHERE ROWNUM < 1");
+        addCapability(connection, capabilities, warnings, "dba_cons_columns", "SELECT 1 FROM dba_cons_columns WHERE ROWNUM < 1");
+        addCapability(connection, capabilities, warnings, "dba_tables", "SELECT 1 FROM dba_tables WHERE ROWNUM < 1");
+        addCapability(connection, capabilities, warnings, "dba_indexes", "SELECT 1 FROM dba_indexes WHERE ROWNUM < 1");
+        addCapability(connection, capabilities, warnings, "dba_ind_columns", "SELECT 1 FROM dba_ind_columns WHERE ROWNUM < 1");
+        addCapability(connection, capabilities, warnings, "dba_tab_col_statistics", "SELECT 1 FROM dba_tab_col_statistics WHERE ROWNUM < 1");
+        addCapability(connection, capabilities, warnings, "dba_hist_active_sess_history", "SELECT 1 FROM dba_hist_active_sess_history WHERE ROWNUM < 1");
+        addCapability(connection, capabilities, warnings, "dba_hist_sqlstat", "SELECT 1 FROM dba_hist_sqlstat WHERE ROWNUM < 1");
+        addCapability(connection, capabilities, warnings, "dba_hist_sql_plan", "SELECT 1 FROM dba_hist_sql_plan WHERE ROWNUM < 1");
         return new CapabilityProbe(capabilities, warnings);
     }
 

@@ -1046,6 +1046,32 @@
   font-weight: 800;
 }
 
+.sql-tuning-sort-header {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.35rem;
+  border: 0;
+  background: transparent;
+  color: inherit;
+  padding: 0;
+  font: inherit;
+  font-weight: 850;
+  cursor: pointer;
+}
+
+.sql-tuning-sort-header:hover {
+  color: #17603a;
+}
+
+.sql-tuning-sort-indicator {
+  border: 1px solid #bfd7c8;
+  border-radius: 999px;
+  color: #17603a;
+  padding: 0.05rem 0.35rem;
+  font-size: 0.64rem;
+  font-weight: 850;
+}
+
 .sql-tuning-sql-id-button {
   display: inline-flex;
   align-items: center;
@@ -1089,10 +1115,121 @@
   min-height: 9rem;
   max-height: 18rem;
   overflow: auto;
+  resize: vertical;
   white-space: pre;
   line-height: 1.55;
   font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
   font-size: 0.82rem;
+}
+
+.sql-tuning-context-wide {
+  grid-column: 1 / -1;
+}
+
+.sql-tuning-plan-textarea,
+.sql-tuning-plan-viewer {
+  min-height: 24rem;
+  max-height: 48rem;
+  overflow: auto;
+  resize: vertical;
+  line-height: 1.55;
+  font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+  font-size: 0.8rem;
+}
+
+.sql-tuning-resizable-textarea {
+  min-height: 8rem;
+  max-height: 30rem;
+  resize: vertical;
+}
+
+.sql-tuning-context-viewer {
+  min-height: 8rem;
+  max-height: 30rem;
+  overflow: auto;
+  resize: vertical;
+  border: 1px solid #dce3ea;
+  border-radius: 8px;
+  background: #ffffff;
+  color: #1f2933;
+  padding: 0.75rem;
+  white-space: pre-wrap;
+  line-height: 1.55;
+  font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+  font-size: 0.8rem;
+}
+
+.sql-tuning-sql-text-viewer {
+  min-height: 10rem;
+}
+
+.sql-tuning-bind-viewer {
+  min-height: 7rem;
+}
+
+.sql-tuning-index-viewer {
+  min-height: 10rem;
+}
+
+.sql-tuning-plan-textarea {
+  white-space: pre;
+}
+
+.sql-tuning-plan-viewer {
+  border: 1px solid #dce3ea;
+  border-radius: 8px;
+  background: #ffffff;
+  color: #1f2933;
+  padding: 0.75rem;
+}
+
+.sql-tuning-plan-text-block {
+  margin: 0 0 0.75rem;
+  white-space: pre-wrap;
+  color: #465568;
+  font: inherit;
+}
+
+.sql-tuning-plan-table-wrap {
+  overflow-x: auto;
+  margin-bottom: 0.9rem;
+  border: 1px solid #dce3ea;
+  border-radius: 8px;
+}
+
+.sql-tuning-plan-table {
+  width: 100%;
+  min-width: 760px;
+  border-collapse: collapse;
+  font: inherit;
+  white-space: nowrap;
+}
+
+.sql-tuning-plan-table th,
+.sql-tuning-plan-table td {
+  border-bottom: 1px solid #e7edf3;
+  padding: 0.45rem 0.6rem;
+  text-align: left;
+  vertical-align: top;
+}
+
+.sql-tuning-plan-table th {
+  position: sticky;
+  top: 0;
+  z-index: 1;
+  background: #f3f7fa;
+  color: #465568;
+  font-weight: 850;
+}
+
+.sql-tuning-plan-table tr:hover td {
+  background: #f8fafc;
+}
+
+.sql-tuning-plan-operation-cell {
+  min-width: 18rem;
+  color: #15202b;
+  white-space: pre;
 }
 
 .sql-tuning-sql-id-input {
@@ -1142,6 +1279,112 @@
   margin: 0.7rem 0 0.4rem;
   color: #334155;
   font-size: 0.78rem;
+}
+
+.sql-tuning-compact-list {
+  margin: 0.45rem 0 0;
+  padding-left: 1.1rem;
+  color: #465568;
+  font-size: 0.78rem;
+  line-height: 1.55;
+}
+
+.sql-tuning-question-box {
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+  margin-top: 1rem;
+  padding-top: 1rem;
+  border-top: 1px solid #e2e8ef;
+}
+
+.sql-tuning-question-form {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  align-items: end;
+  gap: 0.6rem;
+}
+
+.sql-tuning-question-form .awr-textarea {
+  min-height: 4.5rem;
+}
+
+.sql-tuning-question-list {
+  display: flex;
+  flex-direction: column;
+  gap: 0.6rem;
+}
+
+.sql-tuning-question-item {
+  border: 1px solid #dce3ea;
+  border-radius: 8px;
+  background: #ffffff;
+  padding: 0.75rem;
+}
+
+.sql-tuning-question-item strong {
+  display: block;
+  color: #1b2a3b;
+  font-size: 0.82rem;
+}
+
+.sql-tuning-markdown {
+  margin: 0.45rem 0;
+  color: #334155;
+  line-height: 1.55;
+}
+
+.sql-tuning-markdown h4 {
+  margin: 0.75rem 0 0.35rem;
+  color: #1b2a3b;
+  font-size: 0.86rem;
+  font-weight: 850;
+}
+
+.sql-tuning-markdown h4:first-child {
+  margin-top: 0;
+}
+
+.sql-tuning-markdown p {
+  margin: 0.45rem 0;
+}
+
+.sql-tuning-markdown ul,
+.sql-tuning-markdown ol {
+  margin: 0.4rem 0 0.65rem;
+  padding-left: 1.2rem;
+}
+
+.sql-tuning-markdown li {
+  margin: 0.2rem 0;
+}
+
+.sql-tuning-markdown code {
+  border-radius: 4px;
+  background: #f3f7fa;
+  color: #17603a;
+  padding: 0.08rem 0.25rem;
+  font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+  font-size: 0.78rem;
+}
+
+.sql-tuning-markdown pre {
+  overflow: auto;
+  border: 1px solid #dce3ea;
+  border-radius: 8px;
+  background: #f8fafc;
+  padding: 0.65rem;
+}
+
+.sql-tuning-markdown pre code {
+  background: transparent;
+  color: #1f2933;
+  padding: 0;
+}
+
+.sql-tuning-question-item span {
+  color: #64748b;
+  font-size: 0.72rem;
 }
 
 .awr-side-history {
@@ -1455,6 +1698,10 @@
   }
 
   .sql-tuning-summary-strip {
+    grid-template-columns: 1fr;
+  }
+
+  .sql-tuning-question-form {
     grid-template-columns: 1fr;
   }
 }

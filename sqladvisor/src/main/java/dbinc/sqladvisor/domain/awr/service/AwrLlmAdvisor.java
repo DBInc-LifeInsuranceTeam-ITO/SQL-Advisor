@@ -11,6 +11,7 @@ import java.time.LocalDateTime;
 import java.util.ArrayList;
 import java.util.LinkedHashSet;
 import java.util.List;
+import java.util.Locale;
 import java.util.Optional;
 import java.util.Set;
 
@@ -135,12 +136,18 @@ public class AwrLlmAdvisor {
                 Answer in Korean, but return JSON only.
                 Use only the supplied AWR metric, SQL text, optional user evidence, and RAG evidence.
                 Index recommendations must be candidates, not production-ready commands, unless execution plan,
-                schema DDL, existing indexes, and bind evidence are supplied.
+                object metadata, existing indexes, and bind evidence are supplied.
                 When recommending indexes, explicitly consider table data volume and load/write volume from
                 NUM_ROWS, BLOCKS, LAST_ANALYZED, and recent INSERTS/UPDATES/DELETES evidence when supplied.
                 For large or write-heavy tables, include index maintenance, ETL/write-window impact, build time,
                 and stats gathering cost in risk and validation steps. If this evidence is unavailable, list it
                 in missing_inputs instead of assuming the index is safe.
+                DBA_*, V$, and GV$ views are valid diagnostic sources and should remain visible in analysis.
+                Never recommend CREATE INDEX against Oracle data dictionary or dynamic performance views.
+                For those SQLs, recommend rewrite/scope reduction, dictionary statistics validation,
+                caching, or reducing repeated polling instead.
+                Do not put NOLOGGING in the default ddl_candidate. If a large index build may use NOLOGGING,
+                put it only in build_steps and include a follow-up ALTER INDEX ... LOGGING step.
                 Do not invent table names, column names, execution plans, DDL, bind values, or object statistics.
                 Return JSON only with this schema:
                 {
@@ -151,6 +158,8 @@ public class AwrLlmAdvisor {
                       "table_name": "string",
                       "columns": ["string"],
                       "ddl_candidate": "string",
+                      "build_steps": ["string"],
+                      "post_create_steps": ["string"],
                       "reason": "string",
                       "expected_benefit": "string",
                       "risk": "string",
@@ -184,6 +193,55 @@ public class AwrLlmAdvisor {
 
         return aiClient.complete(systemPrompt, userPrompt)
                 .map(result -> toSqlTuning(reportId, sqlId, localTuning, ragChunks, result));
+    }
+
+    public Optional<AwrDtos.SqlTuningQuestionResponse> answerSqlTuningQuestion(
+            AwrDtos.SqlTuningResponse tuning,
+            String question,
+            AwrDtos.SqlTuningQuestionResponse localAnswer,
+            List<AwrDtos.SqlTuningQuestionResponse> questionHistory
+    ) {
+        if (!aiClient.isExternalLlmEnabled()) {
+            return Optional.empty();
+        }
+
+        String systemPrompt = """
+                You are SQLAdvisor, an Oracle SQL tuning advisor.
+                Answer in Korean.
+                Use only the supplied tuning result, SQL text, execution plan, existing indexes, binds, and object metadata.
+                Be concise and specific. If evidence is missing, say what is missing instead of guessing.
+                Do not invent execution plans, indexes, table statistics, bind values, or production DDL.
+                """;
+        String userPrompt = """
+                User question:
+                %s
+
+                Local answer:
+                %s
+
+                Previous questions in this tuning session:
+                %s
+
+                Tuning result and context:
+                %s
+                """.formatted(
+                safeQuestion(question),
+                localAnswer.answer(),
+                toJson(questionHistory == null ? List.of() : questionHistory),
+                toJson(tuning)
+        );
+
+        return aiClient.complete(systemPrompt, userPrompt)
+                .map(result -> new AwrDtos.SqlTuningQuestionResponse(
+                        localAnswer.questionId(),
+                        localAnswer.tuningId(),
+                        question,
+                        result.content(),
+                        localAnswer.citations(),
+                        result.providerModel(),
+                        localAnswer.confidence(),
+                        LocalDateTime.now()
+                ));
     }
 
     private AwrDtos.AnalysisResponse toAnalysis(
@@ -300,17 +358,51 @@ public class AwrLlmAdvisor {
         }
         List<AwrDtos.IndexRecommendationResponse> recommendations = new ArrayList<>();
         for (JsonNode item : node) {
+            String tableName = textOr(item, "table_name", null);
+            boolean dictionaryObject = isOracleDictionaryObject(tableName);
+            String ddlCandidate = dictionaryObject ? null : textOr(item, "ddl_candidate", null);
+            String risk = textOr(item, "risk", "");
+            if (dictionaryObject) {
+                risk = appendSentence(risk, "Oracle dictionary or dynamic performance views are shown for diagnosis only; do not create user indexes on them.");
+            }
             recommendations.add(new AwrDtos.IndexRecommendationResponse(
-                    textOr(item, "table_name", null),
+                    tableName,
                     stringList(item.path("columns"), List.of()),
-                    textOr(item, "ddl_candidate", null),
+                    ddlCandidate,
+                    stringList(item.path("build_steps"), List.of()),
+                    stringList(item.path("post_create_steps"), List.of()),
                     textOr(item, "reason", ""),
                     textOr(item, "expected_benefit", ""),
-                    textOr(item, "risk", ""),
+                    risk,
                     textOr(item, "validation_sql", "")
             ));
         }
         return recommendations.isEmpty() ? fallback : recommendations;
+    }
+
+    private String appendSentence(String value, String sentence) {
+        if (value == null || value.isBlank()) {
+            return sentence;
+        }
+        String trimmed = value.trim();
+        if (trimmed.contains(sentence)) {
+            return trimmed;
+        }
+        return trimmed.endsWith(".") ? trimmed + " " + sentence : trimmed + ". " + sentence;
+    }
+
+    private boolean isOracleDictionaryObject(String tableName) {
+        if (tableName == null || tableName.isBlank()) {
+            return false;
+        }
+        String clean = tableName.replace("\"", "").trim().toUpperCase(Locale.ROOT);
+        int dot = clean.lastIndexOf('.');
+        String simple = dot >= 0 ? clean.substring(dot + 1) : clean;
+        return simple.startsWith("ALL_")
+                || simple.startsWith("DBA_")
+                || simple.startsWith("USER_")
+                || simple.startsWith("V$")
+                || simple.startsWith("GV$");
     }
 
     private String extractJsonObject(String value) {

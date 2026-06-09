@@ -37,6 +37,19 @@ public class SqlTuningController {
         return ResponseEntity.ok(ApiResponse.success(sqlTuningService.getTuning(tuningId)));
     }
 
+    @GetMapping("/{tuningId}/questions")
+    public ResponseEntity<ApiResponse<List<AwrDtos.SqlTuningQuestionResponse>>> listQuestions(@PathVariable long tuningId) {
+        return ResponseEntity.ok(ApiResponse.success(sqlTuningService.listQuestions(tuningId)));
+    }
+
+    @PostMapping("/{tuningId}/questions")
+    public ResponseEntity<ApiResponse<AwrDtos.SqlTuningQuestionResponse>> askQuestion(
+            @PathVariable long tuningId,
+            @RequestBody AwrDtos.SqlTuningQuestionRequest request
+    ) {
+        return ResponseEntity.ok(ApiResponse.success(sqlTuningService.askQuestion(tuningId, request)));
+    }
+
     @ExceptionHandler(IllegalArgumentException.class)
     public ResponseEntity<ApiResponse<Void>> handleBadRequest(IllegalArgumentException exception) {
         return ResponseEntity

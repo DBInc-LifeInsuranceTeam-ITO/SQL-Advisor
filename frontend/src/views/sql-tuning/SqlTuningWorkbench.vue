@@ -170,10 +170,30 @@
                 <thead>
                   <tr>
                     <th>SQL_ID</th>
-                    <th>Elapsed</th>
-                    <th>Buffer Gets</th>
-                    <th>Disk Reads</th>
-                    <th>Executions</th>
+                    <th>
+                      <button class="sql-tuning-sort-header" type="button" @click="setTopSqlSort('ELAPSED')">
+                        <span>Elapsed</span>
+                        <span v-if="topSqlSortColumn === 'ELAPSED'" class="sql-tuning-sort-indicator">{{ topSqlSortDirection }}</span>
+                      </button>
+                    </th>
+                    <th>
+                      <button class="sql-tuning-sort-header" type="button" @click="setTopSqlSort('BUFFER_GETS')">
+                        <span>Buffer Gets</span>
+                        <span v-if="topSqlSortColumn === 'BUFFER_GETS'" class="sql-tuning-sort-indicator">{{ topSqlSortDirection }}</span>
+                      </button>
+                    </th>
+                    <th>
+                      <button class="sql-tuning-sort-header" type="button" @click="setTopSqlSort('DISK_READS')">
+                        <span>Disk Reads</span>
+                        <span v-if="topSqlSortColumn === 'DISK_READS'" class="sql-tuning-sort-indicator">{{ topSqlSortDirection }}</span>
+                      </button>
+                    </th>
+                    <th>
+                      <button class="sql-tuning-sort-header" type="button" @click="setTopSqlSort('EXECUTIONS')">
+                        <span>Executions</span>
+                        <span v-if="topSqlSortColumn === 'EXECUTIONS'" class="sql-tuning-sort-indicator">{{ topSqlSortDirection }}</span>
+                      </button>
+                    </th>
                   </tr>
                 </thead>
                 <tbody>
@@ -206,7 +226,7 @@
             </div>
           </div>
 
-          <label v-if="showSqlTextInput" class="awr-field">
+          <label v-if="sourceMode === 'MANUAL' || directManualFallback" class="awr-field">
             {{ directSqlTextLabel }}
             <textarea
               v-model="sqlText"
@@ -223,56 +243,73 @@ ORDER BY o.created_at DESC"
           </label>
 
           <div v-if="showContextInputs" class="awr-form-grid">
-            <label class="awr-field">
-              Execution Plan
+            <label class="awr-field sql-tuning-context-wide">
+              Existing Indexes
+              <pre v-if="sourceMode === 'DIRECT' && existingIndexes" class="sql-tuning-context-viewer sql-tuning-index-viewer">{{ existingIndexes }}</pre>
+              <div v-else-if="sourceMode === 'DIRECT'" class="awr-empty compact">No existing indexes collected for the referenced tables.</div>
               <textarea
+                v-else
+                v-model="existingIndexes"
+                class="awr-textarea sql-tuning-resizable-textarea"
+                placeholder="?? CREATE INDEX idx_orders_status ON orders(status);
+CREATE INDEX idx_orders_created ON orders(created_at);"
+              ></textarea>
+            </label>
+            <label v-if="sourceMode === 'DIRECT' && !directManualFallback" class="awr-field sql-tuning-context-wide">
+              Collected SQL Text
+              <pre v-if="sqlText" class="sql-tuning-context-viewer sql-tuning-sql-text-viewer">{{ sqlText }}</pre>
+              <div v-else class="awr-empty compact">No SQL text collected.</div>
+            </label>
+            <label class="awr-field sql-tuning-context-wide">
+              Bind Samples
+              <pre v-if="sourceMode === 'DIRECT' && bindSamples" class="sql-tuning-context-viewer sql-tuning-bind-viewer">{{ bindSamples }}</pre>
+              <div v-else-if="sourceMode === 'DIRECT'" class="awr-empty compact">No bind samples collected.</div>
+              <textarea
+                v-else
+                v-model="bindSamples"
+                class="awr-textarea sql-tuning-resizable-textarea"
+                placeholder="?? :customer_id = 100284
+:status = 'READY'"
+              ></textarea>
+            </label>
+            <label class="awr-field sql-tuning-context-wide">
+              Execution Plan
+              <div v-if="sourceMode === 'DIRECT'" class="sql-tuning-plan-viewer">
+                <template v-if="executionPlanBlocks.length">
+                  <template v-for="(block, blockIndex) in executionPlanBlocks" :key="blockIndex">
+                    <pre v-if="block.type === 'text'" class="sql-tuning-plan-text-block">{{ block.lines.join('\n') }}</pre>
+                    <div v-else class="sql-tuning-plan-table-wrap">
+                      <table class="sql-tuning-plan-table">
+                        <thead>
+                          <tr>
+                            <th v-for="header in block.headers" :key="header">{{ header }}</th>
+                          </tr>
+                        </thead>
+                        <tbody>
+                          <tr v-for="(row, rowIndex) in block.rows" :key="rowIndex">
+                            <td
+                              v-for="(cell, cellIndex) in row"
+                              :key="cellIndex"
+                              :class="{ 'sql-tuning-plan-operation-cell': isExecutionPlanOperationColumn(block.headers, cellIndex) }"
+                            >
+                              {{ cell }}
+                            </td>
+                          </tr>
+                        </tbody>
+                      </table>
+                    </div>
+                  </template>
+                </template>
+                <div v-else class="awr-empty compact">No execution plan collected.</div>
+              </div>
+              <textarea
+                v-else
                 v-model="executionPlan"
-                class="awr-textarea"
-                :readonly="sourceMode === 'DIRECT'"
+                class="awr-textarea sql-tuning-plan-textarea"
                 placeholder="예) DBMS_XPLAN.DISPLAY_CURSOR 결과
 TABLE ACCESS FULL ORDERS
 Predicate Information:
 filter(&quot;O&quot;.&quot;CUSTOMER_ID&quot;=:CUSTOMER_ID)"
-              ></textarea>
-            </label>
-            <label class="awr-field">
-              Schema DDL
-              <textarea
-                v-model="schemaDdl"
-                class="awr-textarea"
-                :readonly="sourceMode === 'DIRECT'"
-                placeholder="예) CREATE TABLE orders (
-  order_id NUMBER,
-  customer_id NUMBER,
-  status VARCHAR2(20),
-  created_at DATE
-);
-
--- Table statistics
-APP.ORDERS num_rows=50000000, blocks=900000, avg_row_len=120, sample_size=50000000, last_analyzed=2026-06-05 10:00:00, partitioned=NO, temporary=N
-
--- Table load statistics
-APP.ORDERS inserts=1200000, updates=250000, deletes=10000, changed_rows=1460000, last_dml=2026-06-05 11:00:00, truncated=NO"
-              ></textarea>
-            </label>
-            <label class="awr-field">
-              Existing Indexes
-              <textarea
-                v-model="existingIndexes"
-                class="awr-textarea"
-                :readonly="sourceMode === 'DIRECT'"
-                placeholder="예) CREATE INDEX idx_orders_status ON orders(status);
-CREATE INDEX idx_orders_created ON orders(created_at);"
-              ></textarea>
-            </label>
-            <label class="awr-field">
-              Bind Samples
-              <textarea
-                v-model="bindSamples"
-                class="awr-textarea"
-                :readonly="sourceMode === 'DIRECT'"
-                placeholder="예) :customer_id = 100284
-:status = 'READY'"
               ></textarea>
             </label>
           </div>
@@ -296,7 +333,7 @@ CREATE INDEX idx_orders_created ON orders(created_at);"
             </div>
             <div>
               <span>Index Candidates</span>
-              <strong>{{ selectedResult.indexRecommendations.length }}</strong>
+              <strong>{{ selectedIndexRecommendations.length }}</strong>
             </div>
             <div>
               <span>Missing Inputs</span>
@@ -333,7 +370,7 @@ CREATE INDEX idx_orders_created ON orders(created_at);"
           </div>
 
           <div class="awr-stack" style="margin-top: 1rem;">
-            <article v-for="item in selectedResult.indexRecommendations" :key="`${item.tableName}-${item.columns.join('-')}`" class="awr-finding">
+            <article v-for="item in selectedIndexRecommendations" :key="`${item.tableName}-${item.columns.join('-')}`" class="awr-finding">
               <h3>{{ item.tableName || 'Index candidate' }}</h3>
               <p class="awr-muted">{{ item.reason }}</p>
               <p><strong>Columns:</strong> {{ formatColumns(item.columns) }}</p>
@@ -344,11 +381,45 @@ CREATE INDEX idx_orders_created ON orders(created_at);"
                 </button>
               </div>
               <pre v-if="item.ddlCandidate" class="awr-code">{{ item.ddlCandidate }}</pre>
+              <template v-if="item.buildSteps?.length">
+                <div class="sql-tuning-ddl-header">
+                  <strong>Large-table build option</strong>
+                </div>
+                <pre class="awr-code">{{ item.buildSteps.join('\n') }}</pre>
+              </template>
+              <ul v-if="item.postCreateSteps?.length" class="sql-tuning-compact-list">
+                <li v-for="step in item.postCreateSteps" :key="step">{{ step }}</li>
+              </ul>
               <p><strong>Expected benefit:</strong> {{ item.expectedBenefit }}</p>
               <p class="awr-muted">{{ item.risk }}</p>
             </article>
-            <div v-if="selectedResult.indexRecommendations.length === 0" class="awr-empty compact">
+            <div v-if="selectedIndexRecommendations.length === 0" class="awr-empty compact">
               No concrete index DDL candidate was generated.
+            </div>
+          </div>
+
+          <div class="sql-tuning-question-box">
+            <div class="awr-panel-header compact">
+              <h3 class="awr-panel-title">Ask About This Tuning</h3>
+              <span v-if="tuningQuestions.length" class="awr-badge">{{ tuningQuestions.length }}</span>
+            </div>
+            <form class="sql-tuning-question-form" @submit.prevent="askQuestion">
+              <textarea
+                v-model="tuningQuestion"
+                class="awr-textarea"
+                placeholder="Ask about index risk, execution plan, or validation steps."
+              ></textarea>
+              <button class="awr-btn compact primary" type="submit" :disabled="!canAskTuningQuestion || isAskingQuestion">
+                {{ isAskingQuestion ? 'Asking...' : 'Ask' }}
+              </button>
+            </form>
+            <div v-if="isLoadingQuestions" class="awr-muted">Loading questions...</div>
+            <div v-else-if="tuningQuestions.length" class="sql-tuning-question-list">
+              <article v-for="item in tuningQuestions" :key="item.questionId" class="sql-tuning-question-item">
+                <strong>{{ item.question }}</strong>
+                <div class="sql-tuning-markdown" v-html="renderMarkdown(item.answer)"></div>
+                <span>{{ item.model }} · confidence {{ item.confidence }} · {{ formatDate(item.createdAt) }}</span>
+              </article>
             </div>
           </div>
         </template>
@@ -380,11 +451,13 @@ CREATE INDEX idx_orders_created ON orders(created_at);"
 <script setup lang="ts">
 import { computed, onMounted, ref } from 'vue'
 import {
+  askSqlTuningQuestion,
   collectDirectDbContext,
   createTargetDbConnection,
   deleteTargetDbConnection,
   getDirectTopSql,
   getSqlTuningHistory,
+  getSqlTuningQuestions,
   getTargetDbConnections,
   testSavedTargetDbConnection,
   testTargetDbConnection,
@@ -395,6 +468,7 @@ import type {
   DirectDbContextResponse,
   DirectTopSqlOptions,
   SqlMetricResponse,
+  SqlTuningQuestionResponse,
   SqlTuningRequest,
   SqlTuningResponse,
   TargetDbConnectionRequest,
@@ -402,6 +476,21 @@ import type {
 } from '@/types/awr'
 
 type SourceMode = 'MANUAL' | 'DIRECT'
+type TopSqlSortColumn = 'ELAPSED' | 'BUFFER_GETS' | 'DISK_READS' | 'EXECUTIONS'
+type SortDirection = 'ASC' | 'DESC'
+
+interface ExecutionPlanTextBlock {
+  type: 'text'
+  lines: string[]
+}
+
+interface ExecutionPlanTableBlock {
+  type: 'table'
+  headers: string[]
+  rows: string[][]
+}
+
+type ExecutionPlanBlock = ExecutionPlanTextBlock | ExecutionPlanTableBlock
 
 const sourceMode = ref<SourceMode>('DIRECT')
 const sqlText = ref('')
@@ -415,6 +504,8 @@ const directTopSql = ref<SqlMetricResponse[]>([])
 const directManualFallback = ref(false)
 const excludeTunedTopSql = ref(false)
 const topSqlLimit = ref<20 | 50 | 100>(20)
+const topSqlSortColumn = ref<TopSqlSortColumn>('ELAPSED')
+const topSqlSortDirection = ref<SortDirection>('DESC')
 const connections = ref<TargetDbConnectionResponse[]>([])
 const selectedConnectionId = ref<number | null>(null)
 const showConnectionForm = ref(false)
@@ -430,8 +521,12 @@ const connectionForm = ref<TargetDbConnectionRequest>({
   monitoringIntervalSec: 600
 })
 const selectedResult = ref<SqlTuningResponse | null>(null)
+const tuningQuestions = ref<SqlTuningQuestionResponse[]>([])
+const tuningQuestion = ref('')
 const history = ref<SqlTuningResponse[]>([])
 const isTuning = ref(false)
+const isAskingQuestion = ref(false)
+const isLoadingQuestions = ref(false)
 const isLoadingConnections = ref(false)
 const isSavingConnection = ref(false)
 const isTestingConnection = ref(false)
@@ -467,10 +562,8 @@ const canTestConnection = computed(() =>
     && connectionForm.value.password?.trim())
 )
 const runButtonLabel = computed(() => sourceMode.value === 'DIRECT' ? 'Tune Direct DB' : 'Tune SQL')
-const showSqlTextInput = computed(() =>
-  sourceMode.value === 'MANUAL' || directManualFallback.value || Boolean(directContext.value)
-)
 const showContextInputs = computed(() => sourceMode.value === 'MANUAL' || Boolean(directContext.value))
+const canAskTuningQuestion = computed(() => Boolean(selectedResult.value?.tuningId && tuningQuestion.value.trim()))
 const directSqlTextLabel = computed(() =>
   sourceMode.value === 'DIRECT'
     ? (directManualFallback.value ? 'SQL Text fallback' : 'Collected SQL Text')
@@ -493,11 +586,12 @@ const historyBySqlId = computed(() => {
   })
   return results
 })
-const displayedTopSql = computed(() =>
-  excludeTunedTopSql.value
+const displayedTopSql = computed(() => {
+  const rows = excludeTunedTopSql.value
     ? directTopSql.value.filter((metric) => !tunedSqlIds.value.has(metric.sqlId))
-    : directTopSql.value
-)
+    : [...directTopSql.value]
+  return rows.sort(compareTopSql)
+})
 const hiddenTopSqlCount = computed(() => Math.max(directTopSql.value.length - displayedTopSql.value.length, 0))
 const topSqlStatusMessage = computed(() => {
   if (!topSqlLoaded.value) return ''
@@ -513,6 +607,10 @@ const topSqlEmptyMessage = computed(() => {
   }
   return 'No SQL was found in the target database current SQL views.'
 })
+const executionPlanBlocks = computed(() => parseExecutionPlan(executionPlan.value))
+const selectedIndexRecommendations = computed(() =>
+  selectedResult.value?.indexRecommendations || []
+)
 
 onMounted(() => {
   loadHistory()
@@ -595,6 +693,7 @@ async function runTuning() {
       existingIndexes: existingIndexes.value,
       bindSamples: bindSamples.value
     })
+    await loadQuestionsForSelected()
     history.value = await getSqlTuningHistory()
   } catch (error) {
     errorMessage.value = error instanceof Error ? error.message : 'SQL tuning failed.'
@@ -613,6 +712,7 @@ async function runDirectTuning() {
       sqlText: directManualFallback.value ? sqlText.value : undefined
     })
     restoreInput(selectedResult.value.input, selectedResult.value.metric?.sqlText)
+    await loadQuestionsForSelected()
     history.value = await getSqlTuningHistory()
   } catch (error) {
     errorMessage.value = error instanceof Error ? error.message : 'Direct DB tuning failed.'
@@ -755,14 +855,131 @@ async function loadDirectTopSql() {
 function topSqlOptions(): DirectTopSqlOptions {
   return {
     limit: topSqlLimit.value,
-    sortBy: 'ELAPSED'
+    sortBy: topSqlSortColumn.value
   }
+}
+
+function setTopSqlSort(column: TopSqlSortColumn) {
+  if (topSqlSortColumn.value === column) {
+    topSqlSortDirection.value = topSqlSortDirection.value === 'DESC' ? 'ASC' : 'DESC'
+    return
+  }
+  topSqlSortColumn.value = column
+  topSqlSortDirection.value = 'DESC'
+}
+
+function compareTopSql(left: SqlMetricResponse, right: SqlMetricResponse) {
+  const leftValue = topSqlSortValue(left)
+  const rightValue = topSqlSortValue(right)
+  if (leftValue == null && rightValue == null) {
+    return left.rankNo - right.rankNo
+  }
+  if (leftValue == null) return 1
+  if (rightValue == null) return -1
+  if (leftValue === rightValue) {
+    return left.rankNo - right.rankNo
+  }
+  const direction = topSqlSortDirection.value === 'DESC' ? -1 : 1
+  return (leftValue - rightValue) * direction
+}
+
+function topSqlSortValue(metric: SqlMetricResponse) {
+  switch (topSqlSortColumn.value) {
+    case 'BUFFER_GETS':
+      return metric.bufferGets
+    case 'DISK_READS':
+      return metric.diskReads
+    case 'EXECUTIONS':
+      return metric.executions
+    default:
+      return metric.elapsedTimeSec
+  }
+}
+
+function parseExecutionPlan(value: string): ExecutionPlanBlock[] {
+  const blocks: ExecutionPlanBlock[] = []
+  const textLines: string[] = []
+  let tableLines: string[] = []
+
+  const flushText = () => {
+    const trimmed = trimEmptyEdges(textLines)
+    if (trimmed.length) {
+      blocks.push({ type: 'text', lines: trimmed })
+    }
+    textLines.length = 0
+  }
+
+  const flushTable = () => {
+    if (!tableLines.length) return
+    const parsedRows = tableLines.map(parseExecutionPlanCells).filter((row) => row.length)
+    tableLines = []
+    if (!parsedRows.length) return
+    const headers = parsedRows[0].map((cell) => cell.trim())
+    const rows = parsedRows.slice(1).map((row) =>
+      row.map((cell, index) => formatExecutionPlanCell(cell, headers, index))
+    )
+    if (rows.length) {
+      blocks.push({ type: 'table', headers, rows })
+    } else {
+      blocks.push({ type: 'text', lines: parsedRows[0] })
+    }
+  }
+
+  value.split(/\r?\n/).forEach((line) => {
+    if (isExecutionPlanSeparator(line)) {
+      return
+    }
+    if (isExecutionPlanTableLine(line)) {
+      flushText()
+      tableLines.push(line)
+      return
+    }
+    flushTable()
+    textLines.push(line)
+  })
+  flushTable()
+  flushText()
+  return blocks
+}
+
+function parseExecutionPlanCells(line: string) {
+  return line.split('|').slice(1, -1).map((cell) => cell.replace(/\s+$/, ''))
+}
+
+function formatExecutionPlanCell(cell: string, headers: string[], index: number) {
+  if (isExecutionPlanOperationColumn(headers, index)) {
+    return cell.replace(/^ /, '')
+  }
+  return cell.trim()
+}
+
+function isExecutionPlanTableLine(line: string) {
+  const trimmed = line.trim()
+  return trimmed.startsWith('|') && trimmed.endsWith('|')
+}
+
+function isExecutionPlanSeparator(line: string) {
+  return /^-+$/.test(line.trim())
+}
+
+function isExecutionPlanOperationColumn(headers: string[], index: number) {
+  return headers[index]?.trim().toUpperCase() === 'OPERATION'
+}
+
+function trimEmptyEdges(lines: string[]) {
+  let start = 0
+  let end = lines.length
+  while (start < end && !lines[start].trim()) start += 1
+  while (end > start && !lines[end - 1].trim()) end -= 1
+  return lines.slice(start, end)
 }
 
 async function useTopSql(metric: SqlMetricResponse) {
   directSqlId.value = metric.sqlId
   sqlText.value = metric.sqlText || ''
   selectedResult.value = null
+  tuningQuestions.value = []
+  tuningQuestion.value = ''
   const existingHistory = historyBySqlId.value.get(metric.sqlId)
   if (existingHistory) {
     selectResult(existingHistory)
@@ -773,6 +990,7 @@ async function useTopSql(metric: SqlMetricResponse) {
 function selectResult(item: SqlTuningResponse) {
   selectedResult.value = item
   restoreInput(item.input, item.metric?.sqlText)
+  void loadQuestionsForSelected()
 }
 
 function restoreInput(input?: SqlTuningRequest | null, fallbackSqlText?: string | null) {
@@ -798,6 +1016,133 @@ function resetConnectionForm() {
     monitoringEnabled: false,
     monitoringIntervalSec: 600
   }
+}
+
+async function loadQuestionsForSelected() {
+  tuningQuestion.value = ''
+  tuningQuestions.value = []
+  if (!selectedResult.value?.tuningId) return
+  isLoadingQuestions.value = true
+  try {
+    tuningQuestions.value = await getSqlTuningQuestions(selectedResult.value.tuningId)
+  } catch (error) {
+    errorMessage.value = error instanceof Error ? error.message : 'Tuning questions failed to load.'
+  } finally {
+    isLoadingQuestions.value = false
+  }
+}
+
+async function askQuestion() {
+  if (!selectedResult.value?.tuningId || !canAskTuningQuestion.value || isAskingQuestion.value) return
+  isAskingQuestion.value = true
+  errorMessage.value = ''
+  try {
+    const answer = await askSqlTuningQuestion(selectedResult.value.tuningId, {
+      question: tuningQuestion.value.trim()
+    })
+    tuningQuestions.value = [...tuningQuestions.value, answer]
+    tuningQuestion.value = ''
+  } catch (error) {
+    errorMessage.value = error instanceof Error ? error.message : 'Tuning question failed.'
+  } finally {
+    isAskingQuestion.value = false
+  }
+}
+
+function renderMarkdown(value?: string | null) {
+  if (!value) return ''
+  const html: string[] = []
+  const paragraphLines: string[] = []
+  let listType: 'ul' | 'ol' | null = null
+  let listItems: string[] = []
+  let codeLines: string[] | null = null
+
+  const flushParagraph = () => {
+    if (!paragraphLines.length) return
+    html.push(`<p>${renderInlineMarkdown(paragraphLines.join(' '))}</p>`)
+    paragraphLines.length = 0
+  }
+  const flushList = () => {
+    if (!listType || !listItems.length) return
+    html.push(`<${listType}>${listItems.map((item) => `<li>${item}</li>`).join('')}</${listType}>`)
+    listType = null
+    listItems = []
+  }
+  const pushListItem = (type: 'ul' | 'ol', text: string) => {
+    flushParagraph()
+    if (listType && listType !== type) {
+      flushList()
+    }
+    listType = type
+    listItems.push(renderInlineMarkdown(text))
+  }
+
+  value.split(/\r?\n/).forEach((line) => {
+    const fenceMatch = line.match(/^```/)
+    if (fenceMatch) {
+      if (codeLines) {
+        html.push(`<pre><code>${escapeHtml(codeLines.join('\n'))}</code></pre>`)
+        codeLines = null
+      } else {
+        flushParagraph()
+        flushList()
+        codeLines = []
+      }
+      return
+    }
+    if (codeLines) {
+      codeLines.push(line)
+      return
+    }
+
+    const trimmed = line.trim()
+    if (!trimmed) {
+      flushParagraph()
+      flushList()
+      return
+    }
+    const heading = trimmed.match(/^(#{1,6})\s+(.+)$/)
+    if (heading) {
+      flushParagraph()
+      flushList()
+      html.push(`<h4>${renderInlineMarkdown(heading[2])}</h4>`)
+      return
+    }
+    const bullet = trimmed.match(/^[-*]\s+(.+)$/)
+    if (bullet) {
+      pushListItem('ul', bullet[1])
+      return
+    }
+    const numbered = trimmed.match(/^\d+[.)]\s+(.+)$/)
+    if (numbered) {
+      pushListItem('ol', numbered[1])
+      return
+    }
+    flushList()
+    paragraphLines.push(trimmed)
+  })
+
+  if (codeLines) {
+    html.push(`<pre><code>${escapeHtml(codeLines.join('\n'))}</code></pre>`)
+  }
+  flushParagraph()
+  flushList()
+  return html.join('')
+}
+
+function renderInlineMarkdown(value: string) {
+  return escapeHtml(value)
+    .replace(/`([^`]+)`/g, '<code>$1</code>')
+    .replace(/\*\*([^*]+)\*\*/g, '<strong>$1</strong>')
+}
+
+function escapeHtml(value: string) {
+  return value
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;')
+    .replace(/'/g, '&#39;')
 }
 
 async function copyDdl(ddl: string) {

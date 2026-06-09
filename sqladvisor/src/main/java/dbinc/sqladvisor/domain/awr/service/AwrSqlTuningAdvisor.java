@@ -33,6 +33,13 @@ public class AwrSqlTuningAdvisor {
             "where", "join", "inner", "left", "right", "full", "cross", "on", "group",
             "order", "having", "connect", "start", "union", "minus", "intersect"
     );
+    private static final Set<String> ORACLE_DICTIONARY_OBJECTS = Set.of(
+            "ALL_CONSTRAINTS", "ALL_CONS_COLUMNS", "ALL_TABLES", "ALL_TAB_COLUMNS", "ALL_INDEXES", "ALL_IND_COLUMNS",
+            "DBA_CONSTRAINTS", "DBA_CONS_COLUMNS", "DBA_TABLES", "DBA_TAB_COLUMNS", "DBA_INDEXES", "DBA_IND_COLUMNS",
+            "USER_CONSTRAINTS", "USER_CONS_COLUMNS", "USER_TABLES", "USER_TAB_COLUMNS", "USER_INDEXES", "USER_IND_COLUMNS",
+            "V$SQL", "V$SQLAREA", "V$SQLSTATS", "V$SQL_PLAN", "V$SQL_PLAN_STATISTICS_ALL",
+            "GV$SQL", "GV$SQLAREA", "GV$SQLSTATS", "GV$SQL_PLAN", "GV$SQL_PLAN_STATISTICS_ALL"
+    );
 
     private record TableVolumeContext(
             String tableName,
@@ -149,13 +156,19 @@ public class AwrSqlTuningAdvisor {
                 continue;
             }
             String tableName = entry.getKey();
+            if (isOracleDictionaryObject(tableName)) {
+                continue;
+            }
             TableVolumeContext volumeContext = volumeByTable.get(normalizeTableKey(tableName));
-            String ddl = "CREATE INDEX " + indexName(tableName, columns) + " ON " + tableName
+            String indexName = indexName(tableName, columns);
+            String ddl = "CREATE INDEX " + indexName + " ON " + tableName
                     + " (" + String.join(", ", columns) + ");";
             recommendations.add(new AwrDtos.IndexRecommendationResponse(
                     tableName,
                     columns,
                     ddl,
+                    buildSteps(ddl, indexName, volumeContext),
+                    postCreateSteps(volumeContext),
                     recommendationReason(metric, request, volumeContext),
                     expectedBenefit(metric, volumeContext),
                     risk(volumeContext),
@@ -211,6 +224,10 @@ public class AwrSqlTuningAdvisor {
     private List<String> rewriteRecommendations(AwrDtos.SqlMetricResponse metric) {
         List<String> recommendations = new ArrayList<>();
         recommendations.add("Compare the current plan hash with the same SQL_ID across nearby AWR snapshots.");
+        if (containsOracleDictionaryObject(metric.sqlText())) {
+            recommendations.add("Oracle data dictionary or dynamic performance views are detected; DBA_*/V$/GV$ evidence can be used for diagnosis, but do not create user indexes on these views.");
+            recommendations.add("For dictionary-view SQL, tune by reducing scope predicates, checking dictionary statistics, narrowing AWR/ASH windows, and avoiding repeated polling rather than adding index DDL.");
+        }
         if (metric.executions() != null && metric.executions() > 10_000) {
             recommendations.add("Review whether the caller can batch work, reduce looped executions, or reuse bind variables more effectively.");
         }
@@ -235,9 +252,15 @@ public class AwrSqlTuningAdvisor {
         steps.add("SELECT * FROM TABLE(DBMS_XPLAN.DISPLAY_CURSOR('" + sqlId + "', NULL, 'ALLSTATS LAST +PEEKED_BINDS'));");
         steps.add("Compare elapsed_delta, cpu_delta, buffer_gets_delta, disk_reads_delta, and executions_delta in DBA_HIST_SQLSTAT for the same snapshot range.");
         steps.add("Check DBA_TAB_STATISTICS and DBA_IND_STATISTICS for stale stats and current index coverage.");
+        if (containsOracleDictionaryObject(metric.sqlText())) {
+            steps.add("For dictionary-view SQL, validate DBA_* predicates, V$/GV$ instance scope, ASH/AWR time range, and dictionary statistics before considering hints or application-side caching.");
+        }
         if (!indexRecommendations.isEmpty()) {
             steps.add("Test the candidate index in a non-production environment and compare plan hash, logical reads, and elapsed time before applying it.");
             steps.add("Before applying candidate indexes, compare table NUM_ROWS, BLOCKS, LAST_ANALYZED, and recent INSERTS/UPDATES/DELETES to estimate build time and DML/load overhead.");
+            if (indexRecommendations.stream().anyMatch(item -> item.buildSteps() != null && !item.buildSteps().isEmpty())) {
+                steps.add("If a large-table build uses NOLOGGING for speed, treat it as a temporary build option and immediately switch the index back to LOGGING after creation.");
+            }
         }
         if (metric.planHashValue() != null) {
             steps.add("Use plan_hash_value=" + metric.planHashValue() + " as the baseline plan during validation.");
@@ -254,7 +277,7 @@ public class AwrSqlTuningAdvisor {
             missing.add("actual execution plan from DBMS_XPLAN or SQL Monitor");
         }
         if (request == null || !hasText(request.schemaDdl())) {
-            missing.add("table DDL and column definitions");
+            missing.add("table/object metadata and column statistics");
         }
         if (request == null || !hasText(request.existingIndexes())) {
             missing.add("existing index definitions");
@@ -283,7 +306,11 @@ public class AwrSqlTuningAdvisor {
             builder.append(" disk_reads=").append(metric.diskReads()).append(".");
         }
         if (indexRecommendations.isEmpty()) {
-            builder.append(" No concrete index DDL candidate is emitted until SQL text, plan, and object metadata are sufficient.");
+            if (containsOracleDictionaryObject(metric.sqlText())) {
+                builder.append(" No index DDL candidate is emitted because the SQL references Oracle data dictionary or dynamic performance views.");
+            } else {
+                builder.append(" No concrete index DDL candidate is emitted until SQL text, plan, and object metadata are sufficient.");
+            }
         } else {
             builder.append(" Candidate index recommendations are heuristic and must be validated before use.");
         }
@@ -310,6 +337,9 @@ public class AwrSqlTuningAdvisor {
     }
 
     private boolean isIndexCandidateMetric(AwrDtos.SqlMetricResponse metric, AwrDtos.SqlTuningRequest request) {
+        if (containsOracleDictionaryObject(metric.sqlText())) {
+            return false;
+        }
         return "Manual SQL".equals(metric.sectionName())
                 || ("Direct DB SQL".equals(metric.sectionName()) && hasFullTableScan(request))
                 || (metric.bufferGets() != null && metric.bufferGets() > 1_000_000)
@@ -347,6 +377,33 @@ public class AwrSqlTuningAdvisor {
             return "May reduce physical reads if the predicates are selective and the current plan is scanning too much data.";
         }
         return "May reduce logical reads and CPU if the predicates are selective and the optimizer can use the access path.";
+    }
+
+    private List<String> buildSteps(String ddl, String indexName, TableVolumeContext volumeContext) {
+        if (!isLargeTable(volumeContext)) {
+            return List.of();
+        }
+        String noLoggingDdl = ddl.replaceFirst(";\\s*$", " NOLOGGING;");
+        return List.of(
+                noLoggingDdl,
+                "ALTER INDEX " + indexName + " LOGGING;"
+        );
+    }
+
+    private List<String> postCreateSteps(TableVolumeContext volumeContext) {
+        if (!isLargeTable(volumeContext)) {
+            return List.of();
+        }
+        return List.of(
+                "Gather index statistics after creation.",
+                "Confirm backup/Data Guard recovery policy before using NOLOGGING."
+        );
+    }
+
+    private boolean isLargeTable(TableVolumeContext volumeContext) {
+        return volumeContext != null
+                && ((volumeContext.numRows() != null && volumeContext.numRows() >= 1_000_000)
+                || (volumeContext.blocks() != null && volumeContext.blocks() >= 100_000));
     }
 
     private String risk(TableVolumeContext volumeContext) {
@@ -411,6 +468,27 @@ public class AwrSqlTuningAdvisor {
 
     private String normalizeTableKey(String tableName) {
         return simpleName(tableName).toUpperCase(Locale.ROOT);
+    }
+
+    private boolean containsOracleDictionaryObject(String sqlText) {
+        if (!hasText(sqlText)) {
+            return false;
+        }
+        return tableAliases(sqlText).values().stream().anyMatch(this::isOracleDictionaryObject);
+    }
+
+    private boolean isOracleDictionaryObject(String tableName) {
+        if (!hasText(tableName)) {
+            return false;
+        }
+        String normalized = cleanIdentifier(tableName).toUpperCase(Locale.ROOT);
+        String simple = simpleName(normalized).toUpperCase(Locale.ROOT);
+        return ORACLE_DICTIONARY_OBJECTS.contains(simple)
+                || simple.startsWith("ALL_")
+                || simple.startsWith("DBA_")
+                || simple.startsWith("USER_")
+                || simple.startsWith("V$")
+                || simple.startsWith("GV$");
     }
 
     private Long parseLong(String value) {

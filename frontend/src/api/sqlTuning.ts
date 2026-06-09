@@ -4,6 +4,8 @@ import type {
   DirectTopSqlOptions,
   DirectTuningRequest,
   SqlMetricResponse,
+  SqlTuningQuestionRequest,
+  SqlTuningQuestionResponse,
   SqlTuningRequest,
   SqlTuningResponse,
   TargetDbConnectionRequest,
@@ -24,6 +26,16 @@ export async function getSqlTuningHistory() {
 
 export async function getSqlTuning(tuningId: number) {
   const response = await api.get<SqlTuningResponse>(`/sql-tuning/${tuningId}`)
+  return response.data
+}
+
+export async function getSqlTuningQuestions(tuningId: number) {
+  const response = await api.get<SqlTuningQuestionResponse[]>(`/sql-tuning/${tuningId}/questions`)
+  return response.data
+}
+
+export async function askSqlTuningQuestion(tuningId: number, payload: SqlTuningQuestionRequest) {
+  const response = await api.post<SqlTuningQuestionResponse>(`/sql-tuning/${tuningId}/questions`, payload)
   return response.data
 }
 

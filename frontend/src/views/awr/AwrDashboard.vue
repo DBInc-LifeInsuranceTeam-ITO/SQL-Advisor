@@ -38,7 +38,7 @@
     </section>
 
     <div class="dashboard-workbench-grid">
-      <section class="awr-panel dashboard-focus-panel">
+      <section class="awr-panel ">
         <div class="awr-panel-header">
           <div>
             <h2 class="awr-panel-title">Direct DB 튜닝</h2>
@@ -78,7 +78,7 @@
           </ul>
 
           <div class="awr-actions dashboard-actions">
-            <button class="awr-btn primary" type="button" @click="openSqlTuning">Direct DB 튜닝 시작</button>
+            <button class="awr-btn " type="button" @click="openSqlTuning">Direct DB 튜닝 시작</button>
             <button class="awr-btn" type="button" @click="openSqlTuning">연결 관리</button>
           </div>
         </template>

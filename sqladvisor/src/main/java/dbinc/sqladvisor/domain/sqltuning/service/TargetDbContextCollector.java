@@ -122,7 +122,10 @@ public class TargetDbContextCollector {
             AwrDtos.SqlMetricResponse metric = sqlId == null
                     ? null
                     : findSqlMetric(connection, sqlId, warnings);
-            String sqlText = metric == null || metric.sqlText() == null || metric.sqlText().isBlank()
+            String collectedSqlText = sqlId == null ? null : fullSqlText(connection, sqlId, warnings);
+            String sqlText = hasText(collectedSqlText)
+                    ? collectedSqlText
+                    : metric == null || metric.sqlText() == null || metric.sqlText().isBlank()
                     ? requestedSqlText
                     : metric.sqlText();
             if (sqlText == null || sqlText.isBlank()) {
@@ -130,23 +133,21 @@ public class TargetDbContextCollector {
             }
             if (metric == null) {
                 metric = manualMetric(sqlId == null ? "direct-" + Math.abs(sqlText.hashCode()) : sqlId, sqlText);
+            } else if (!sqlText.equals(metric.sqlText())) {
+                metric = withSqlText(metric, sqlText);
             }
 
             List<TableReference> tableRefs = extractTableReferences(sqlText);
-            List<String> tables = tableRefs.stream()
-                    .map(TableReference::tableName)
-                    .distinct()
-                    .toList();
             SqlChildCursor childCursor = sqlId == null ? null : chooseChildCursor(connection, sqlId, warnings);
             String executionPlan = sqlId == null
                     ? null
                     : executionPlanContext(connection, sqlId, childCursor, warnings);
             String schemaDdl = joinSections(
-                    schemaDdl(connection, tables, warnings),
-                    tableStatistics(connection, tables, warnings),
-                    columnStatistics(connection, tables, warnings),
-                    constraintMetadata(connection, tables, warnings),
-                    tableLoadStatistics(connection, tables, warnings)
+                    schemaDdl(connection, tableRefs, warnings),
+                    tableStatistics(connection, tableRefs, warnings),
+                    columnStatistics(connection, tableRefs, warnings),
+                    constraintMetadata(connection, tableRefs, warnings),
+                    tableLoadStatistics(connection, tableRefs, warnings)
             );
             String existingIndexes = existingIndexes(connection, tableRefs, warnings);
             String bindSamples = sqlId == null ? null : bindSamples(connection, sqlId, warnings);
@@ -255,26 +256,13 @@ public class TargetDbContextCollector {
                            AND parsing_schema_name IS NOT NULL
                            AND parsing_schema_name NOT IN ('SYS', 'SYSTEM', 'DBSNMP', 'SYSMAN', 'OUTLN')
                            AND command_type IN (2, 3, 6, 7, 189)
-                           AND LOWER(sql_text) NOT LIKE '%%v$sql%%'
-                           AND LOWER(sql_text) NOT LIKE '%%dbms_xplan%%'
-                           AND LOWER(sql_text) NOT LIKE '%%dba_tab_columns%%'
-                           AND LOWER(sql_text) NOT LIKE '%%dba_ind_columns%%'
-                           AND LOWER(sql_text) NOT LIKE '%%dba_tables%%'
-                           AND LOWER(sql_text) NOT LIKE '%%dba_indexes%%'
-                           AND LOWER(sql_text) NOT LIKE '%%dba_constraints%%'
-                           AND LOWER(sql_text) NOT LIKE '%%dba_cons_columns%%'
-                           AND LOWER(sql_text) NOT LIKE '%%dba_tab_col_statistics%%'
-                           AND LOWER(sql_text) NOT LIKE '%%v$active_session_history%%'
-                           AND LOWER(sql_text) NOT LIKE '%%dba_hist_active_sess_history%%'
-                           AND LOWER(sql_text) NOT LIKE '%%dba_hist_sqlstat%%'
-                           AND LOWER(sql_text) NOT LIKE '%%dba_hist_sql_plan%%'
-                           AND LOWER(sql_text) NOT LIKE '%%v$sql_bind_capture%%'
+                           %s
                            %s
                          GROUP BY sql_id
                          ORDER BY %s DESC
                        )
                  WHERE ROWNUM <= %d
-                """.formatted(viewName, metadataFilters, currentOrderExpression(options.sortBy(), "SUM"), options.limit()))) {
+                """.formatted(viewName, selfQueryExclusions("sql_text"), metadataFilters, currentOrderExpression(options.sortBy(), "SUM"), options.limit()))) {
             bindParams(statement, params);
             statement.setQueryTimeout(10);
             try (ResultSet rs = statement.executeQuery()) {
@@ -311,25 +299,12 @@ public class TargetDbContextCollector {
                           FROM %s
                          WHERE sql_id IS NOT NULL
                            AND sql_text IS NOT NULL
-                           AND LOWER(sql_text) NOT LIKE '%%v$sql%%'
-                           AND LOWER(sql_text) NOT LIKE '%%dbms_xplan%%'
-                           AND LOWER(sql_text) NOT LIKE '%%dba_tab_columns%%'
-                           AND LOWER(sql_text) NOT LIKE '%%dba_ind_columns%%'
-                           AND LOWER(sql_text) NOT LIKE '%%dba_tables%%'
-                           AND LOWER(sql_text) NOT LIKE '%%dba_indexes%%'
-                           AND LOWER(sql_text) NOT LIKE '%%dba_constraints%%'
-                           AND LOWER(sql_text) NOT LIKE '%%dba_cons_columns%%'
-                           AND LOWER(sql_text) NOT LIKE '%%dba_tab_col_statistics%%'
-                           AND LOWER(sql_text) NOT LIKE '%%v$active_session_history%%'
-                           AND LOWER(sql_text) NOT LIKE '%%dba_hist_active_sess_history%%'
-                           AND LOWER(sql_text) NOT LIKE '%%dba_hist_sqlstat%%'
-                           AND LOWER(sql_text) NOT LIKE '%%dba_hist_sql_plan%%'
-                           AND LOWER(sql_text) NOT LIKE '%%v$sql_bind_capture%%'
+                           %s
                          GROUP BY sql_id
                          ORDER BY %s DESC
                        )
                  WHERE ROWNUM <= %d
-                """.formatted(viewName, currentOrderExpression(options.sortBy(), "SUM"), options.limit()))) {
+                """.formatted(viewName, selfQueryExclusions("sql_text"), currentOrderExpression(options.sortBy(), "SUM"), options.limit()))) {
             statement.setQueryTimeout(10);
             try (ResultSet rs = statement.executeQuery()) {
                 return mapTopSql(rs, "Direct DB Top SQL", "Collected from target database " + viewName + " aggregate, sorted by " + options.sortBy().toLowerCase(Locale.ROOT) + ".");
@@ -372,26 +347,13 @@ public class TargetDbContextCollector {
                            AND parsing_schema_name IS NOT NULL
                            AND parsing_schema_name NOT IN ('SYS', 'SYSTEM', 'DBSNMP', 'SYSMAN', 'OUTLN')
                            AND command_type IN (2, 3, 6, 7, 189)
-                           AND LOWER(sql_text) NOT LIKE '%%v$sql%%'
-                           AND LOWER(sql_text) NOT LIKE '%%dbms_xplan%%'
-                           AND LOWER(sql_text) NOT LIKE '%%dba_tab_columns%%'
-                           AND LOWER(sql_text) NOT LIKE '%%dba_ind_columns%%'
-                           AND LOWER(sql_text) NOT LIKE '%%dba_tables%%'
-                           AND LOWER(sql_text) NOT LIKE '%%dba_indexes%%'
-                           AND LOWER(sql_text) NOT LIKE '%%dba_constraints%%'
-                           AND LOWER(sql_text) NOT LIKE '%%dba_cons_columns%%'
-                           AND LOWER(sql_text) NOT LIKE '%%dba_tab_col_statistics%%'
-                           AND LOWER(sql_text) NOT LIKE '%%v$active_session_history%%'
-                           AND LOWER(sql_text) NOT LIKE '%%dba_hist_active_sess_history%%'
-                           AND LOWER(sql_text) NOT LIKE '%%dba_hist_sqlstat%%'
-                           AND LOWER(sql_text) NOT LIKE '%%dba_hist_sql_plan%%'
-                           AND LOWER(sql_text) NOT LIKE '%%v$sql_bind_capture%%'
+                           %s
                            %s
                          GROUP BY sql_id, parsing_schema_name
                          ORDER BY %s DESC
                        )
                  WHERE ROWNUM <= %d
-                """.formatted(viewName, metadataFilters, currentOrderExpression(options.sortBy(), "SUM"), options.limit()))) {
+                """.formatted(viewName, selfQueryExclusions("sql_text"), metadataFilters, currentOrderExpression(options.sortBy(), "SUM"), options.limit()))) {
             bindParams(statement, params);
             statement.setQueryTimeout(10);
             try (ResultSet rs = statement.executeQuery()) {
@@ -414,7 +376,7 @@ public class TargetDbContextCollector {
                        SUM(s.rows_processed_delta) rows_processed,
                        MAX(s.plan_hash_value) KEEP (DENSE_RANK LAST ORDER BY s.elapsed_time_delta) plan_hash_value,
                        MAX(s.module) KEEP (DENSE_RANK LAST ORDER BY sn.end_interval_time) module,
-                       DBMS_LOB.SUBSTR(t.sql_text, 1000, 1) sql_text
+                       DBMS_LOB.SUBSTR(t.sql_text, 4000, 1) sql_text
                   FROM dba_hist_sqlstat s
                   JOIN dba_hist_snapshot sn
                     ON sn.dbid = s.dbid
@@ -428,18 +390,13 @@ public class TargetDbContextCollector {
                    AND s.parsing_schema_name IS NOT NULL
                    AND s.parsing_schema_name NOT IN ('SYS', 'SYSTEM', 'DBSNMP', 'SYSMAN', 'OUTLN')
                    AND t.command_type IN (2, 3, 6, 7, 189)
-                   AND LOWER(DBMS_LOB.SUBSTR(t.sql_text, 1000, 1)) NOT LIKE '%%dba_hist_sqlstat%%'
-                   AND LOWER(DBMS_LOB.SUBSTR(t.sql_text, 1000, 1)) NOT LIKE '%%dba_hist_sql_plan%%'
-                   AND LOWER(DBMS_LOB.SUBSTR(t.sql_text, 1000, 1)) NOT LIKE '%%dba_hist_active_sess_history%%'
-                   AND LOWER(DBMS_LOB.SUBSTR(t.sql_text, 1000, 1)) NOT LIKE '%%v$active_session_history%%'
-                   AND LOWER(DBMS_LOB.SUBSTR(t.sql_text, 1000, 1)) NOT LIKE '%%v$sql%%'
-                   AND LOWER(DBMS_LOB.SUBSTR(t.sql_text, 1000, 1)) NOT LIKE '%%dbms_xplan%%'
+                   %s
                    %s
                  GROUP BY s.sql_id,
-                          DBMS_LOB.SUBSTR(t.sql_text, 1000, 1)
+                          DBMS_LOB.SUBSTR(t.sql_text, 4000, 1)
                  ORDER BY %s DESC
                  FETCH FIRST %d ROWS ONLY
-                """.formatted(historyFilters, historyOrderExpression(options.sortBy()), options.limit()))) {
+                """.formatted(selfQueryExclusions("DBMS_LOB.SUBSTR(t.sql_text, 4000, 1)"), historyFilters, historyOrderExpression(options.sortBy()), options.limit()))) {
             bindParams(statement, params);
             statement.setQueryTimeout(20);
             try (ResultSet rs = statement.executeQuery()) {
@@ -492,6 +449,13 @@ public class TargetDbContextCollector {
             case "EXECUTIONS" -> "SUM(s.executions_delta)";
             default -> "SUM(s.elapsed_time_delta)";
         };
+    }
+
+    private String selfQueryExclusions(String sqlExpression) {
+        return """
+                           AND LOWER(%s) NOT LIKE '%%lower(sql_text) not like%%'
+                           AND LOWER(%s) NOT LIKE '%%dbms_xplan.display_cursor%%'
+                """.formatted(sqlExpression, sqlExpression).stripTrailing();
     }
 
     private String currentMetadataFilters(
@@ -769,6 +733,84 @@ public class TargetDbContextCollector {
                 null,
                 "SQL text supplied by user; runtime metrics were not collected."
         );
+    }
+
+    private AwrDtos.SqlMetricResponse withSqlText(AwrDtos.SqlMetricResponse metric, String sqlText) {
+        return new AwrDtos.SqlMetricResponse(
+                metric.sqlId(),
+                metric.sectionName(),
+                metric.rankNo(),
+                metric.elapsedTimeSec(),
+                metric.cpuTimeSec(),
+                metric.bufferGets(),
+                metric.diskReads(),
+                metric.executions(),
+                metric.rowsProcessed(),
+                metric.planHashValue(),
+                metric.module(),
+                sqlText,
+                metric.score(),
+                metric.interpretationHint()
+        );
+    }
+
+    private String fullSqlText(Connection connection, String sqlId, List<String> warnings) {
+        List<String> localWarnings = new ArrayList<>();
+        String currentSql = fullSqlTextFromCurrentView(connection, sqlId, "gv$sql", localWarnings);
+        if (hasText(currentSql)) {
+            return currentSql;
+        }
+        currentSql = fullSqlTextFromCurrentView(connection, sqlId, "v$sql", localWarnings);
+        if (hasText(currentSql)) {
+            return currentSql;
+        }
+        String historySql = fullSqlTextFromHistory(connection, sqlId, localWarnings);
+        if (hasText(historySql)) {
+            return historySql;
+        }
+        warnings.addAll(localWarnings);
+        return null;
+    }
+
+    private String fullSqlTextFromCurrentView(Connection connection, String sqlId, String viewName, List<String> warnings) {
+        try (PreparedStatement statement = connection.prepareStatement("""
+                SELECT *
+                  FROM (
+                        SELECT DBMS_LOB.SUBSTR(sql_fulltext, 4000, 1) sql_text
+                          FROM %s
+                         WHERE sql_id = ?
+                         ORDER BY last_active_time DESC NULLS LAST, child_number DESC
+                       )
+                 WHERE ROWNUM <= 1
+                """.formatted(viewName))) {
+            statement.setString(1, sqlId);
+            statement.setQueryTimeout(10);
+            try (ResultSet rs = statement.executeQuery()) {
+                return rs.next() ? rs.getString("sql_text") : null;
+            }
+        } catch (SQLException exception) {
+            warnings.add(viewName + " SQL_FULLTEXT query failed: " + exception.getMessage());
+            return null;
+        }
+    }
+
+    private String fullSqlTextFromHistory(Connection connection, String sqlId, List<String> warnings) {
+        try (PreparedStatement statement = connection.prepareStatement("""
+                SELECT DBMS_LOB.SUBSTR(sql_text, 4000, 1) sql_text
+                  FROM dba_hist_sqltext
+                 WHERE sql_id = ?
+                   AND sql_text IS NOT NULL
+                   AND ROWNUM <= 1
+                """)) {
+            statement.setString(1, sqlId);
+            statement.setQueryTimeout(10);
+            try (ResultSet rs = statement.executeQuery()) {
+                return rs.next() ? rs.getString("sql_text") : null;
+            }
+        } catch (SQLException exception) {
+            warnings.add("dba_hist_sqltext query failed: " + exception.getMessage());
+            return null;
+        }
     }
 
     private SqlChildCursor chooseChildCursor(Connection connection, String sqlId, List<String> warnings) {
@@ -1219,11 +1261,11 @@ public class TargetDbContextCollector {
         }
     }
 
-    private String schemaDdl(Connection connection, List<String> tables, List<String> warnings) {
+    private String schemaDdl(Connection connection, List<TableReference> tables, List<String> warnings) {
         return schemaDdlFromView(connection, tables, "dba_tab_columns", warnings);
     }
 
-    private String schemaDdlFromView(Connection connection, List<String> tables, String viewName, List<String> warnings) {
+    private String schemaDdlFromView(Connection connection, List<TableReference> tables, String viewName, List<String> warnings) {
         if (tables.isEmpty()) {
             return null;
         }
@@ -1241,10 +1283,10 @@ public class TargetDbContextCollector {
                        histogram,
                        last_analyzed
                   FROM %s
-                 WHERE table_name IN (%s)
+                 WHERE %s
                  ORDER BY owner, table_name, column_id
-                """.formatted(viewName, placeholders(tables.size())))) {
-            bindTables(statement, tables);
+                """.formatted(viewName, tableReferencePredicate("owner", "table_name", tables)))) {
+            bindTableReferences(statement, tables);
             statement.setQueryTimeout(10);
             try (ResultSet rs = statement.executeQuery()) {
                 Map<String, List<String>> columnsByTable = new LinkedHashMap<>();
@@ -1287,11 +1329,11 @@ public class TargetDbContextCollector {
         }
     }
 
-    private String tableStatistics(Connection connection, List<String> tables, List<String> warnings) {
+    private String tableStatistics(Connection connection, List<TableReference> tables, List<String> warnings) {
         return tableStatisticsFromView(connection, tables, "dba_tables", warnings);
     }
 
-    private String tableStatisticsFromView(Connection connection, List<String> tables, String viewName, List<String> warnings) {
+    private String tableStatisticsFromView(Connection connection, List<TableReference> tables, String viewName, List<String> warnings) {
         if (tables.isEmpty()) {
             return null;
         }
@@ -1306,10 +1348,10 @@ public class TargetDbContextCollector {
                        partitioned,
                        temporary
                   FROM %s
-                 WHERE table_name IN (%s)
+                 WHERE %s
                  ORDER BY owner, table_name
-                """.formatted(viewName, placeholders(tables.size())))) {
-            bindTables(statement, tables);
+                """.formatted(viewName, tableReferencePredicate("owner", "table_name", tables)))) {
+            bindTableReferences(statement, tables);
             statement.setQueryTimeout(10);
             try (ResultSet rs = statement.executeQuery()) {
                 List<String> lines = new ArrayList<>();
@@ -1331,7 +1373,7 @@ public class TargetDbContextCollector {
         }
     }
 
-    private String columnStatistics(Connection connection, List<String> tables, List<String> warnings) {
+    private String columnStatistics(Connection connection, List<TableReference> tables, List<String> warnings) {
         if (tables.isEmpty()) {
             return null;
         }
@@ -1347,10 +1389,10 @@ public class TargetDbContextCollector {
                        last_analyzed,
                        histogram
                   FROM dba_tab_col_statistics
-                 WHERE table_name IN (%s)
+                 WHERE %s
                  ORDER BY owner, table_name, column_name
-                """.formatted(placeholders(tables.size())))) {
-            bindTables(statement, tables);
+                """.formatted(tableReferencePredicate("owner", "table_name", tables)))) {
+            bindTableReferences(statement, tables);
             statement.setQueryTimeout(10);
             try (ResultSet rs = statement.executeQuery()) {
                 List<String> lines = new ArrayList<>();
@@ -1372,7 +1414,7 @@ public class TargetDbContextCollector {
         }
     }
 
-    private String constraintMetadata(Connection connection, List<String> tables, List<String> warnings) {
+    private String constraintMetadata(Connection connection, List<TableReference> tables, List<String> warnings) {
         if (tables.isEmpty()) {
             return null;
         }
@@ -1393,7 +1435,7 @@ public class TargetDbContextCollector {
                     ON col.owner = c.owner
                    AND col.constraint_name = c.constraint_name
                    AND col.table_name = c.table_name
-                 WHERE c.table_name IN (%s)
+                 WHERE %s
                  GROUP BY c.owner,
                           c.table_name,
                           c.constraint_name,
@@ -1405,8 +1447,8 @@ public class TargetDbContextCollector {
                           c.deferred,
                           c.validated
                  ORDER BY c.owner, c.table_name, c.constraint_name
-                """.formatted(placeholders(tables.size())))) {
-            bindTables(statement, tables);
+                """.formatted(tableReferencePredicate("c.owner", "c.table_name", tables)))) {
+            bindTableReferences(statement, tables);
             statement.setQueryTimeout(10);
             try (ResultSet rs = statement.executeQuery()) {
                 List<String> lines = new ArrayList<>();
@@ -1443,7 +1485,6 @@ public class TargetDbContextCollector {
             String indexesViewName,
             List<String> warnings
     ) {
-        List<String> tableNames = tables.stream().map(TableReference::tableName).distinct().toList();
         try (PreparedStatement statement = connection.prepareStatement("""
                 SELECT c.table_owner,
                        c.index_owner,
@@ -1466,7 +1507,7 @@ public class TargetDbContextCollector {
                    AND i.index_name = c.index_name
                    AND i.table_owner = c.table_owner
                    AND i.table_name = c.table_name
-                 WHERE c.table_name IN (%s)
+                 WHERE %s
                  GROUP BY c.table_owner,
                           c.index_owner,
                           c.table_name,
@@ -1481,9 +1522,9 @@ public class TargetDbContextCollector {
                           i.clustering_factor,
                           i.num_rows,
                           i.last_analyzed
-                 ORDER BY c.table_name, c.index_name
-                """.formatted(columnsViewName, indexesViewName, placeholders(tableNames.size())))) {
-            bindTables(statement, tableNames);
+                 ORDER BY c.table_owner, c.table_name, c.index_name
+                """.formatted(columnsViewName, indexesViewName, tableReferencePredicate("c.table_owner", "c.table_name", tables)))) {
+            bindTableReferences(statement, tables);
             statement.setQueryTimeout(10);
             try (ResultSet rs = statement.executeQuery()) {
                 return indexLines(rs);
@@ -1514,11 +1555,11 @@ public class TargetDbContextCollector {
         return indexes.isEmpty() ? null : String.join(System.lineSeparator(), indexes);
     }
 
-    private String tableLoadStatistics(Connection connection, List<String> tables, List<String> warnings) {
+    private String tableLoadStatistics(Connection connection, List<TableReference> tables, List<String> warnings) {
         return tableLoadStatisticsFromView(connection, tables, "dba_tab_modifications", warnings);
     }
 
-    private String tableLoadStatisticsFromView(Connection connection, List<String> tables, String viewName, List<String> warnings) {
+    private String tableLoadStatisticsFromView(Connection connection, List<TableReference> tables, String viewName, List<String> warnings) {
         if (tables.isEmpty()) {
             return null;
         }
@@ -1531,10 +1572,10 @@ public class TargetDbContextCollector {
                        timestamp,
                        truncated
                   FROM %s
-                 WHERE table_name IN (%s)
+                 WHERE %s
                  ORDER BY table_owner, table_name
-                """.formatted(viewName, placeholders(tables.size())))) {
-            bindTables(statement, tables);
+                """.formatted(viewName, tableReferencePredicate("table_owner", "table_name", tables)))) {
+            bindTableReferences(statement, tables);
             statement.setQueryTimeout(10);
             try (ResultSet rs = statement.executeQuery()) {
                 List<String> lines = new ArrayList<>();
@@ -1634,13 +1675,21 @@ public class TargetDbContextCollector {
         return tables;
     }
 
-    private String placeholders(int size) {
-        return String.join(", ", java.util.Collections.nCopies(size, "?"));
+    private String tableReferencePredicate(String ownerColumn, String tableColumn, List<TableReference> tables) {
+        return tables.stream()
+                .map(table -> table.owner() == null
+                        ? tableColumn + " = ?"
+                        : "(" + ownerColumn + " = ? AND " + tableColumn + " = ?)")
+                .collect(java.util.stream.Collectors.joining(" OR ", "(", ")"));
     }
 
-    private void bindTables(PreparedStatement statement, List<String> tables) throws SQLException {
-        for (int i = 0; i < tables.size(); i++) {
-            statement.setString(i + 1, tables.get(i));
+    private void bindTableReferences(PreparedStatement statement, List<TableReference> tables) throws SQLException {
+        int index = 1;
+        for (TableReference table : tables) {
+            if (table.owner() != null) {
+                statement.setString(index++, table.owner());
+            }
+            statement.setString(index++, table.tableName());
         }
     }
 

@@ -105,7 +105,7 @@ class AwrSqlTuningAdvisorTest {
                         -- Table statistics
                         APP.AX_ORDERS num_rows=50000000, blocks=900000, avg_row_len=120, sample_size=50000000, last_analyzed=2026-06-05 10:00:00, partitioned=NO, temporary=N
                         """,
-                "APP.AX_ORDERS | APP.IDX_AX_ORDERS_PK | columns=(ORDER_ID) | uniqueness=UNIQUE | status=VALID | logging=YES | visibility=VISIBLE",
+                "APP.AX_ORDERS | APP.IDX_AX_ORDERS_STATUS | columns=(STATUS) | uniqueness=NONUNIQUE | status=VALID | logging=YES | visibility=VISIBLE",
                 ":1=100"
         );
 
@@ -124,6 +124,45 @@ class AwrSqlTuningAdvisorTest {
         assertThat(recommendation.buildSteps()).anySatisfy(step -> assertThat(step).contains("ALTER INDEX").contains("LOGGING"));
         assertThat(recommendation.postCreateSteps()).isNotEmpty();
         assertThat(response.validationSteps()).anySatisfy(step -> assertThat(step).contains("NOLOGGING").contains("LOGGING"));
+    }
+
+    @Test
+    void skipsIndexCandidateCoveredByExistingLeadingColumns() {
+        AwrDtos.SqlMetricResponse metric = new AwrDtos.SqlMetricResponse(
+                "5yqqyn38m2jjw",
+                "Direct DB SQL",
+                1,
+                120.0,
+                80.0,
+                20_000_000L,
+                5_000L,
+                40L,
+                1_000L,
+                123456789L,
+                "JDBC Thin Client",
+                "SELECT * FROM APP.ORDERS o WHERE o.customer_id = :1 AND o.status = :2",
+                99.0,
+                "High buffer gets."
+        );
+        AwrDtos.SqlTuningRequest request = new AwrDtos.SqlTuningRequest(
+                metric.sqlText(),
+                "Tune this SQL",
+                "TABLE ACCESS FULL APP.ORDERS",
+                "APP.ORDERS num_rows=50000000, blocks=900000, avg_row_len=120, sample_size=50000000, last_analyzed=2026-06-05 10:00:00, partitioned=NO, temporary=N",
+                "APP.ORDERS | APP.IDX_ORDERS_CUSTOMER_STATUS | columns=(CUSTOMER_ID, STATUS) | uniqueness=NONUNIQUE | status=VALID | logging=YES | visibility=VISIBLE",
+                ":1=100"
+        );
+
+        AwrDtos.SqlTuningResponse response = advisor.tune(
+                null,
+                metric.sqlId(),
+                "Tune this SQL",
+                metric,
+                request,
+                List.of()
+        );
+
+        assertThat(response.indexRecommendations()).isEmpty();
     }
 
     @Test

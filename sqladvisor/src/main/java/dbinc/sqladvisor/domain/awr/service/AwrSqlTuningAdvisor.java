@@ -29,6 +29,9 @@ public class AwrSqlTuningAdvisor {
     private static final Pattern TABLE_LOAD_PATTERN = Pattern.compile(
             "(?im)^([a-zA-Z0-9_$#]+\\.)?([a-zA-Z0-9_$#]+)\\s+inserts=([^,\\r\\n]+),\\s+updates=([^,\\r\\n]+),\\s+deletes=([^,\\r\\n]+),\\s+changed_rows=([^,\\r\\n]+),\\s+last_dml=([^,\\r\\n]+)"
     );
+    private static final Pattern EXISTING_INDEX_COLUMNS_PATTERN = Pattern.compile(
+            "(?i)columns=\\(([^)]*)\\)"
+    );
     private static final Set<String> SQL_KEYWORDS = Set.of(
             "where", "join", "inner", "left", "right", "full", "cross", "on", "group",
             "order", "having", "connect", "start", "union", "minus", "intersect"
@@ -149,6 +152,7 @@ public class AwrSqlTuningAdvisor {
 
         Map<String, LinkedHashSet<String>> columnsByTable = predicateColumnsByTable(metric.sqlText());
         Map<String, TableVolumeContext> volumeByTable = tableVolumeContexts(request);
+        Map<String, List<List<String>>> existingIndexColumnsByTable = existingIndexColumnsByTable(request);
         List<AwrDtos.IndexRecommendationResponse> recommendations = new ArrayList<>();
         for (Map.Entry<String, LinkedHashSet<String>> entry : columnsByTable.entrySet()) {
             List<String> columns = entry.getValue().stream().limit(3).toList();
@@ -157,6 +161,9 @@ public class AwrSqlTuningAdvisor {
             }
             String tableName = entry.getKey();
             if (isOracleDictionaryObject(tableName)) {
+                continue;
+            }
+            if (coveredByExistingIndex(tableName, columns, existingIndexColumnsByTable)) {
                 continue;
             }
             TableVolumeContext volumeContext = volumeByTable.get(normalizeTableKey(tableName));
@@ -433,31 +440,125 @@ public class AwrSqlTuningAdvisor {
         Map<String, TableVolumeContext> contexts = new LinkedHashMap<>();
         Matcher statsMatcher = TABLE_STATS_PATTERN.matcher(request.schemaDdl());
         while (statsMatcher.find()) {
+            String ownerPrefix = cleanOptional(statsMatcher.group(1));
             String tableName = cleanIdentifier(statsMatcher.group(2));
-            contexts.put(normalizeTableKey(tableName), new TableVolumeContext(
+            String fullTableName = hasText(ownerPrefix) ? ownerPrefix + tableName : tableName;
+            TableVolumeContext context = new TableVolumeContext(
                     tableName,
                     parseLong(statsMatcher.group(3)),
                     parseLong(statsMatcher.group(4)),
                     null,
                     cleanOptional(statsMatcher.group(5)),
                     null
-            ));
+            );
+            putTableContext(contexts, fullTableName, context);
         }
         Matcher loadMatcher = TABLE_LOAD_PATTERN.matcher(request.schemaDdl());
         while (loadMatcher.find()) {
+            String ownerPrefix = cleanOptional(loadMatcher.group(1));
             String tableName = cleanIdentifier(loadMatcher.group(2));
-            String key = normalizeTableKey(tableName);
+            String fullTableName = hasText(ownerPrefix) ? ownerPrefix + tableName : tableName;
+            String key = normalizeTableKey(fullTableName);
             TableVolumeContext current = contexts.getOrDefault(key, new TableVolumeContext(tableName, null, null, null, null, null));
-            contexts.put(key, new TableVolumeContext(
+            TableVolumeContext context = new TableVolumeContext(
                     current.tableName(),
                     current.numRows(),
                     current.blocks(),
                     parseLong(loadMatcher.group(6)),
                     current.lastAnalyzed(),
                     cleanOptional(loadMatcher.group(7))
-            ));
+            );
+            putTableContext(contexts, fullTableName, context);
         }
         return contexts;
+    }
+
+    private void putTableContext(Map<String, TableVolumeContext> contexts, String tableName, TableVolumeContext context) {
+        contexts.put(normalizeTableKey(tableName), context);
+        contexts.put(simpleTableKey(tableName), context);
+    }
+
+    private Map<String, List<List<String>>> existingIndexColumnsByTable(AwrDtos.SqlTuningRequest request) {
+        if (request == null || !hasText(request.existingIndexes())) {
+            return Map.of();
+        }
+        Map<String, List<List<String>>> indexesByTable = new LinkedHashMap<>();
+        for (String line : request.existingIndexes().split("\\R")) {
+            String[] parts = line.split("\\|");
+            if (parts.length < 3) {
+                continue;
+            }
+            String tableName = cleanIdentifier(parts[0]);
+            Matcher matcher = EXISTING_INDEX_COLUMNS_PATTERN.matcher(line);
+            if (!matcher.find()) {
+                continue;
+            }
+            List<String> columns = normalizeColumns(matcher.group(1));
+            if (columns.isEmpty()) {
+                continue;
+            }
+            addExistingIndexColumns(indexesByTable, normalizeTableKey(tableName), columns);
+            addExistingIndexColumns(indexesByTable, simpleTableKey(tableName), columns);
+        }
+        return indexesByTable;
+    }
+
+    private void addExistingIndexColumns(Map<String, List<List<String>>> indexesByTable, String tableKey, List<String> columns) {
+        indexesByTable.computeIfAbsent(tableKey, ignored -> new ArrayList<>()).add(columns);
+    }
+
+    private boolean coveredByExistingIndex(
+            String tableName,
+            List<String> candidateColumns,
+            Map<String, List<List<String>>> existingIndexColumnsByTable
+    ) {
+        if (existingIndexColumnsByTable.isEmpty()) {
+            return false;
+        }
+        List<String> normalizedCandidate = candidateColumns.stream()
+                .map(this::normalizeColumnKey)
+                .toList();
+        return existingIndexColumns(existingIndexColumnsByTable, tableName).stream()
+                .anyMatch(existingColumns -> hasLeadingColumns(existingColumns, normalizedCandidate));
+    }
+
+    private List<List<String>> existingIndexColumns(Map<String, List<List<String>>> indexesByTable, String tableName) {
+        List<List<String>> columns = new ArrayList<>();
+        List<List<String>> fullNameColumns = indexesByTable.get(normalizeTableKey(tableName));
+        if (fullNameColumns != null) {
+            columns.addAll(fullNameColumns);
+        }
+        List<List<String>> simpleNameColumns = indexesByTable.get(simpleTableKey(tableName));
+        if (simpleNameColumns != null) {
+            columns.addAll(simpleNameColumns);
+        }
+        return columns;
+    }
+
+    private boolean hasLeadingColumns(List<String> existingColumns, List<String> candidateColumns) {
+        if (existingColumns.size() < candidateColumns.size()) {
+            return false;
+        }
+        for (int i = 0; i < candidateColumns.size(); i++) {
+            if (!existingColumns.get(i).equals(candidateColumns.get(i))) {
+                return false;
+            }
+        }
+        return true;
+    }
+
+    private List<String> normalizeColumns(String columns) {
+        if (!hasText(columns)) {
+            return List.of();
+        }
+        List<String> values = new ArrayList<>();
+        for (String column : columns.split(",")) {
+            String normalized = normalizeColumnKey(column);
+            if (hasText(normalized)) {
+                values.add(normalized);
+            }
+        }
+        return values;
     }
 
     private String indexName(String tableName, List<String> columns) {
@@ -467,7 +568,15 @@ public class AwrSqlTuningAdvisor {
     }
 
     private String normalizeTableKey(String tableName) {
+        return cleanIdentifier(tableName).toUpperCase(Locale.ROOT);
+    }
+
+    private String simpleTableKey(String tableName) {
         return simpleName(tableName).toUpperCase(Locale.ROOT);
+    }
+
+    private String normalizeColumnKey(String columnName) {
+        return simpleName(columnName).toUpperCase(Locale.ROOT);
     }
 
     private boolean containsOracleDictionaryObject(String sqlText) {

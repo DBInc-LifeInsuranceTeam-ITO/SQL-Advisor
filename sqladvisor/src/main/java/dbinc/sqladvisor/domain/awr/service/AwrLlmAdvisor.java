@@ -360,7 +360,13 @@ public class AwrLlmAdvisor {
         for (JsonNode item : node) {
             String tableName = textOr(item, "table_name", null);
             boolean dictionaryObject = isOracleDictionaryObject(tableName);
-            String ddlCandidate = dictionaryObject ? null : textOr(item, "ddl_candidate", null);
+            String ddlCandidate = safeDdlCandidate(dictionaryObject, textOr(item, "ddl_candidate", null));
+            List<String> buildSteps = dictionaryObject
+                    ? List.of()
+                    : safeBuildSteps(stringList(item.path("build_steps"), List.of()));
+            List<String> postCreateSteps = dictionaryObject
+                    ? List.of()
+                    : stringList(item.path("post_create_steps"), List.of());
             String risk = textOr(item, "risk", "");
             if (dictionaryObject) {
                 risk = appendSentence(risk, "Oracle dictionary or dynamic performance views are shown for diagnosis only; do not create user indexes on them.");
@@ -369,8 +375,8 @@ public class AwrLlmAdvisor {
                     tableName,
                     stringList(item.path("columns"), List.of()),
                     ddlCandidate,
-                    stringList(item.path("build_steps"), List.of()),
-                    stringList(item.path("post_create_steps"), List.of()),
+                    buildSteps,
+                    postCreateSteps,
                     textOr(item, "reason", ""),
                     textOr(item, "expected_benefit", ""),
                     risk,
@@ -378,6 +384,30 @@ public class AwrLlmAdvisor {
             ));
         }
         return recommendations.isEmpty() ? fallback : recommendations;
+    }
+
+    private String safeDdlCandidate(boolean dictionaryObject, String ddlCandidate) {
+        if (dictionaryObject || isUnsafeDictionaryDdl(ddlCandidate)) {
+            return null;
+        }
+        return ddlCandidate;
+    }
+
+    private List<String> safeBuildSteps(List<String> buildSteps) {
+        return buildSteps.stream()
+                .filter(step -> !isUnsafeDictionaryDdl(step))
+                .toList();
+    }
+
+    private boolean isUnsafeDictionaryDdl(String value) {
+        if (value == null || value.isBlank()) {
+            return false;
+        }
+        String normalized = value.replace("\"", "").toUpperCase(Locale.ROOT).replaceAll("\\s+", " ");
+        return normalized.contains("CREATE INDEX")
+                && normalized.contains(" ON ")
+                && (normalized.matches(".*\\sON\\s+(SYS\\.)?(ALL_|DBA_|USER_|V\\$|GV\\$).*")
+                || normalized.matches(".*\\sON\\s+(SYS\\.)?[A-Z0-9_$#]+\\.(ALL_|DBA_|USER_|V\\$|GV\\$).*"));
     }
 
     private String appendSentence(String value, String sentence) {

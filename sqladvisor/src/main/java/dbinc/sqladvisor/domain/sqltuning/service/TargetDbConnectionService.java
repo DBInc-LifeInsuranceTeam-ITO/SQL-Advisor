@@ -162,6 +162,7 @@ public class TargetDbConnectionService {
         addCapability(connection, capabilities, warnings, "dba_tab_col_statistics", "SELECT 1 FROM dba_tab_col_statistics WHERE ROWNUM < 1");
         addCapability(connection, capabilities, warnings, "dba_hist_active_sess_history", "SELECT 1 FROM dba_hist_active_sess_history WHERE ROWNUM < 1");
         addCapability(connection, capabilities, warnings, "dba_hist_sqlstat", "SELECT 1 FROM dba_hist_sqlstat WHERE ROWNUM < 1");
+        addCapability(connection, capabilities, warnings, "dba_hist_sqltext", "SELECT 1 FROM dba_hist_sqltext WHERE ROWNUM < 1");
         addCapability(connection, capabilities, warnings, "dba_hist_sql_plan", "SELECT 1 FROM dba_hist_sql_plan WHERE ROWNUM < 1");
         return new CapabilityProbe(capabilities, warnings);
     }

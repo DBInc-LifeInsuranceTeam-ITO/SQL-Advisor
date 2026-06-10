@@ -859,13 +859,14 @@ function topSqlOptions(): DirectTopSqlOptions {
   }
 }
 
-function setTopSqlSort(column: TopSqlSortColumn) {
+async function setTopSqlSort(column: TopSqlSortColumn) {
   if (topSqlSortColumn.value === column) {
     topSqlSortDirection.value = topSqlSortDirection.value === 'DESC' ? 'ASC' : 'DESC'
     return
   }
   topSqlSortColumn.value = column
   topSqlSortDirection.value = 'DESC'
+  await loadDirectTopSql()
 }
 
 function compareTopSql(left: SqlMetricResponse, right: SqlMetricResponse) {

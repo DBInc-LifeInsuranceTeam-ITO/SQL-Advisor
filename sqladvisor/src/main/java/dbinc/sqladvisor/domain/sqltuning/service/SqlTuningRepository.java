@@ -48,6 +48,20 @@ public class SqlTuningRepository {
         jdbcTemplate.execute("CREATE INDEX IF NOT EXISTS idx_sql_tuning_result_source ON sql_tuning_result(source_type, created_at DESC)");
         jdbcTemplate.execute("ALTER TABLE sql_tuning_result ADD COLUMN IF NOT EXISTS connection_id BIGINT");
         jdbcTemplate.execute("CREATE INDEX IF NOT EXISTS idx_sql_tuning_result_connection ON sql_tuning_result(connection_id, created_at DESC)");
+        jdbcTemplate.execute("""
+                CREATE TABLE IF NOT EXISTS sql_tuning_question (
+                    id BIGSERIAL PRIMARY KEY,
+                    tuning_id BIGINT NOT NULL REFERENCES sql_tuning_result(id) ON DELETE CASCADE,
+                    user_id BIGINT REFERENCES app_user(id) ON DELETE SET NULL,
+                    question TEXT NOT NULL,
+                    answer TEXT NOT NULL,
+                    citations JSONB NOT NULL DEFAULT '[]'::jsonb,
+                    model TEXT,
+                    confidence TEXT,
+                    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+                )
+                """);
+        jdbcTemplate.execute("CREATE INDEX IF NOT EXISTS idx_sql_tuning_question_tuning ON sql_tuning_question(tuning_id, created_at)");
     }
 
     public long save(Long userId, String sourceType, String sqlId, String sqlText, Object input, AwrDtos.SqlTuningResponse result) {
@@ -127,6 +141,50 @@ public class SqlTuningRepository {
         return results.stream().findFirst();
     }
 
+    public long saveQuestion(Long userId, long tuningId, AwrDtos.SqlTuningQuestionResponse answer) {
+        KeyHolder keyHolder = new GeneratedKeyHolder();
+        jdbcTemplate.update(connection -> {
+            PreparedStatement statement = connection.prepareStatement("""
+                            INSERT INTO sql_tuning_question(tuning_id, user_id, question, answer, citations, model, confidence)
+                            VALUES (?, ?, ?, ?, ?::jsonb, ?, ?)
+                            """, new String[]{"id"});
+            statement.setLong(1, tuningId);
+            if (userId == null) {
+                statement.setObject(2, null);
+            } else {
+                statement.setLong(2, userId);
+            }
+            statement.setString(3, answer.question());
+            statement.setString(4, answer.answer());
+            statement.setString(5, toJson(answer.citations() == null ? List.of() : answer.citations()));
+            statement.setString(6, answer.model());
+            statement.setString(7, answer.confidence());
+            return statement;
+        }, keyHolder);
+        return keyHolder.getKey().longValue();
+    }
+
+    public List<AwrDtos.SqlTuningQuestionResponse> findQuestions(long tuningId) {
+        return jdbcTemplate.query("""
+                        SELECT id, tuning_id, question, answer, citations, model, confidence, created_at
+                          FROM sql_tuning_question
+                         WHERE tuning_id = ?
+                         ORDER BY created_at ASC, id ASC
+                        """,
+                (rs, rowNum) -> new AwrDtos.SqlTuningQuestionResponse(
+                        rs.getLong("id"),
+                        rs.getLong("tuning_id"),
+                        rs.getString("question"),
+                        rs.getString("answer"),
+                        stringList(rs.getString("citations")),
+                        rs.getString("model"),
+                        rs.getString("confidence"),
+                        rs.getTimestamp("created_at").toLocalDateTime()
+                ),
+                tuningId
+        );
+    }
+
     private AwrDtos.SqlTuningResponse withInput(String resultJson, String inputJson) {
         AwrDtos.SqlTuningResponse result = fromJson(resultJson, AwrDtos.SqlTuningResponse.class);
         AwrDtos.SqlTuningRequest input = result.input() == null
@@ -157,6 +215,17 @@ public class SqlTuningRepository {
             return objectMapper.writeValueAsString(value == null ? Map.of() : value);
         } catch (JsonProcessingException exception) {
             throw new IllegalArgumentException("JSON 직렬화에 실패했습니다.", exception);
+        }
+    }
+
+    private List<String> stringList(String json) {
+        if (json == null || json.isBlank()) {
+            return List.of();
+        }
+        try {
+            return objectMapper.readerForListOf(String.class).readValue(json);
+        } catch (JsonProcessingException exception) {
+            return List.of();
         }
     }
 

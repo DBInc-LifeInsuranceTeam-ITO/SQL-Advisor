@@ -136,6 +136,21 @@ export interface SqlTuningRequest {
   bindSamples?: string
 }
 
+export interface SqlTuningQuestionRequest {
+  question: string
+}
+
+export interface SqlTuningQuestionResponse {
+  questionId: number
+  tuningId: number
+  question: string
+  answer: string
+  citations: string[]
+  model: string
+  confidence: string
+  createdAt: string
+}
+
 export interface SqlTuningResponse {
   tuningId: number
   reportId?: number | null
@@ -159,6 +174,8 @@ export interface IndexRecommendationResponse {
   tableName?: string | null
   columns: string[]
   ddlCandidate?: string | null
+  buildSteps?: string[]
+  postCreateSteps?: string[]
   reason: string
   expectedBenefit: string
   risk: string

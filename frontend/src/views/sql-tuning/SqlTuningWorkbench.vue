@@ -450,6 +450,7 @@ filter(&quot;O&quot;.&quot;CUSTOMER_ID&quot;=:CUSTOMER_ID)"
 
 <script setup lang="ts">
 import { computed, onMounted, ref } from 'vue'
+import { useRoute } from 'vue-router'
 import {
   askSqlTuningQuestion,
   collectDirectDbContext,
@@ -492,6 +493,7 @@ interface ExecutionPlanTableBlock {
 
 type ExecutionPlanBlock = ExecutionPlanTextBlock | ExecutionPlanTableBlock
 
+const route = useRoute()
 const sourceMode = ref<SourceMode>('DIRECT')
 const sqlText = ref('')
 const executionPlan = ref('')
@@ -630,6 +632,14 @@ async function loadConnections(loadTopSql = true) {
       selectedConnectionId.value = null
       directTopSql.value = []
       topSqlLoaded.value = false
+    }
+    const routedConnectionId = routeConnectionId()
+    if (routedConnectionId && connections.value.some((connection) => connection.id === routedConnectionId)) {
+      selectedConnectionId.value = routedConnectionId
+    }
+    const routedSqlId = routeStringParam('sqlId')
+    if (routedSqlId && !directSqlId.value.trim()) {
+      directSqlId.value = routedSqlId
     }
     if (!selectedConnectionId.value && connections.value.length) {
       selectedConnectionId.value = connections.value[0].id
@@ -1000,6 +1010,19 @@ function restoreInput(input?: SqlTuningRequest | null, fallbackSqlText?: string 
   schemaDdl.value = input?.schemaDdl || ''
   existingIndexes.value = input?.existingIndexes || ''
   bindSamples.value = input?.bindSamples || ''
+}
+
+function routeConnectionId() {
+  const raw = routeStringParam('connectionId')
+  if (!raw) return null
+  const parsed = Number(raw)
+  return Number.isFinite(parsed) ? parsed : null
+}
+
+function routeStringParam(name: string) {
+  const value = route.query[name]
+  if (Array.isArray(value)) return value[0] || ''
+  return typeof value === 'string' ? value : ''
 }
 
 function toggleConnectionForm() {

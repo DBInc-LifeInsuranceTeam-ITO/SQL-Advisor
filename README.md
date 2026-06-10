@@ -1,6 +1,6 @@
 # SQLAdvisor
 
-SQLAdvisor는 Oracle AWR 리포트를 업로드하고 SQL 지표, Wait Event, 분석 결과를 확인하는 웹 애플리케이션입니다. 현재 배포 구성은 `dev`와 `prod` 두 가지이며, 관련 파일은 `deploy/` 폴더에 있습니다.
+SQLAdvisor는 Oracle AWR 리포트를 업로드하고 SQL 지표, Wait Event, 분석 결과, SQL 튜닝 결과를 확인하는 웹 애플리케이션입니다. 현재 배포 구성은 `dev`와 `prod` 두 가지이며, 관련 파일은 `deploy/` 폴더에 있습니다.
 
 ## 빠른 시작
 
@@ -36,6 +36,7 @@ docker compose -f deploy/docker-compose.prod.yml up -d --build
 2. 업로드된 리포트 목록에서 분석할 리포트를 선택합니다.
 3. SQL 지표, Wait Event, 분석 결과를 확인합니다.
 4. Advisor Chat에서 리포트 기반 질문을 입력해 추가 설명을 받습니다.
+5. SQL 튜닝 화면에서 Direct DB 연결 또는 직접 SQL 입력으로 실행계획, 인덱스, bind 근거를 포함한 튜닝 결과를 확인합니다.
 
 ## 자주 쓰는 명령어
 
@@ -152,7 +153,20 @@ APP_SESSION_TIMEOUT_MINUTES=120
 | `GET` | `/api/reports/{id}/status` | 분석 상태 조회 |
 | `POST` | `/api/reports/{id}/analyze` | 리포트 분석 실행 |
 | `POST` | `/api/reports/{id}/chat` | 리포트 기반 채팅 |
+| `GET` | `/api/reports/{id}/chat/history` | 리포트 채팅 히스토리 조회 |
 | `GET` | `/api/reports/{id}/sql` | SQL 목록 조회 |
+| `GET` | `/api/reports/{id}/sql/{sqlId}` | SQL_ID 단건 조회 |
+| `POST` | `/api/reports/{id}/sql/{sqlId}/tune` | AWR SQL_ID 기반 튜닝 실행 |
+| `GET` | `/api/reports/{id}/sql/{sqlId}/tuning/latest` | SQL_ID 최신 튜닝 결과 조회 |
+| `GET` | `/api/reports/{id}/sql/tuning/history` | 리포트 SQL 튜닝 히스토리 조회 |
+| `GET` | `/api/db-connections` | Target DB 연결 목록 조회 |
+| `POST` | `/api/db-connections` | Target DB 연결 저장 |
+| `POST` | `/api/db-connections/test` | Target DB 연결 테스트 |
+| `POST` | `/api/sql-tuning` | 직접 입력 SQL 튜닝 실행 |
+| `GET` | `/api/sql-tuning/history` | SQL 튜닝 히스토리 조회 |
+| `GET` | `/api/sql-tuning/direct/top-sql` | Direct DB Top SQL 후보 조회 |
+| `POST` | `/api/sql-tuning/direct/context` | Direct DB SQL_ID 근거 수집 |
+| `POST` | `/api/sql-tuning/direct` | Direct DB SQL_ID 튜닝 실행 |
 | `GET` | `/api/config/ai` | AI 설정 조회 |
 | `POST` | `/api/config/ai` | AI 설정 저장 |
 | `GET` | `/api/config/ai/models` | 지원 모델 조회 |

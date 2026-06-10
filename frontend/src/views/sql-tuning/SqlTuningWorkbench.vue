@@ -170,29 +170,61 @@
                 <thead>
                   <tr>
                     <th>SQL_ID</th>
-                    <th>
-                      <button class="sql-tuning-sort-header" type="button" @click="setTopSqlSort('ELAPSED')">
-                        <span>Elapsed</span>
-                        <span v-if="topSqlSortColumn === 'ELAPSED'" class="sql-tuning-sort-indicator">{{ topSqlSortDirection }}</span>
-                      </button>
+                    <th
+                      class="sql-tuning-sortable-header"
+                      role="button"
+                      tabindex="0"
+                      :aria-sort="topSqlSortColumn === 'ELAPSED' ? ariaSortDirection : 'none'"
+                      @click="setTopSqlSort('ELAPSED')"
+                      @keydown.enter.prevent="setTopSqlSort('ELAPSED')"
+                      @keydown.space.prevent="setTopSqlSort('ELAPSED')"
+                    >
+                      <span class="sql-tuning-sort-label">
+                        Elapsed
+                        <span v-if="topSqlSortColumn === 'ELAPSED'" class="sql-tuning-sort-indicator">{{ topSqlSortDirection === 'DESC' ? '↓' : '↑' }}</span>
+                      </span>
                     </th>
-                    <th>
-                      <button class="sql-tuning-sort-header" type="button" @click="setTopSqlSort('BUFFER_GETS')">
-                        <span>Buffer Gets</span>
-                        <span v-if="topSqlSortColumn === 'BUFFER_GETS'" class="sql-tuning-sort-indicator">{{ topSqlSortDirection }}</span>
-                      </button>
+                    <th
+                      class="sql-tuning-sortable-header"
+                      role="button"
+                      tabindex="0"
+                      :aria-sort="topSqlSortColumn === 'BUFFER_GETS' ? ariaSortDirection : 'none'"
+                      @click="setTopSqlSort('BUFFER_GETS')"
+                      @keydown.enter.prevent="setTopSqlSort('BUFFER_GETS')"
+                      @keydown.space.prevent="setTopSqlSort('BUFFER_GETS')"
+                    >
+                      <span class="sql-tuning-sort-label">
+                        Buffer Gets
+                        <span v-if="topSqlSortColumn === 'BUFFER_GETS'" class="sql-tuning-sort-indicator">{{ topSqlSortDirection === 'DESC' ? '↓' : '↑' }}</span>
+                      </span>
                     </th>
-                    <th>
-                      <button class="sql-tuning-sort-header" type="button" @click="setTopSqlSort('DISK_READS')">
-                        <span>Disk Reads</span>
-                        <span v-if="topSqlSortColumn === 'DISK_READS'" class="sql-tuning-sort-indicator">{{ topSqlSortDirection }}</span>
-                      </button>
+                    <th
+                      class="sql-tuning-sortable-header"
+                      role="button"
+                      tabindex="0"
+                      :aria-sort="topSqlSortColumn === 'DISK_READS' ? ariaSortDirection : 'none'"
+                      @click="setTopSqlSort('DISK_READS')"
+                      @keydown.enter.prevent="setTopSqlSort('DISK_READS')"
+                      @keydown.space.prevent="setTopSqlSort('DISK_READS')"
+                    >
+                      <span class="sql-tuning-sort-label">
+                        Disk Reads
+                        <span v-if="topSqlSortColumn === 'DISK_READS'" class="sql-tuning-sort-indicator">{{ topSqlSortDirection === 'DESC' ? '↓' : '↑' }}</span>
+                      </span>
                     </th>
-                    <th>
-                      <button class="sql-tuning-sort-header" type="button" @click="setTopSqlSort('EXECUTIONS')">
-                        <span>Executions</span>
-                        <span v-if="topSqlSortColumn === 'EXECUTIONS'" class="sql-tuning-sort-indicator">{{ topSqlSortDirection }}</span>
-                      </button>
+                    <th
+                      class="sql-tuning-sortable-header"
+                      role="button"
+                      tabindex="0"
+                      :aria-sort="topSqlSortColumn === 'EXECUTIONS' ? ariaSortDirection : 'none'"
+                      @click="setTopSqlSort('EXECUTIONS')"
+                      @keydown.enter.prevent="setTopSqlSort('EXECUTIONS')"
+                      @keydown.space.prevent="setTopSqlSort('EXECUTIONS')"
+                    >
+                      <span class="sql-tuning-sort-label">
+                        Executions
+                        <span v-if="topSqlSortColumn === 'EXECUTIONS'" class="sql-tuning-sort-indicator">{{ topSqlSortDirection === 'DESC' ? '↓' : '↑' }}</span>
+                      </span>
                     </th>
                   </tr>
                 </thead>
@@ -603,6 +635,9 @@ const topSqlStatusMessage = computed(() => {
   }
   return `${directTopSql.value.length} SQL_ID loaded`
 })
+const ariaSortDirection = computed(() =>
+  topSqlSortDirection.value === 'DESC' ? 'descending' : 'ascending'
+)
 const topSqlEmptyMessage = computed(() => {
   if (directTopSql.value.length && excludeTunedTopSql.value) {
     return 'All loaded SQL_IDs are hidden. Turn off Hide tuned SQL_ID to show them.'

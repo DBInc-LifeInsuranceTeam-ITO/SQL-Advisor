@@ -2,21 +2,21 @@
 
 SQLAdvisor의 RAG 구성은 Oracle AWR 리포트에서 추출한 구조화 지표와 원문 근거를 `pgvector`에 저장하고, Advisor 분석/Chat 시 질문과 관련된 chunk를 검색해 답변 근거로 사용하는 구조입니다.
 
-## 현재 설정
+## 기본 설정
 
-`deploy/.env.dev`, `deploy/.env.prod` 기준 현재 AI/RAG 설정은 다음과 같습니다.
+tracked `deploy/config/application-*.yml`과 `deploy/.env.*.example` 기준 기본 AI/RAG 설정은 다음과 같습니다.
 
 | 항목 | 값 |
 | --- | --- |
-| LLM provider | `gemini` |
-| Embedding provider | `gemini` |
-| Chat model | `gemini-3.1-flash-lite` |
-| Embedding model | `gemini-embedding-001` |
+| LLM provider | `local` |
+| Embedding provider | `none` |
+| Chat model | `rule-based-local-advisor` |
+| Embedding model | `none` |
 | RAG top-k | `8` |
 | Embedding dimension | `1536` |
 | Vector store | PostgreSQL `pgvector` |
 
-런타임에서는 `/api/config/ai`로 조회되는 DB 저장 설정이 환경 변수보다 우선 적용될 수 있습니다.
+런타임에서는 실제 `deploy/.env.dev`, `deploy/.env.prod` 또는 `/api/config/ai`로 조회되는 DB 저장 설정이 기본값보다 우선 적용될 수 있습니다.
 
 ## 전체 구성도
 
@@ -35,7 +35,7 @@ flowchart LR
   Api --> AiClient["AwrAiClient"]
   AiClient --> Gemini["Gemini\nchat + embedding"]
   AiClient --> OpenAI["OpenAI\nchat + embedding"]
-  AiClient --> InternalLlm["Internal LLM\nchat"]
+  AiClient --> InternalLlm["Internal OpenAI-compatible\nchat + embedding"]
   AiClient --> Ollama["Ollama\nchat + embedding"]
 
   Pg --> Rag["RAG Retrieval\nSQL_ID 검색 + vector similarity + fallback"]
@@ -64,7 +64,7 @@ flowchart TD
   SqlChunk --> Embed
   WaitChunk --> Embed
 
-  Embed -->|Yes| Vector["Gemini/OpenAI/Ollama embedding 생성"]
+  Embed -->|Yes| Vector["Gemini/OpenAI/Internal/Ollama embedding 생성"]
   Embed -->|No| Plain["vector 없이 chunk 저장"]
 
   Vector --> RagTable["rag_chunk\nembedding VECTOR(1536)"]
@@ -160,7 +160,7 @@ fallback 우선순위는 `sql_metric_row`, `wait_event`, `time_model`, `summary`
 | `sqladvisor/src/main/java/dbinc/sqladvisor/domain/awr/service/AwrReportService.java` | 분석/Chat 및 worker callback 흐름 |
 | `sqladvisor/src/main/java/dbinc/sqladvisor/domain/awr/service/AwrRagService.java` | RAG 인덱싱/검색 |
 | `sqladvisor/src/main/java/dbinc/sqladvisor/domain/awr/service/AwrRepository.java` | pgvector 테이블/쿼리 |
-| `sqladvisor/src/main/java/dbinc/sqladvisor/domain/awr/service/AwrAiClient.java` | 외부 AI provider 호출 |
+| `sqladvisor/src/main/java/dbinc/sqladvisor/domain/awr/service/AwrAiClient.java` | AI provider chat/embedding 호출 |
 | `deploy/config/application-dev.yml` | dev AI/RAG 기본 설정 |
 | `deploy/config/application-prod.yml` | prod AI/RAG 기본 설정 |
 | `sqladvisor/init-db/postgres/001_pgvector.sql` | pgvector extension 및 RAG 테이블 초기화 |

@@ -94,12 +94,28 @@ OPENAI_EMBEDDING_MODEL=text-embedding-3-small
 OPENAI_EMBEDDING_DIMENSION=1536
 ```
 
-Supported key placeholders:
+Internal OpenAI-compatible 예시:
+
+```env
+AWR_LLM_PROVIDER=internal
+AWR_EMBEDDING_PROVIDER=internal
+INTERNAL_LLM_API_KEY=
+INTERNAL_LLM_BASE_URL=
+INTERNAL_LLM_CHAT_MODEL=gemma4-31b
+INTERNAL_EMBEDDING_BASE_URL=
+INTERNAL_EMBEDDING_MODEL=genai-bge-m3
+```
+
+Supported AI placeholders:
 
 | Variable | Used For |
 | --- | --- |
 | `OPENAI_API_KEY` | OpenAI chat/embedding |
 | `GEMINI_API_KEY` | Gemini chat/embedding |
+| `INTERNAL_LLM_API_KEY` | internal OpenAI-compatible chat/embedding |
+| `INTERNAL_LLM_BASE_URL` | internal chat endpoint |
+| `INTERNAL_EMBEDDING_BASE_URL` | internal embedding endpoint |
+| `OLLAMA_BASE_URL` | Ollama chat/embedding endpoint |
 | `ANTHROPIC_API_KEY` | Anthropic chat |
 | `XAI_API_KEY` | xAI chat |
 | `COHERE_API_KEY` | Cohere rerank |

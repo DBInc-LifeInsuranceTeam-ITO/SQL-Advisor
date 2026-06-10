@@ -1252,30 +1252,33 @@
   font-weight: 800;
 }
 
-.sql-tuning-sort-header {
-  display: inline-flex;
-  align-items: center;
-  gap: 0.35rem;
-  border: 0;
-  background: transparent;
-  color: inherit;
-  padding: 0;
-  font: inherit;
-  font-weight: 850;
+.sql-tuning-sortable-header {
   cursor: pointer;
+  user-select: none;
+  white-space: nowrap;
 }
 
-.sql-tuning-sort-header:hover {
+.sql-tuning-sortable-header:hover {
   color: #17603a;
+}
+
+.sql-tuning-sortable-header:focus-visible {
+  outline: 2px solid #7dc99a;
+  outline-offset: -2px;
+}
+
+.sql-tuning-sort-label {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.3rem;
+  font-weight: 850;
 }
 
 .sql-tuning-sort-indicator {
-  border: 1px solid #bfd7c8;
-  border-radius: 999px;
   color: #17603a;
-  padding: 0.05rem 0.35rem;
-  font-size: 0.64rem;
-  font-weight: 850;
+  font-size: 0.76rem;
+  font-weight: 900;
+  line-height: 1;
 }
 
 .sql-tuning-sql-id-button {

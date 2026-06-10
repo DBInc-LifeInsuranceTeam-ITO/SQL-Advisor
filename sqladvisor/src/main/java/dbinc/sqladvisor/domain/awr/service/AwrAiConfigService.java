@@ -3,8 +3,10 @@ package dbinc.sqladvisor.domain.awr.service;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import dbinc.sqladvisor.domain.awr.dto.AwrDtos;
+import jakarta.annotation.PostConstruct;
 import lombok.RequiredArgsConstructor;
 import org.springframework.beans.factory.annotation.Value;
+import org.springframework.core.env.Environment;
 import org.springframework.stereotype.Service;
 
 import java.io.IOException;
@@ -46,6 +48,7 @@ public class AwrAiConfigService {
 
     private final AwrRepository repository;
     private final ObjectMapper objectMapper;
+    private final Environment environment;
     private final HttpClient httpClient = HttpClient.newBuilder()
             .connectTimeout(Duration.ofSeconds(3))
             .build();
@@ -115,6 +118,26 @@ public class AwrAiConfigService {
 
     @Value("${awr.embedding.dimension:1536}")
     private int embeddingDimension;
+
+    @PostConstruct
+    void syncEnvSettingsFromEnvironment() {
+        syncSupportedEnvSetting(KEY_LLM_PROVIDER, "AWR_LLM_PROVIDER", LLM_PROVIDERS, "local", "LLM provider");
+        syncSupportedEnvSetting(KEY_EMBEDDING_PROVIDER, "AWR_EMBEDDING_PROVIDER", EMBEDDING_PROVIDERS, "none", "Embedding provider");
+        syncEnvSetting(KEY_OPENAI_API_KEY, "OPENAI_API_KEY");
+        syncEnvSetting(KEY_OPENAI_CHAT_MODEL, "OPENAI_CHAT_MODEL");
+        syncEnvSetting(KEY_OPENAI_EMBEDDING_MODEL, "OPENAI_EMBEDDING_MODEL");
+        syncEnvSetting(KEY_GEMINI_API_KEY, "GEMINI_API_KEY");
+        syncEnvSetting(KEY_GEMINI_CHAT_MODEL, "GEMINI_CHAT_MODEL");
+        syncEnvSetting(KEY_GEMINI_EMBEDDING_MODEL, "GEMINI_EMBEDDING_MODEL");
+        syncEnvSetting(KEY_INTERNAL_API_KEY, "INTERNAL_LLM_API_KEY");
+        syncEnvSetting(KEY_INTERNAL_BASE_URL, "INTERNAL_LLM_BASE_URL");
+        syncEnvSetting(KEY_INTERNAL_CHAT_MODEL, "INTERNAL_LLM_CHAT_MODEL");
+        syncEnvSetting(KEY_INTERNAL_EMBEDDING_BASE_URL, "INTERNAL_EMBEDDING_BASE_URL");
+        syncEnvSetting(KEY_INTERNAL_EMBEDDING_MODEL, "INTERNAL_EMBEDDING_MODEL");
+        syncEnvSetting(KEY_OLLAMA_BASE_URL, "OLLAMA_BASE_URL");
+        syncEnvSetting(KEY_OLLAMA_CHAT_MODEL, "OLLAMA_CHAT_MODEL");
+        syncEnvSetting(KEY_OLLAMA_EMBEDDING_MODEL, "OLLAMA_EMBEDDING_MODEL");
+    }
 
     public AwrDtos.AiConfigResponse getConfig() {
         Map<String, String> saved = repository.findAiSettings();
@@ -483,6 +506,20 @@ public class AwrAiConfigService {
         }
     }
 
+    private void syncSupportedEnvSetting(String key, String envName, Set<String> supported, String fallback, String label) {
+        String value = environment.getProperty(envName);
+        if (hasText(value)) {
+            repository.upsertAiSetting(key, normalizeSupported(value, supported, fallback, label));
+        }
+    }
+
+    private void syncEnvSetting(String key, String envName) {
+        String value = environment.getProperty(envName);
+        if (hasText(value)) {
+            repository.upsertAiSetting(key, value.trim());
+        }
+    }
+
     private List<String> providerModels(List<String> defaults,
                                         ProviderModelSupplier supplier,
                                         String warningPrefix,
@@ -643,7 +680,8 @@ public class AwrAiConfigService {
     }
 
     private String source(Map<String, String> saved, String key, String fallback) {
-        if (hasText(saved.get(key))) {
+        String value = saved.get(key);
+        if (hasText(value) && (!hasText(fallback) || !value.trim().equals(fallback.trim()))) {
             return "web";
         }
         if (hasText(fallback)) {

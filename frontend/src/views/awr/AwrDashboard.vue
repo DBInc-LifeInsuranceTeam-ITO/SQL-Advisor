@@ -1,135 +1,174 @@
 <template>
-  <div class="awr-page dashboard-page dashboard-compact-page">
-    <div class="dashboard-compact-header">
-      <div>
-        <span class="dashboard-ko-eyebrow">AWR 기반 SQL 분석</span>
-        <h1>SQL Advisor</h1>
-        <p>성능 상태와 우선 점검 SQL만 압축해서 보여줍니다.</p>
-      </div>
+  <div class="awr-page dashboard-page dashboard-v5-page">
+    <section class="dashboard-top-strip">
+      <article class="summary-card state" :class="performanceClass">
+        <span class="summary-label">종합 상태</span>
+        <strong>{{ performanceLabel }}</strong>
+        <em>{{ performanceScore }}점</em>
+      </article>
 
-      <div class="awr-actions dashboard-compact-actions">
-        <button class="awr-btn primary" type="button" @click="router.push({ name: 'awr-upload' })">
-          AWR 업로드
-        </button>
-        <button class="awr-btn" type="button" @click="router.push({ name: 'sql-tuning' })">
-          SQL 튜닝
-        </button>
-      </div>
-    </div>
+      <article class="summary-card risk">
+        <span class="summary-label">우선 점검 SQL</span>
+        <strong>{{ topRiskSql.length }}건</strong>
+        <em>{{ dominantIssueLabel }}</em>
+      </article>
 
-    <div v-if="publicLoadMessage" class="awr-empty compact">
+      <article class="summary-card bottleneck">
+        <span class="summary-label">주요 병목</span>
+        <strong>{{ dominantBottleneckLabel }}</strong>
+        <em>{{ dominantBottleneckPercent }}</em>
+      </article>
+
+      <article class="summary-card report">
+        <span class="summary-label">분석 현황</span>
+        <strong>{{ readyReportCount }}/{{ reportCount }}</strong>
+        <em>실패 {{ failedReportCount }}건</em>
+      </article>
+    </section>
+
+    <div v-if="publicLoadMessage" class="dashboard-alert">
       {{ publicLoadMessage }}
     </div>
 
-    <section class="dashboard-focus-grid">
-      <article class="awr-panel dashboard-status-card" :class="performanceClass">
-        <div class="dashboard-card-title">
-          <span>성능 상태</span>
-          <strong>{{ performanceLabel }}</strong>
+    <section class="dashboard-v5-grid">
+      <article class="dashboard-panel status-panel" :class="performanceClass">
+        <div class="panel-header">
+          <div>
+            <span class="panel-kicker">종합 진단</span>
+            <h2>성능 상태</h2>
+          </div>
+          <span class="panel-badge">{{ performanceLabel }}</span>
         </div>
 
-        <div class="dashboard-score-wrap">
-          <div class="dashboard-score-ring" :style="{ '--score': performanceScore }">
-            <div>
+        <div class="score-zone">
+          <div class="score-ring" :style="{ '--score': `${performanceScore}%` }">
+            <div class="score-inner">
               <strong>{{ performanceScore }}</strong>
               <span>/ 100</span>
             </div>
           </div>
         </div>
 
-        <p class="dashboard-status-message">
-          {{ performanceMessage }}
-        </p>
+        <div class="status-summary-box">
+          <strong>{{ performanceMessage }}</strong>
+          <p>{{ dominantIssueLabel }} · {{ dominantBottleneckLabel }}</p>
+        </div>
+
+        <div class="status-metric-grid">
+          <div>
+            <span>완료율</span>
+            <strong>{{ readyPercent }}</strong>
+          </div>
+          <div>
+            <span>실패</span>
+            <strong>{{ failedReportCount }}</strong>
+          </div>
+        </div>
       </article>
 
-      <article class="awr-panel dashboard-bottleneck-card">
-        <div class="dashboard-card-title">
-          <span>주요 병목</span>
-          <button class="dashboard-text-button" type="button" @click="openFirstReport">
-            상세 보기
+      <article class="dashboard-panel bottleneck-panel">
+        <div class="panel-header">
+          <div>
+            <span class="panel-kicker">병목 분석</span>
+            <h2>병목 분포</h2>
+          </div>
+        </div>
+
+        <div v-if="topWaitEvents.length === 0" class="empty-panel">
+          분석 완료된 병목 정보가 아직 없습니다.
+        </div>
+
+        <template v-else>
+          <div class="distribution-hero">
+            <div class="distribution-title">
+              <span>DB Time 기준 상위 병목</span>
+              <strong>{{ dominantBottleneckLabel }}</strong>
+            </div>
+
+            <div class="distribution-bar">
+              <span
+                v-for="(event, index) in topWaitEvents"
+                :key="`${event.waitClass}-${event.eventName}`"
+                :class="`segment segment-${index + 1}`"
+                :style="{ width: `${event.segmentPercent}%` }"
+              ></span>
+            </div>
+          </div>
+
+          <div class="bottleneck-list">
+            <article
+              v-for="(event, index) in topWaitEvents"
+              :key="`${event.waitClass}-${event.eventName}`"
+              class="bottleneck-item"
+            >
+              <div class="bottleneck-rank" :class="`rank-${index + 1}`">{{ index + 1 }}</div>
+
+              <div class="bottleneck-content">
+                <div class="bottleneck-topline">
+                  <strong>{{ normalizeWaitEventName(event.eventName) }}</strong>
+                  <span>{{ formatPercent(event.dbTimePercent) }}</span>
+                </div>
+
+                <div class="bottleneck-subline">
+                  <em>{{ waitClassLabel(event.waitClass) }}</em>
+                  <small>{{ bottleneckComment(event) }}</small>
+                </div>
+
+                <div class="bottleneck-track">
+                  <i
+                    :class="`track-fill fill-${index + 1}`"
+                    :style="{ width: `${event.barPercent}%` }"
+                  ></i>
+                </div>
+              </div>
+            </article>
+          </div>
+        </template>
+      </article>
+
+      <article class="dashboard-panel sql-panel">
+        <div class="panel-header">
+          <div>
+            <span class="panel-kicker">집중 점검 대상</span>
+            <h2>우선 점검 SQL</h2>
+          </div>
+        </div>
+
+        <div v-if="topRiskSql.length === 0" class="empty-panel">
+          분석 완료된 SQL 지표가 아직 없습니다.
+        </div>
+
+        <div v-else class="sql-stack">
+          <button
+            v-for="item in topRiskSql"
+            :key="`${item.reportId}-${item.sqlId}-${item.rankNo}`"
+            type="button"
+            class="sql-card"
+            @click="openReport(item.reportId)"
+          >
+            <span class="sql-topline">
+              <strong>{{ item.sqlId }}</strong>
+              <em class="risk-pill" :class="riskClass(item.riskScore)">
+                {{ riskLabel(item.riskScore) }}
+              </em>
+            </span>
+
+            <span class="sql-reason">{{ riskReason(item) }}</span>
+
+            <span class="sql-metrics">
+              <span>CPU {{ formatSeconds(item.cpuTimeSec) }}</span>
+              <span>실행 {{ formatCompactNumber(item.executions) }}회</span>
+              <span>Buffer {{ formatCompactNumber(item.bufferGets) }}</span>
+            </span>
           </button>
         </div>
 
-        <div v-if="topWaitEvents.length === 0" class="awr-empty compact">
-          분석 완료된 대기 이벤트가 아직 없습니다.
+        <div class="next-action-box">
+          <span>다음 조치</span>
+          <strong>{{ actionGuides[0]?.title || '분석 결과 확인' }}</strong>
+          <p>{{ actionGuides[0]?.description || 'AWR 리포트를 추가 등록해 비교 분석 기반을 늘려보세요.' }}</p>
         </div>
-
-        <ul v-else class="dashboard-bottleneck-list">
-          <li v-for="event in topWaitEvents" :key="`${event.waitClass}-${event.eventName}`">
-            <div class="dashboard-bottleneck-row">
-              <div>
-                <strong>{{ event.eventName }}</strong>
-                <span>{{ waitClassLabel(event.waitClass) }}</span>
-              </div>
-              <em>{{ formatPercent(event.dbTimePercent) }}</em>
-            </div>
-
-            <div class="dashboard-bottleneck-bar">
-              <span :style="{ width: `${event.barPercent}%` }"></span>
-            </div>
-          </li>
-        </ul>
       </article>
-    </section>
-
-    <section class="awr-panel dashboard-sql-card">
-      <div class="dashboard-card-title">
-        <span>우선 점검 SQL</span>
-        <button class="dashboard-text-button" type="button" @click="router.push({ name: 'awr-reports' })">
-          리포트 목록
-        </button>
-      </div>
-
-      <div v-if="topRiskSql.length === 0" class="awr-empty compact">
-        분석 완료된 SQL 지표가 아직 없습니다.
-      </div>
-
-      <div v-else class="dashboard-sql-table">
-        <button
-          v-for="item in topRiskSql"
-          :key="`${item.reportId}-${item.sqlId}-${item.rankNo}`"
-          type="button"
-          class="dashboard-sql-row"
-          @click="openReport(item.reportId)"
-        >
-          <span class="dashboard-sql-id">
-            <strong>{{ item.sqlId }}</strong>
-            <em>{{ item.reportName }}</em>
-          </span>
-
-          <span class="dashboard-risk-pill" :class="riskClass(item.riskScore)">
-            {{ riskLabel(item.riskScore) }}
-          </span>
-
-          <span class="dashboard-sql-reason">
-            {{ riskReason(item) }}
-          </span>
-
-          <span class="dashboard-sql-metric">
-            CPU {{ formatSeconds(item.cpuTimeSec) }} · Buffer {{ formatCompactNumber(item.bufferGets) }}
-          </span>
-        </button>
-      </div>
-    </section>
-
-    <section class="dashboard-summary-grid">
-      <button class="dashboard-summary-card" type="button" @click="router.push({ name: 'awr-reports' })">
-        <span>분석 완료</span>
-        <strong>{{ readyReportCount }}</strong>
-        <em>전체 {{ reportCount }}건 중 {{ readyPercent }}</em>
-      </button>
-
-      <button class="dashboard-summary-card danger" type="button" @click="router.push({ name: 'awr-reports' })">
-        <span>실패 리포트</span>
-        <strong>{{ failedReportCount }}</strong>
-        <em>재처리 확인 대상</em>
-      </button>
-
-      <button class="dashboard-summary-card warn" type="button" @click="router.push({ name: 'sql-tuning' })">
-        <span>튜닝 권고</span>
-        <strong>{{ workspaceMetric(indexCandidateCount + missingInputCount) }}</strong>
-        <em>인덱스 후보 · 추가 입력</em>
-      </button>
     </section>
   </div>
 </template>
@@ -157,6 +196,7 @@ interface RiskSqlItem extends SqlMetricResponse {
 interface WaitEventItem extends WaitEventResponse {
   dbTimePercent: number
   barPercent: number
+  segmentPercent: number
 }
 
 const router = useRouter()
@@ -248,6 +288,7 @@ const topWaitEvents = computed<WaitEventItem[]>(() => {
     .slice(0, 3)
 
   const maxPercent = Math.max(...rows.map((row) => row.dbTimePercent), 1)
+  const totalPercent = Math.max(rows.reduce((sum, row) => sum + row.dbTimePercent, 0), 1)
 
   return rows.map((row) => ({
     waitClass: row.waitClass,
@@ -255,7 +296,8 @@ const topWaitEvents = computed<WaitEventItem[]>(() => {
     totalWaitTimeSec: row.totalWaitTimeSec,
     avgWaitMs: null,
     dbTimePercent: row.dbTimePercent,
-    barPercent: Math.max((row.dbTimePercent / maxPercent) * 100, 8)
+    barPercent: Math.max((row.dbTimePercent / maxPercent) * 100, 8),
+    segmentPercent: Math.max((row.dbTimePercent / totalPercent) * 100, 8)
   }))
 })
 
@@ -286,22 +328,113 @@ const performanceClass = computed(() => {
 
 const performanceMessage = computed(() => {
   if (reportCount.value === 0) {
-    return 'AWR 리포트를 업로드하면 성능 상태가 표시됩니다.'
+    return 'AWR 리포트를 등록하면 종합 상태를 확인할 수 있습니다.'
   }
 
   if (failedReportCount.value > 0) {
-    return `실패 리포트 ${failedReportCount.value}건을 먼저 확인하는 게 좋습니다.`
+    return `실패 리포트 ${failedReportCount.value}건을 먼저 확인해야 합니다.`
   }
 
   if (topRiskSql.value.some((item) => item.riskScore >= 75)) {
-    return '부하가 큰 SQL을 우선 점검해야 합니다.'
+    return '부하가 큰 SQL이 있어 우선 점검이 필요합니다.'
   }
 
   if (topWaitEvents.value.some((event) => event.dbTimePercent >= 30)) {
-    return 'DB Time 비중이 큰 대기 이벤트가 있습니다.'
+    return '특정 병목 비중이 커서 원인 점검이 필요합니다.'
   }
 
-  return '현재 대시보드 기준 큰 이상 징후는 없습니다.'
+  return '현재 기준 큰 이상 징후는 없습니다.'
+})
+
+const dominantWaitEvent = computed(() => topWaitEvents.value[0] ?? null)
+
+const dominantBottleneckLabel = computed(() => {
+  if (!dominantWaitEvent.value) return '이상 없음'
+  return normalizeWaitEventName(dominantWaitEvent.value.eventName)
+})
+
+const dominantBottleneckPercent = computed(() => {
+  if (!dominantWaitEvent.value) return '-'
+  return formatPercent(dominantWaitEvent.value.dbTimePercent)
+})
+
+const dominantIssueLabel = computed(() => {
+  if (!topRiskSql.value.length) return '이상 징후 없음'
+  return riskReason(topRiskSql.value[0])
+})
+
+const overviewHighlights = computed(() => {
+  const items: { title: string; description: string; tone: string }[] = []
+
+  if (failedReportCount.value > 0) {
+    items.push({
+      title: `실패 리포트 ${failedReportCount.value}건`,
+      description: '재처리 여부와 원본 파일 상태를 우선 확인해야 합니다.',
+      tone: 'danger'
+    })
+  } else {
+    items.push({
+      title: `분석 완료 ${readyReportCount.value}건`,
+      description: `전체 ${reportCount.value}건 중 ${readyPercent.value}가 분석 완료 상태입니다.`,
+      tone: 'neutral'
+    })
+  }
+
+  if (dominantWaitEvent.value) {
+    items.push({
+      title: `${normalizeWaitEventName(dominantWaitEvent.value.eventName)} 비중 높음`,
+      description: `${waitClassLabel(dominantWaitEvent.value.waitClass)} 구간이 ${formatPercent(dominantWaitEvent.value.dbTimePercent)} 수준입니다.`,
+      tone: dominantWaitEvent.value.dbTimePercent >= 30 ? 'warn' : 'neutral'
+    })
+  }
+
+  if (topRiskSql.value[0]) {
+    items.push({
+      title: '상위 SQL 점검 필요',
+      description: `${topRiskSql.value[0].sqlId} - ${riskReason(topRiskSql.value[0])}`,
+      tone: topRiskSql.value[0].riskScore >= 75 ? 'danger' : 'warn'
+    })
+  }
+
+  return items.slice(0, 3)
+})
+
+const actionGuides = computed(() => {
+  const items: { title: string; description: string; tone: string }[] = []
+
+  if (failedReportCount.value > 0) {
+    items.push({
+      title: '실패 리포트 확인',
+      description: '분석 실패 건이 있으면 원본 파일과 재처리 여부를 먼저 확인하세요.',
+      tone: 'danger'
+    })
+  }
+
+  if (topRiskSql.value.length > 0) {
+    items.push({
+      title: '상위 부하 SQL 우선 점검',
+      description: `${topRiskSql.value[0].sqlId}부터 실행 횟수, CPU 시간, Buffer Gets를 확인하세요.`,
+      tone: 'warn'
+    })
+  }
+
+  if (dominantWaitEvent.value) {
+    items.push({
+      title: '병목 유형별 원인 확인',
+      description: `${waitClassLabel(dominantWaitEvent.value.waitClass)} 구간이 높으므로 관련 자원 상태를 점검하세요.`,
+      tone: 'neutral'
+    })
+  }
+
+  if (items.length < 3) {
+    items.push({
+      title: '분석 결과 축적',
+      description: 'AWR 리포트를 추가 등록해 비교 분석 기반을 늘리는 것이 좋습니다.',
+      tone: 'neutral'
+    })
+  }
+
+  return items.slice(0, 3)
 })
 
 onMounted(loadDashboard)
@@ -347,19 +480,6 @@ function openReport(reportId: number) {
   })
 }
 
-function openFirstReport() {
-  const reportId =
-    reportDetails.value[0]?.id ??
-    reports.value.find((report) => report.status === 'INDEXED')?.id
-
-  if (reportId) {
-    openReport(reportId)
-    return
-  }
-
-  router.push({ name: 'awr-reports' })
-}
-
 function workspaceMetric(value: number) {
   if (workspaceLoadMessage.value) return '-'
   return canUseWorkspace.value ? formatNumber(value) : '-'
@@ -393,11 +513,12 @@ function riskReason(sql: SqlMetricResponse) {
   const cpu = sql.cpuTimeSec || 0
   const buffer = sql.bufferGets || 0
   const disk = sql.diskReads || 0
+  const execs = sql.executions || 0
 
-  if (cpu >= elapsed * 0.55 && cpu > 0) return 'CPU 사용량 과다'
+  if (cpu >= elapsed * 0.55 && cpu > 0) return 'CPU 사용 비중 높음'
   if (buffer >= 1_000_000) return 'Buffer Gets 과다'
   if (disk >= 100_000) return 'Disk Reads 과다'
-  if ((sql.executions || 0) >= 1_000) return '실행 횟수 과다'
+  if (execs >= 1_000) return '실행 횟수 과다'
   if (elapsed >= 300) return '수행 시간 과다'
 
   return '상위 부하 SQL'
@@ -405,18 +526,41 @@ function riskReason(sql: SqlMetricResponse) {
 
 function waitClassLabel(waitClass?: string | null) {
   const labels: Record<string, string> = {
-    CPU: 'CPU 사용',
+    CPU: 'CPU',
     'User I/O': '사용자 I/O',
     'System I/O': '시스템 I/O',
     Commit: '커밋 대기',
     Concurrency: '동시성 대기',
     Cluster: 'RAC 클러스터',
-    Application: '애플리케이션 대기',
-    Network: '네트워크 대기'
+    Application: '애플리케이션',
+    Network: '네트워크'
   }
 
   if (!waitClass) return '-'
   return labels[waitClass] || waitClass
+}
+
+function normalizeWaitEventName(name?: string | null) {
+  if (!name) return '-'
+
+  const normalized = name
+    .split(/\s+/)
+    .filter(Boolean)
+    .filter((token, index, arr) => index === 0 || token !== arr[index - 1])
+    .join(' ')
+
+  const map: Record<string, string> = {
+    'DB CPU CPU': 'DB CPU',
+    'CPU CPU': 'CPU'
+  }
+
+  return map[normalized] || normalized
+}
+
+function bottleneckComment(event: WaitEventItem) {
+  if (event.dbTimePercent >= 40) return 'DB Time 비중이 매우 높습니다.'
+  if (event.dbTimePercent >= 20) return '우선 확인이 필요한 병목입니다.'
+  return '참고 수준으로 확인하면 됩니다.'
 }
 
 function formatNumber(value: number) {

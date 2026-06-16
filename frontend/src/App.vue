@@ -3,9 +3,9 @@
   <div v-else class="app">
     <AppSidebar class="sidebar" />
     <div class="content-wrapper">
-      <main class="main-content">
+      <main :class="['main-content', { 'dashboard-main-content': isDashboardRoute }]">
         <RouterView :key="viewKey" />
-        <SiteFooter />
+        <SiteFooter v-if="!isDashboardRoute" />
       </main>
     </div>
   </div>
@@ -20,6 +20,7 @@ import SiteFooter from '@/components/SiteFooter.vue'
 const route = useRoute()
 const refreshSeq = ref(0)
 const isLoginRoute = computed(() => route.name === 'login')
+const isDashboardRoute = computed(() => route.name === 'awr-dashboard')
 const viewKey = computed(() => `${route.fullPath}:${refreshSeq.value}`)
 
 function refreshCurrentView() {
@@ -59,7 +60,13 @@ onBeforeUnmount(() => {
   gap: 1rem;
   padding: 1.25rem 1.5rem;
 }
-
+.main-content.dashboard-main-content {
+  height: 100vh;
+  min-height: 100vh;
+  gap: 0;
+  padding: 0;
+  overflow: hidden;
+}
 @media (max-width: 760px) {
   .content-wrapper {
     margin-left: 0;
@@ -70,4 +77,5 @@ onBeforeUnmount(() => {
     width: 100%;
   }
 }
+
 </style>

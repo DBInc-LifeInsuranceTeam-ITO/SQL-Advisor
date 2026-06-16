@@ -176,7 +176,7 @@ async function handleLogout() {
   display: flex;
   flex-direction: column;
   align-items: flex-start;
-  gap: 0.25rem;
+  gap: 0.2rem;
   min-height: 4.35rem;
   padding: 0.65rem 0.5rem;
   border: 0;
@@ -187,7 +187,6 @@ async function handleLogout() {
   text-decoration: none;
 }
 
-
 .brand-logo {
   display: block;
   width: 9.5rem;
@@ -197,12 +196,16 @@ async function handleLogout() {
 }
 
 .brand-subtitle {
-  width: 9.5rem;
-  color: #00854A;
-  font-size: 1.58rem;
-  font-weight: 500;
-  line-height: 1;
-  text-align: center;
+  display: block;
+  width: auto;
+  margin-left: 1.05rem;
+  padding-left: 0;
+  color: #214438;
+  font-size: 1.28rem;
+  font-weight: 800;
+  line-height: 1.05;
+  letter-spacing: -0.025em;
+  text-align: left;
   white-space: nowrap;
 }
 

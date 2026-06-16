@@ -34,7 +34,7 @@ api.interceptors.request.use(
 api.interceptors.response.use(
   (response) => {
     if (import.meta.env.DEV) {
-      console.log(`[API Response] ${response.config.method?.toUpperCase()} ${response.config.url}`, response.data)
+      console.log(`[API Response] ${response.config.method?.toUpperCase()} ${response.config.url}`, maskSensitive(response.data))
     }
 
     if (response.data && typeof response.data === 'object' && 'success' in response.data) {
@@ -135,9 +135,18 @@ function maskSensitive(value: unknown): unknown {
   return Object.fromEntries(
     Object.entries(value as Record<string, unknown>).map(([key, item]) => [
       key,
-      key.toLowerCase().includes('apikey') ? '***' : maskSensitive(item)
+      isSensitiveKey(key) ? '***' : maskSensitive(item)
     ])
   )
+}
+
+function isSensitiveKey(key: string) {
+  const normalized = key.toLowerCase().replace(/[^a-z0-9]/g, '')
+  return normalized.includes('password')
+    || normalized.includes('secret')
+    || normalized.includes('token')
+    || normalized.includes('apikey')
+    || normalized.includes('credential')
 }
 
 export default api

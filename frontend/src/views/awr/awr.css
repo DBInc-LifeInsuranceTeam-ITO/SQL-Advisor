@@ -1380,6 +1380,51 @@
   min-height: 10rem;
 }
 
+.sql-tuning-index-table-wrap {
+  min-height: 10rem;
+  max-height: 30rem;
+  overflow: auto;
+  resize: vertical;
+  border: 1px solid #dce3ea;
+  border-radius: 8px;
+  background: #ffffff;
+}
+
+.sql-tuning-index-table {
+  width: 100%;
+  min-width: 820px;
+  border-collapse: collapse;
+  font-size: 0.8rem;
+  line-height: 1.45;
+}
+
+.sql-tuning-index-table th,
+.sql-tuning-index-table td {
+  border-bottom: 1px solid #e7edf3;
+  padding: 0.5rem 0.65rem;
+  text-align: left;
+  vertical-align: top;
+}
+
+.sql-tuning-index-table th {
+  position: sticky;
+  top: 0;
+  z-index: 1;
+  background: #f3f7fa;
+  color: #465568;
+  font-weight: 850;
+}
+
+.sql-tuning-index-table td {
+  color: #1f2933;
+  font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+  white-space: nowrap;
+}
+
+.sql-tuning-index-table tr:hover td {
+  background: #f8fafc;
+}
+
 .sql-tuning-plan-textarea {
   white-space: pre;
 }

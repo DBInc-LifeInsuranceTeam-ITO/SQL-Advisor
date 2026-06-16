@@ -29,8 +29,8 @@ public class AwrSqlTuningAdvisor {
     private static final Pattern TABLE_LOAD_PATTERN = Pattern.compile(
             "(?im)^([a-zA-Z0-9_$#]+\\.)?([a-zA-Z0-9_$#]+)\\s+inserts=([^,\\r\\n]+),\\s+updates=([^,\\r\\n]+),\\s+deletes=([^,\\r\\n]+),\\s+changed_rows=([^,\\r\\n]+),\\s+last_dml=([^,\\r\\n]+)"
     );
-    private static final Pattern EXISTING_INDEX_COLUMNS_PATTERN = Pattern.compile(
-            "(?i)columns=\\(([^)]*)\\)"
+    private static final Pattern SECTION_PATTERN = Pattern.compile(
+            "(?im)^--\\s+(.+?)\\s*$"
     );
     private static final Set<String> SQL_KEYWORDS = Set.of(
             "where", "join", "inner", "left", "right", "full", "cross", "on", "group",
@@ -82,6 +82,54 @@ public class AwrSqlTuningAdvisor {
         }
     }
 
+    private record IndexMetadata(
+            String tableName,
+            String indexName,
+            List<String> columns,
+            String access,
+            String uniqueness,
+            String status,
+            String visibility,
+            String logging,
+            Long blevel,
+            Long leafBlocks,
+            Long distinctKeys,
+            Long clusteringFactor,
+            Long numRows,
+            String lastAnalyzed
+    ) {
+        boolean optimizerUsable() {
+            return !"UNUSABLE".equalsIgnoreCase(status)
+                    && !"INVALID".equalsIgnoreCase(status)
+                    && !"INVISIBLE".equalsIgnoreCase(visibility);
+        }
+
+        boolean hasMissingStats() {
+            return blevel == null || leafBlocks == null || distinctKeys == null
+                    || clusteringFactor == null || numRows == null || !hasValue(lastAnalyzed);
+        }
+
+        boolean highClusteringFactor() {
+            return clusteringFactor != null && numRows != null && numRows > 0
+                    && clusteringFactor > numRows * 0.8;
+        }
+
+        private static boolean hasValue(String value) {
+            return value != null && !value.isBlank() && !"-".equals(value.trim());
+        }
+    }
+
+    private record IndexContext(
+            List<IndexMetadata> relatedIndexes,
+            List<IndexMetadata> usedIndexes,
+            Map<String, List<List<String>>> relatedColumnsByTable,
+            Map<String, List<List<String>>> usedColumnsByTable
+    ) {
+        boolean hasUsedIndexes() {
+            return !usedIndexes.isEmpty();
+        }
+    }
+
     public AwrDtos.SqlTuningResponse tune(
             Long reportId,
             String sqlId,
@@ -92,9 +140,10 @@ public class AwrSqlTuningAdvisor {
     ) {
         List<String> symptoms = symptoms(metric);
         List<String> missingInputs = missingInputs(metric, request);
-        List<AwrDtos.IndexRecommendationResponse> indexRecommendations = indexRecommendations(sqlId, metric, request);
-        List<String> rewriteRecommendations = rewriteRecommendations(metric);
-        List<String> validationSteps = validationSteps(sqlId, metric, indexRecommendations);
+        IndexContext indexContext = indexContext(request);
+        List<AwrDtos.IndexRecommendationResponse> indexRecommendations = indexRecommendations(sqlId, metric, request, indexContext);
+        List<String> rewriteRecommendations = rewriteRecommendations(metric, indexContext);
+        List<String> validationSteps = validationSteps(sqlId, metric, indexRecommendations, indexContext);
 
         return new AwrDtos.SqlTuningResponse(
                 null,
@@ -103,7 +152,7 @@ public class AwrSqlTuningAdvisor {
                 question,
                 request,
                 metric,
-                summary(metric, indexRecommendations),
+                summary(metric, indexRecommendations, indexContext),
                 symptoms,
                 indexRecommendations,
                 rewriteRecommendations,
@@ -144,15 +193,15 @@ public class AwrSqlTuningAdvisor {
     private List<AwrDtos.IndexRecommendationResponse> indexRecommendations(
             String sqlId,
             AwrDtos.SqlMetricResponse metric,
-            AwrDtos.SqlTuningRequest request
+            AwrDtos.SqlTuningRequest request,
+            IndexContext indexContext
     ) {
-        if (!hasText(metric.sqlText()) || !isIndexCandidateMetric(metric, request)) {
+        if (!hasText(metric.sqlText()) || isInsertStatement(metric.sqlText()) || !isIndexCandidateMetric(metric, request)) {
             return List.of();
         }
 
         Map<String, LinkedHashSet<String>> columnsByTable = predicateColumnsByTable(metric.sqlText());
         Map<String, TableVolumeContext> volumeByTable = tableVolumeContexts(request);
-        Map<String, List<List<String>>> existingIndexColumnsByTable = existingIndexColumnsByTable(request);
         List<AwrDtos.IndexRecommendationResponse> recommendations = new ArrayList<>();
         for (Map.Entry<String, LinkedHashSet<String>> entry : columnsByTable.entrySet()) {
             List<String> columns = entry.getValue().stream().limit(3).toList();
@@ -163,9 +212,11 @@ public class AwrSqlTuningAdvisor {
             if (isOracleDictionaryObject(tableName)) {
                 continue;
             }
-            if (coveredByExistingIndex(tableName, columns, existingIndexColumnsByTable)) {
+            if (coveredByExistingIndex(tableName, columns, indexContext.relatedColumnsByTable())
+                    || coveredByExistingIndex(tableName, columns, indexContext.usedColumnsByTable())) {
                 continue;
             }
+            List<IndexMetadata> trailingMatches = indexesWithTrailingColumns(tableName, columns, indexContext.relatedIndexes());
             TableVolumeContext volumeContext = volumeByTable.get(normalizeTableKey(tableName));
             String indexName = indexName(tableName, columns);
             String ddl = "CREATE INDEX " + indexName + " ON " + tableName
@@ -176,7 +227,7 @@ public class AwrSqlTuningAdvisor {
                     ddl,
                     buildSteps(ddl, indexName, volumeContext),
                     postCreateSteps(volumeContext),
-                    recommendationReason(metric, request, volumeContext),
+                    recommendationReason(metric, request, volumeContext, trailingMatches),
                     expectedBenefit(metric, volumeContext),
                     risk(volumeContext),
                     "SELECT * FROM TABLE(DBMS_XPLAN.DISPLAY_CURSOR('" + sqlId + "', NULL, 'ALLSTATS LAST +PEEKED_BINDS'));"
@@ -228,7 +279,7 @@ public class AwrSqlTuningAdvisor {
         return aliases;
     }
 
-    private List<String> rewriteRecommendations(AwrDtos.SqlMetricResponse metric) {
+    private List<String> rewriteRecommendations(AwrDtos.SqlMetricResponse metric, IndexContext indexContext) {
         List<String> recommendations = new ArrayList<>();
         recommendations.add("Compare the current plan hash with the same SQL_ID across nearby AWR snapshots.");
         if (containsOracleDictionaryObject(metric.sqlText())) {
@@ -244,6 +295,13 @@ public class AwrSqlTuningAdvisor {
         if (metric.diskReads() != null && metric.diskReads() > 100_000) {
             recommendations.add("Verify partition pruning and avoid functions on indexed filter columns where possible.");
         }
+        if (hasCostlyUsedIndex(metric, indexContext)) {
+            recommendations.add("Plan Used Indexes show an index access path is already used; prioritize validating the current index efficiency before creating another index.");
+            recommendations.add("Check index column order versus predicate order, predicate selectivity, range scan plus table access cost, stale statistics, and partition pruning.");
+        }
+        if (isInsertStatement(metric.sqlText())) {
+            recommendations.add("This is an INSERT/load SQL; do not add a future query index from the load statement alone. Validate the actual SELECT SQL_ID or query predicates before creating a new index.");
+        }
         if (!hasText(metric.sqlText())) {
             recommendations.add("Load full SQL text before proposing SQL rewrites.");
         }
@@ -253,7 +311,8 @@ public class AwrSqlTuningAdvisor {
     private List<String> validationSteps(
             String sqlId,
             AwrDtos.SqlMetricResponse metric,
-            List<AwrDtos.IndexRecommendationResponse> indexRecommendations
+            List<AwrDtos.IndexRecommendationResponse> indexRecommendations,
+            IndexContext indexContext
     ) {
         List<String> steps = new ArrayList<>();
         steps.add("SELECT * FROM TABLE(DBMS_XPLAN.DISPLAY_CURSOR('" + sqlId + "', NULL, 'ALLSTATS LAST +PEEKED_BINDS'));");
@@ -268,6 +327,16 @@ public class AwrSqlTuningAdvisor {
             if (indexRecommendations.stream().anyMatch(item -> item.buildSteps() != null && !item.buildSteps().isEmpty())) {
                 steps.add("If a large-table build uses NOLOGGING for speed, treat it as a temporary build option and immediately switch the index back to LOGGING after creation.");
             }
+        }
+        if (hasCostlyUsedIndex(metric, indexContext)) {
+            steps.add("Because Plan Used Indexes are present, validate the current index access path before adding a new index.");
+            steps.add("For the used index path, compare predicate column order, selectivity, range scan row count, table access by rowid cost, stale table/index statistics, and partition pruning evidence.");
+        }
+        indexMetadataValidationSteps(indexContext).forEach(steps::add);
+        coveredCandidateValidationSteps(metric, indexContext).forEach(steps::add);
+        if (isInsertStatement(metric.sqlText())) {
+            steps.add("This SQL is an INSERT/load statement; separate load tuning from query tuning and collect the actual SELECT SQL_ID or ORDER_DATE query pattern before recommending a query index.");
+            steps.add("For load SQL, validate existing target-table index maintenance overhead and consider disabling/rebuilding nonessential indexes only in a controlled maintenance window.");
         }
         if (metric.planHashValue() != null) {
             steps.add("Use plan_hash_value=" + metric.planHashValue() + " as the baseline plan during validation.");
@@ -298,7 +367,11 @@ public class AwrSqlTuningAdvisor {
         return missing;
     }
 
-    private String summary(AwrDtos.SqlMetricResponse metric, List<AwrDtos.IndexRecommendationResponse> indexRecommendations) {
+    private String summary(
+            AwrDtos.SqlMetricResponse metric,
+            List<AwrDtos.IndexRecommendationResponse> indexRecommendations,
+            IndexContext indexContext
+    ) {
         StringBuilder builder = new StringBuilder();
         builder.append("SQL_ID ").append(metric.sqlId())
                 .append(" is ranked ").append(metric.rankNo())
@@ -315,6 +388,12 @@ public class AwrSqlTuningAdvisor {
         if (indexRecommendations.isEmpty()) {
             if (containsOracleDictionaryObject(metric.sqlText())) {
                 builder.append(" No index DDL candidate is emitted because the SQL references Oracle data dictionary or dynamic performance views.");
+            } else if (isInsertStatement(metric.sqlText())) {
+                builder.append(" No query index DDL candidate is emitted because this is an INSERT/load statement, not a query predicate pattern.");
+            } else if (hasCoveredCandidates(metric, indexContext)) {
+                builder.append(" No new index DDL candidate is emitted because an existing usable index already covers the candidate leading columns.");
+            } else if (hasCostlyUsedIndex(metric, indexContext)) {
+                builder.append(" Plan Used Indexes are already present, so validate the current access path before creating another index.");
             } else {
                 builder.append(" No concrete index DDL candidate is emitted until SQL text, plan, and object metadata are sufficient.");
             }
@@ -362,13 +441,18 @@ public class AwrSqlTuningAdvisor {
     private String recommendationReason(
             AwrDtos.SqlMetricResponse metric,
             AwrDtos.SqlTuningRequest request,
-            TableVolumeContext volumeContext
+            TableVolumeContext volumeContext,
+            List<IndexMetadata> trailingMatches
     ) {
         String base;
         if ("Direct DB SQL".equals(metric.sectionName()) && hasFullTableScan(request)) {
             base = "Direct DB execution plan shows TABLE ACCESS FULL and predicate columns were found in SQL text.";
         } else {
             base = "Predicate columns were found in SQL text and the AWR metric suggests high logical or physical read cost.";
+        }
+        if (!trailingMatches.isEmpty()) {
+            base += " Existing index " + trailingMatches.get(0).indexName()
+                    + " contains the candidate column later in the key, but its leading column order may not support this predicate efficiently.";
         }
         if (volumeContext != null && volumeContext.hasAnyEvidence()) {
             return base + " Table volume/load evidence considered: " + volumeContext.evidenceText() + ".";
@@ -478,29 +562,175 @@ public class AwrSqlTuningAdvisor {
         contexts.put(simpleTableKey(tableName), context);
     }
 
-    private Map<String, List<List<String>>> existingIndexColumnsByTable(AwrDtos.SqlTuningRequest request) {
+    private IndexContext indexContext(AwrDtos.SqlTuningRequest request) {
         if (request == null || !hasText(request.existingIndexes())) {
-            return Map.of();
+            return new IndexContext(List.of(), List.of(), Map.of(), Map.of());
         }
-        Map<String, List<List<String>>> indexesByTable = new LinkedHashMap<>();
+        List<IndexMetadata> relatedIndexes = new ArrayList<>();
+        List<IndexMetadata> usedIndexes = new ArrayList<>();
+        String currentSection = null;
+        boolean hasSections = false;
         for (String line : request.existingIndexes().split("\\R")) {
-            String[] parts = line.split("\\|");
-            if (parts.length < 3) {
+            Matcher sectionMatcher = SECTION_PATTERN.matcher(line);
+            if (sectionMatcher.find()) {
+                currentSection = sectionMatcher.group(1).trim();
+                hasSections = true;
                 continue;
             }
-            String tableName = cleanIdentifier(parts[0]);
-            Matcher matcher = EXISTING_INDEX_COLUMNS_PATTERN.matcher(line);
-            if (!matcher.find()) {
+            IndexMetadata index = parseIndexMetadata(line);
+            if (index == null) {
                 continue;
             }
-            List<String> columns = normalizeColumns(matcher.group(1));
-            if (columns.isEmpty()) {
+            if (!hasSections || "Related Table Indexes".equalsIgnoreCase(currentSection)) {
+                relatedIndexes.add(index);
+            } else if ("Plan Used Indexes".equalsIgnoreCase(currentSection)) {
+                usedIndexes.add(index);
+            }
+        }
+        return new IndexContext(
+                relatedIndexes,
+                usedIndexes,
+                indexColumnsByTable(relatedIndexes),
+                indexColumnsByTable(usedIndexes)
+        );
+    }
+
+    private IndexMetadata parseIndexMetadata(String line) {
+        String[] parts = line.split("\\|");
+        if (parts.length < 2) {
+            return null;
+        }
+        String tableName = cleanIdentifier(parts[0]);
+        String indexName = cleanIdentifier(parts[1]);
+        if (!hasText(tableName) || !hasText(indexName)) {
+            return null;
+        }
+        Map<String, String> attributes = new LinkedHashMap<>();
+        for (int i = 2; i < parts.length; i++) {
+            String part = parts[i].trim();
+            int separator = part.indexOf('=');
+            if (separator < 1) {
                 continue;
             }
-            addExistingIndexColumns(indexesByTable, normalizeTableKey(tableName), columns);
-            addExistingIndexColumns(indexesByTable, simpleTableKey(tableName), columns);
+            attributes.put(part.substring(0, separator).trim().toLowerCase(Locale.ROOT), part.substring(separator + 1).trim());
+        }
+        return new IndexMetadata(
+                tableName,
+                indexName,
+                normalizeColumns(unwrapParentheses(attributes.get("columns"))),
+                attributes.get("access"),
+                attributes.get("uniqueness"),
+                attributes.get("status"),
+                attributes.get("visibility"),
+                attributes.get("logging"),
+                parseLong(attributes.get("blevel")),
+                parseLong(attributes.get("leaf_blocks")),
+                parseLong(attributes.get("distinct_keys")),
+                parseLong(attributes.get("clustering_factor")),
+                parseLong(attributes.get("num_rows")),
+                attributes.get("last_analyzed")
+        );
+    }
+
+    private Map<String, List<List<String>>> indexColumnsByTable(List<IndexMetadata> indexes) {
+        Map<String, List<List<String>>> indexesByTable = new LinkedHashMap<>();
+        for (IndexMetadata index : indexes) {
+            if (index.columns().isEmpty() || !index.optimizerUsable()) {
+                continue;
+            }
+            addExistingIndexColumns(indexesByTable, normalizeTableKey(index.tableName()), index.columns());
+            addExistingIndexColumns(indexesByTable, simpleTableKey(index.tableName()), index.columns());
         }
         return indexesByTable;
+    }
+
+    private String unwrapParentheses(String value) {
+        if (!hasText(value)) {
+            return null;
+        }
+        String trimmed = value.trim();
+        return trimmed.startsWith("(") && trimmed.endsWith(")")
+                ? trimmed.substring(1, trimmed.length() - 1)
+                : trimmed;
+    }
+
+    private boolean hasCostlyUsedIndex(AwrDtos.SqlMetricResponse metric, IndexContext indexContext) {
+        if (!indexContext.hasUsedIndexes()) {
+            return false;
+        }
+        return (metric.bufferGets() != null && metric.bufferGets() > 1_000_000)
+                || (metric.diskReads() != null && metric.diskReads() > 10_000);
+    }
+
+    private List<IndexMetadata> indexesWithTrailingColumns(
+            String tableName,
+            List<String> candidateColumns,
+            List<IndexMetadata> indexes
+    ) {
+        List<String> normalizedCandidate = candidateColumns.stream()
+                .map(this::normalizeColumnKey)
+                .toList();
+        return indexes.stream()
+                .filter(IndexMetadata::optimizerUsable)
+                .filter(index -> sameTable(index.tableName(), tableName))
+                .filter(index -> containsAllColumns(index.columns(), normalizedCandidate))
+                .filter(index -> !hasLeadingColumns(index.columns(), normalizedCandidate))
+                .toList();
+    }
+
+    private boolean hasCoveredCandidates(AwrDtos.SqlMetricResponse metric, IndexContext indexContext) {
+        if (!hasText(metric.sqlText())) {
+            return false;
+        }
+        Map<String, LinkedHashSet<String>> columnsByTable = predicateColumnsByTable(metric.sqlText());
+        for (Map.Entry<String, LinkedHashSet<String>> entry : columnsByTable.entrySet()) {
+            List<String> columns = entry.getValue().stream().limit(3).toList();
+            if (coveredByExistingIndex(entry.getKey(), columns, indexContext.relatedColumnsByTable())
+                    || coveredByExistingIndex(entry.getKey(), columns, indexContext.usedColumnsByTable())) {
+                return true;
+            }
+        }
+        return false;
+    }
+
+    private List<String> coveredCandidateValidationSteps(AwrDtos.SqlMetricResponse metric, IndexContext indexContext) {
+        if (!hasCoveredCandidates(metric, indexContext)) {
+            return List.of();
+        }
+        return List.of("Existing usable index leading columns already cover at least one candidate predicate; validate that index usage, statistics, and plan stability before creating a duplicate index.");
+    }
+
+    private List<String> indexMetadataValidationSteps(IndexContext indexContext) {
+        List<String> steps = new ArrayList<>();
+        for (IndexMetadata index : indexContext.relatedIndexes()) {
+            if (!index.optimizerUsable()) {
+                steps.add("Existing index " + index.indexName()
+                        + " exists on " + index.tableName()
+                        + " but status=" + valueOrDash(index.status())
+                        + ", visibility=" + valueOrDash(index.visibility())
+                        + "; verify it is usable/visible before assuming it can support the SQL.");
+            }
+            if (index.hasMissingStats()) {
+                steps.add("Existing index " + index.indexName()
+                        + " has missing or incomplete statistics; verify DBA_IND_STATISTICS/DBA_INDEXES stats before adding another index.");
+            }
+            if (index.highClusteringFactor()) {
+                steps.add("Existing index " + index.indexName()
+                        + " has high clustering_factor=" + index.clusteringFactor()
+                        + " versus num_rows=" + index.numRows()
+                        + "; range scan followed by table access may still be expensive.");
+            }
+        }
+        return steps.stream().distinct().toList();
+    }
+
+    private boolean containsAllColumns(List<String> existingColumns, List<String> candidateColumns) {
+        return existingColumns.containsAll(candidateColumns);
+    }
+
+    private boolean sameTable(String left, String right) {
+        return normalizeTableKey(left).equals(normalizeTableKey(right))
+                || simpleTableKey(left).equals(simpleTableKey(right));
     }
 
     private void addExistingIndexColumns(Map<String, List<List<String>>> indexesByTable, String tableKey, List<String> columns) {
@@ -586,6 +816,10 @@ public class AwrSqlTuningAdvisor {
         return tableAliases(sqlText).values().stream().anyMatch(this::isOracleDictionaryObject);
     }
 
+    private boolean isInsertStatement(String sqlText) {
+        return hasText(sqlText) && sqlText.stripLeading().toUpperCase(Locale.ROOT).startsWith("INSERT");
+    }
+
     private boolean isOracleDictionaryObject(String tableName) {
         if (!hasText(tableName)) {
             return false;
@@ -618,6 +852,10 @@ public class AwrSqlTuningAdvisor {
 
     private String cleanOptional(String value) {
         return value == null ? null : value.trim();
+    }
+
+    private String valueOrDash(String value) {
+        return hasText(value) ? value : "-";
     }
 
     private String simpleName(String value) {

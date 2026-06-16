@@ -26,8 +26,14 @@ import java.util.regex.Pattern;
 @RequiredArgsConstructor
 public class TargetDbContextCollector {
 
+    private static final String SQL_COMMENT_OR_HINT = "(?:/\\*[\\s\\S]*?\\*/\\s*)*";
     private static final Pattern TABLE_PATTERN = Pattern.compile(
             "(?i)\\b(?:from|join)\\s+([a-zA-Z0-9_.$#\"]+)"
+    );
+    private static final Pattern DML_TARGET_PATTERN = Pattern.compile(
+            "(?i)\\b(?:insert\\s+" + SQL_COMMENT_OR_HINT + "into|update\\s+" + SQL_COMMENT_OR_HINT
+                    + "|merge\\s+" + SQL_COMMENT_OR_HINT + "into|delete\\s+" + SQL_COMMENT_OR_HINT
+                    + "from)\\s+([a-zA-Z0-9_.$#\"]+)"
     );
     private static final Set<String> SKIP_TABLE_TOKENS = Set.of(
             "select", "where", "group", "order", "having", "connect", "union", "minus", "intersect"
@@ -137,11 +143,21 @@ public class TargetDbContextCollector {
                 metric = withSqlText(metric, sqlText);
             }
 
-            List<TableReference> tableRefs = extractTableReferences(sqlText);
             SqlChildCursor childCursor = sqlId == null ? null : chooseChildCursor(connection, sqlId, warnings);
+            List<TableReference> tableRefs = sqlId == null
+                    ? List.of()
+                    : tableReferencesFromExecutionPlan(connection, sqlId, childCursor, warnings);
+            tableRefs = mergeTableReferences(tableRefs, extractDmlTargetReferences(sqlText));
+            if (tableRefs.isEmpty()) {
+                tableRefs = extractTableReferences(sqlText);
+            }
+            tableRefs = enrichTableReferences(connection, tableRefs, warnings);
             String executionPlan = sqlId == null
                     ? null
                     : executionPlanContext(connection, sqlId, childCursor, warnings);
+            String planUsedIndexes = sqlId == null
+                    ? null
+                    : planUsedIndexes(connection, sqlId, childCursor, warnings);
             String schemaDdl = joinSections(
                     schemaDdl(connection, tableRefs, warnings),
                     tableStatistics(connection, tableRefs, warnings),
@@ -149,7 +165,7 @@ public class TargetDbContextCollector {
                     constraintMetadata(connection, tableRefs, warnings),
                     tableLoadStatistics(connection, tableRefs, warnings)
             );
-            String existingIndexes = existingIndexes(connection, tableRefs, warnings);
+            String existingIndexes = existingIndexes(connection, tableRefs, planUsedIndexes, warnings);
             String bindSamples = sqlId == null ? null : bindSamples(connection, sqlId, warnings);
             AwrDtos.SqlTuningRequest input = new AwrDtos.SqlTuningRequest(
                     sqlText,
@@ -1067,6 +1083,239 @@ public class TargetDbContextCollector {
         }
     }
 
+    private List<TableReference> tableReferencesFromExecutionPlan(
+            Connection connection,
+            String sqlId,
+            SqlChildCursor childCursor,
+            List<String> warnings
+    ) {
+        Set<String> seen = new LinkedHashSet<>();
+        List<TableReference> tables = new ArrayList<>();
+        List<String> gvWarnings = new ArrayList<>();
+        mergeTableReferencesInto(tables, tableReferencesFromPlanView(connection, sqlId, childCursor, "gv$sql_plan", true, gvWarnings), seen);
+        mergeTableReferencesInto(tables, tableReferencesFromPlanView(connection, sqlId, childCursor, "v$sql_plan", false, warnings), seen);
+        mergeTableReferencesInto(tables, tableReferencesFromHistoricalPlan(connection, sqlId, childCursor, warnings), seen);
+        if (tables.isEmpty() && !gvWarnings.isEmpty()) {
+            warnings.addAll(gvWarnings);
+        }
+        return tables;
+    }
+
+    private List<TableReference> tableReferencesFromPlanView(
+            Connection connection,
+            String sqlId,
+            SqlChildCursor childCursor,
+            String viewName,
+            boolean includeInstance,
+            List<String> warnings
+    ) {
+        String childClause = childCursor == null || childCursor.childNumber() == null ? "" : " AND p.child_number = ?";
+        String instanceClause = includeInstance && childCursor != null && childCursor.instId() != null ? " AND p.inst_id = ?" : "";
+        try (PreparedStatement statement = connection.prepareStatement("""
+                SELECT DISTINCT
+                       CASE
+                           WHEN UPPER(p.operation) LIKE 'INDEX%%' THEN i.table_owner
+                           ELSE p.object_owner
+                       END table_owner,
+                       CASE
+                           WHEN UPPER(p.operation) LIKE 'INDEX%%' THEN i.table_name
+                           ELSE p.object_name
+                       END table_name
+                  FROM %s p
+                  LEFT JOIN dba_indexes i
+                    ON i.owner = p.object_owner
+                   AND i.index_name = p.object_name
+                 WHERE p.sql_id = ?
+                %s
+                %s
+                   AND p.object_name IS NOT NULL
+                   AND (UPPER(p.operation) LIKE 'TABLE ACCESS%%'
+                        OR UPPER(p.operation) LIKE 'INDEX%%')
+                """.formatted(viewName, childClause, instanceClause))) {
+            int index = 1;
+            statement.setString(index++, sqlId);
+            if (!childClause.isBlank()) {
+                statement.setInt(index++, childCursor.childNumber());
+            }
+            if (!instanceClause.isBlank()) {
+                statement.setInt(index, childCursor.instId());
+            }
+            statement.setQueryTimeout(10);
+            try (ResultSet rs = statement.executeQuery()) {
+                return tableReferencesFromResultSet(rs);
+            }
+        } catch (SQLException exception) {
+            warnings.add(viewName + " table object query failed: " + exception.getMessage());
+            return List.of();
+        }
+    }
+
+    private List<TableReference> tableReferencesFromHistoricalPlan(
+            Connection connection,
+            String sqlId,
+            SqlChildCursor childCursor,
+            List<String> warnings
+    ) {
+        String planHashClause = childCursor == null || childCursor.planHashValue() == null ? "" : " AND p.plan_hash_value = ?";
+        try (PreparedStatement statement = connection.prepareStatement("""
+                SELECT DISTINCT
+                       CASE
+                           WHEN UPPER(p.operation) LIKE 'INDEX%%' THEN i.table_owner
+                           ELSE p.object_owner
+                       END table_owner,
+                       CASE
+                           WHEN UPPER(p.operation) LIKE 'INDEX%%' THEN i.table_name
+                           ELSE p.object_name
+                       END table_name
+                  FROM dba_hist_sql_plan p
+                  LEFT JOIN dba_indexes i
+                    ON i.owner = p.object_owner
+                   AND i.index_name = p.object_name
+                 WHERE p.sql_id = ?
+                %s
+                   AND p.object_name IS NOT NULL
+                   AND (UPPER(p.operation) LIKE 'TABLE ACCESS%%'
+                        OR UPPER(p.operation) LIKE 'INDEX%%')
+                """.formatted(planHashClause))) {
+            statement.setString(1, sqlId);
+            if (!planHashClause.isBlank()) {
+                statement.setLong(2, childCursor.planHashValue());
+            }
+            statement.setQueryTimeout(10);
+            try (ResultSet rs = statement.executeQuery()) {
+                return tableReferencesFromResultSet(rs);
+            }
+        } catch (SQLException exception) {
+            warnings.add("dba_hist_sql_plan table object query failed: " + exception.getMessage());
+            return List.of();
+        }
+    }
+
+    private List<TableReference> tableReferencesFromResultSet(ResultSet rs) throws SQLException {
+        Set<String> seen = new LinkedHashSet<>();
+        List<TableReference> tables = new ArrayList<>();
+        while (rs.next()) {
+            addTableReference(rs.getString("table_owner"), rs.getString("table_name"), seen, tables);
+        }
+        return tables;
+    }
+
+    private String planUsedIndexes(Connection connection, String sqlId, SqlChildCursor childCursor, List<String> warnings) {
+        List<String> gvWarnings = new ArrayList<>();
+        String gvIndexes = planUsedIndexesFromView(connection, sqlId, childCursor, "gv$sql_plan", true, gvWarnings);
+        if (hasText(gvIndexes)) {
+            return gvIndexes;
+        }
+        String vIndexes = planUsedIndexesFromView(connection, sqlId, childCursor, "v$sql_plan", false, warnings);
+        if (hasText(vIndexes)) {
+            return vIndexes;
+        }
+        if (!gvWarnings.isEmpty()) {
+            warnings.addAll(gvWarnings);
+        }
+        return planUsedIndexesFromHistory(connection, sqlId, childCursor, warnings);
+    }
+
+    private String planUsedIndexesFromView(
+            Connection connection,
+            String sqlId,
+            SqlChildCursor childCursor,
+            String viewName,
+            boolean includeInstance,
+            List<String> warnings
+    ) {
+        String childClause = childCursor == null || childCursor.childNumber() == null ? "" : " AND p.child_number = ?";
+        String instanceClause = includeInstance && childCursor != null && childCursor.instId() != null ? " AND p.inst_id = ?" : "";
+        try (PreparedStatement statement = connection.prepareStatement("""
+                SELECT DISTINCT
+                       p.object_owner index_owner,
+                       p.object_name index_name,
+                       i.table_owner,
+                       i.table_name,
+                       i.uniqueness,
+                       i.status,
+                       i.visibility,
+                       p.operation,
+                       p.options
+                  FROM %s p
+                  LEFT JOIN dba_indexes i
+                    ON i.owner = p.object_owner
+                   AND i.index_name = p.object_name
+                 WHERE p.sql_id = ?
+                %s
+                %s
+                   AND p.object_name IS NOT NULL
+                   AND UPPER(p.operation) LIKE 'INDEX%%'
+                 ORDER BY p.object_owner, p.object_name
+                """.formatted(viewName, childClause, instanceClause))) {
+            int index = 1;
+            statement.setString(index++, sqlId);
+            if (!childClause.isBlank()) {
+                statement.setInt(index++, childCursor.childNumber());
+            }
+            if (!instanceClause.isBlank()) {
+                statement.setInt(index, childCursor.instId());
+            }
+            statement.setQueryTimeout(10);
+            try (ResultSet rs = statement.executeQuery()) {
+                return planUsedIndexLines(rs);
+            }
+        } catch (SQLException exception) {
+            warnings.add(viewName + " used index query failed: " + exception.getMessage());
+            return null;
+        }
+    }
+
+    private String planUsedIndexesFromHistory(Connection connection, String sqlId, SqlChildCursor childCursor, List<String> warnings) {
+        String planHashClause = childCursor == null || childCursor.planHashValue() == null ? "" : " AND p.plan_hash_value = ?";
+        try (PreparedStatement statement = connection.prepareStatement("""
+                SELECT DISTINCT
+                       p.object_owner index_owner,
+                       p.object_name index_name,
+                       i.table_owner,
+                       i.table_name,
+                       i.uniqueness,
+                       i.status,
+                       i.visibility,
+                       p.operation,
+                       p.options
+                  FROM dba_hist_sql_plan p
+                  LEFT JOIN dba_indexes i
+                    ON i.owner = p.object_owner
+                   AND i.index_name = p.object_name
+                 WHERE p.sql_id = ?
+                %s
+                   AND p.object_name IS NOT NULL
+                   AND UPPER(p.operation) LIKE 'INDEX%%'
+                 ORDER BY p.object_owner, p.object_name
+                """.formatted(planHashClause))) {
+            statement.setString(1, sqlId);
+            if (!planHashClause.isBlank()) {
+                statement.setLong(2, childCursor.planHashValue());
+            }
+            statement.setQueryTimeout(10);
+            try (ResultSet rs = statement.executeQuery()) {
+                return planUsedIndexLines(rs);
+            }
+        } catch (SQLException exception) {
+            warnings.add("dba_hist_sql_plan used index query failed: " + exception.getMessage());
+            return null;
+        }
+    }
+
+    private String planUsedIndexLines(ResultSet rs) throws SQLException {
+        List<String> indexes = new ArrayList<>();
+        while (rs.next()) {
+            indexes.add(stringValue(rs.getString("table_owner")) + "." + stringValue(rs.getString("table_name"))
+                    + " | " + stringValue(rs.getString("index_owner")) + "." + rs.getString("index_name")
+                    + " | access=" + stringValue(rs.getString("operation")) + " " + stringValue(rs.getString("options"))
+                    + " | uniqueness=" + stringValue(rs.getString("uniqueness"))
+                    + " | status=" + stringValue(rs.getString("status"))
+                    + " | visibility=" + stringValue(rs.getString("visibility")));
+        }
+        return indexes.isEmpty() ? null : String.join(System.lineSeparator(), indexes);
+    }
+
     private String activeSessionHistory(Connection connection, String sqlId, List<String> warnings) {
         List<String> gvWarnings = new ArrayList<>();
         String gvAsh = activeSessionHistoryFromView(connection, sqlId, "gv$active_session_history", "sample_time", true, gvWarnings);
@@ -1471,11 +1720,25 @@ public class TargetDbContextCollector {
         }
     }
 
-    private String existingIndexes(Connection connection, List<TableReference> tables, List<String> warnings) {
+    private String existingIndexes(Connection connection, List<TableReference> tables, String planUsedIndexes, List<String> warnings) {
+        String diagnostics = indexCollectionDiagnostics(tables, planUsedIndexes, null);
         if (tables.isEmpty()) {
-            return null;
+            return joinSections(
+                    section("Plan Used Indexes", planUsedIndexes),
+                    section("Index Collection Diagnostics", diagnostics)
+            );
         }
-        return indexMetadataFromViews(connection, tables, "dba_ind_columns", "dba_indexes", warnings);
+        String metadataSource = "DBA_IND_COLUMNS/DBA_INDEXES";
+        String relatedIndexes = indexMetadataFromViews(connection, tables, "dba_ind_columns", "dba_indexes", warnings);
+        if (!hasText(relatedIndexes)) {
+            metadataSource = "ALL_IND_COLUMNS/ALL_INDEXES";
+            relatedIndexes = indexMetadataFromViews(connection, tables, "all_ind_columns", "all_indexes", warnings);
+        }
+        return joinSections(
+                section("Related Table Indexes", relatedIndexes),
+                section("Plan Used Indexes", planUsedIndexes),
+                section("Index Collection Diagnostics", indexCollectionDiagnostics(tables, planUsedIndexes, metadataSource))
+        );
     }
 
     private String indexMetadataFromViews(
@@ -1651,7 +1914,125 @@ public class TargetDbContextCollector {
     private List<TableReference> extractTableReferences(String sqlText) {
         Set<String> seen = new LinkedHashSet<>();
         List<TableReference> tables = new ArrayList<>();
-        Matcher matcher = TABLE_PATTERN.matcher(sqlText);
+        collectTableReferences(sqlText, DML_TARGET_PATTERN, seen, tables);
+        collectTableReferences(sqlText, TABLE_PATTERN, seen, tables);
+        return tables;
+    }
+
+    private List<TableReference> extractDmlTargetReferences(String sqlText) {
+        Set<String> seen = new LinkedHashSet<>();
+        List<TableReference> tables = new ArrayList<>();
+        collectTableReferences(sqlText, DML_TARGET_PATTERN, seen, tables);
+        return tables;
+    }
+
+    private List<TableReference> mergeTableReferences(List<TableReference> primary, List<TableReference> additional) {
+        if (primary.isEmpty()) {
+            return additional;
+        }
+        if (additional.isEmpty()) {
+            return primary;
+        }
+        Set<String> seen = new LinkedHashSet<>();
+        List<TableReference> merged = new ArrayList<>();
+        primary.forEach(table -> addTableReference(table.owner(), table.tableName(), seen, merged));
+        additional.forEach(table -> addTableReference(table.owner(), table.tableName(), seen, merged));
+        return merged;
+    }
+
+    private void mergeTableReferencesInto(List<TableReference> target, List<TableReference> source, Set<String> seen) {
+        source.forEach(table -> addTableReference(table.owner(), table.tableName(), seen, target));
+    }
+
+    private List<TableReference> enrichTableReferences(Connection connection, List<TableReference> tables, List<String> warnings) {
+        if (tables.isEmpty()) {
+            return tables;
+        }
+        Set<String> seen = new LinkedHashSet<>();
+        List<TableReference> enriched = new ArrayList<>();
+        tables.forEach(table -> addTableReference(table.owner(), table.tableName(), seen, enriched));
+        resolveSynonymTargets(connection, tables, seen, enriched, warnings);
+        resolveViewDependencies(connection, tables, seen, enriched, warnings);
+        return enriched;
+    }
+
+    private void resolveSynonymTargets(
+            Connection connection,
+            List<TableReference> tables,
+            Set<String> seen,
+            List<TableReference> enriched,
+            List<String> warnings
+    ) {
+        List<TableReference> ownedTables = tables.stream()
+                .filter(table -> table.owner() != null)
+                .toList();
+        if (ownedTables.isEmpty()) {
+            return;
+        }
+        try (PreparedStatement statement = connection.prepareStatement("""
+                SELECT table_owner,
+                       table_name
+                  FROM dba_synonyms
+                 WHERE table_owner IS NOT NULL
+                   AND table_name IS NOT NULL
+                   AND %s
+                """.formatted(tableReferencePredicate("owner", "synonym_name", ownedTables)))) {
+            bindTableReferences(statement, ownedTables);
+            statement.setQueryTimeout(10);
+            try (ResultSet rs = statement.executeQuery()) {
+                while (rs.next()) {
+                    addTableReference(rs.getString("table_owner"), rs.getString("table_name"), seen, enriched);
+                }
+            }
+        } catch (SQLException exception) {
+            warnings.add("dba_synonyms query failed: " + exception.getMessage());
+        }
+    }
+
+    private void resolveViewDependencies(
+            Connection connection,
+            List<TableReference> tables,
+            Set<String> seen,
+            List<TableReference> enriched,
+            List<String> warnings
+    ) {
+        List<TableReference> ownedTables = tables.stream()
+                .filter(table -> table.owner() != null)
+                .toList();
+        if (ownedTables.isEmpty()) {
+            return;
+        }
+        try (PreparedStatement statement = connection.prepareStatement("""
+                SELECT referenced_owner,
+                       referenced_name
+                  FROM dba_dependencies
+                 WHERE referenced_owner IS NOT NULL
+                   AND referenced_name IS NOT NULL
+                   AND referenced_type IN ('TABLE', 'VIEW', 'MATERIALIZED VIEW')
+                   AND %s
+                """.formatted(tableReferencePredicate("owner", "name", ownedTables)))) {
+            bindTableReferences(statement, ownedTables);
+            statement.setQueryTimeout(10);
+            try (ResultSet rs = statement.executeQuery()) {
+                while (rs.next()) {
+                    addTableReference(rs.getString("referenced_owner"), rs.getString("referenced_name"), seen, enriched);
+                }
+            }
+        } catch (SQLException exception) {
+            warnings.add("dba_dependencies query failed: " + exception.getMessage());
+        }
+    }
+
+    private void collectTableReferences(
+            String sqlText,
+            Pattern pattern,
+            Set<String> seen,
+            List<TableReference> tables
+    ) {
+        if (!hasText(sqlText)) {
+            return;
+        }
+        Matcher matcher = pattern.matcher(sqlText);
         while (matcher.find()) {
             String token = matcher.group(1).replace("\"", "").trim();
             if (token.startsWith("(")) {
@@ -1665,14 +2046,38 @@ public class TargetDbContextCollector {
             }
             String normalized = table.toLowerCase(Locale.ROOT);
             if (!SKIP_TABLE_TOKENS.contains(normalized)) {
-                TableReference reference = new TableReference(owner, table.toUpperCase(Locale.ROOT));
-                String key = stringValue(reference.owner()) + "." + reference.tableName();
-                if (seen.add(key)) {
-                    tables.add(reference);
-                }
+                addTableReference(owner, table, seen, tables);
             }
         }
-        return tables;
+    }
+
+    private void addTableReference(String owner, String table, Set<String> seen, List<TableReference> tables) {
+        if (!hasText(table)) {
+            return;
+        }
+        String normalizedOwner = hasText(owner) ? owner.replace("\"", "").trim().toUpperCase(Locale.ROOT) : null;
+        String normalizedTable = table.replace("\"", "").trim().toUpperCase(Locale.ROOT);
+        if (!hasText(normalizedTable) || SKIP_TABLE_TOKENS.contains(normalizedTable.toLowerCase(Locale.ROOT))) {
+            return;
+        }
+        TableReference reference = new TableReference(normalizedOwner, normalizedTable);
+        String key = stringValue(reference.owner()) + "." + reference.tableName();
+        if (seen.add(key)) {
+            tables.add(reference);
+        }
+    }
+
+    private String indexCollectionDiagnostics(List<TableReference> tables, String planUsedIndexes, String metadataSource) {
+        List<String> lines = new ArrayList<>();
+        lines.add("target_tables=" + (tables.isEmpty()
+                ? "-"
+                : tables.stream()
+                .map(table -> stringValue(table.owner()) + "." + table.tableName())
+                .collect(java.util.stream.Collectors.joining(", "))));
+        lines.add("related_index_source=" + stringValue(metadataSource));
+        lines.add("plan_used_indexes_collected=" + (hasText(planUsedIndexes) ? "YES" : "NO"));
+        lines.add("table_reference_sources=GV$SQL_PLAN,V$SQL_PLAN,DBA_HIST_SQL_PLAN,DML_TARGET,SQL_TEXT_FALLBACK");
+        return String.join(System.lineSeparator(), lines);
     }
 
     private String tableReferencePredicate(String ownerColumn, String tableColumn, List<TableReference> tables) {

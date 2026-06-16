@@ -142,6 +142,18 @@ public class AwrLlmAdvisor {
                 For large or write-heavy tables, include index maintenance, ETL/write-window impact, build time,
                 and stats gathering cost in risk and validation steps. If this evidence is unavailable, list it
                 in missing_inputs instead of assuming the index is safe.
+                Before recommending a new index, compare Related Table Indexes and Plan Used Indexes evidence.
+                Do not recommend CREATE INDEX when an identical or similar existing index already covers the candidate leading columns.
+                If Plan Used Indexes show an index is already used, prioritize validating selectivity, column order,
+                range scan plus table access cost, stale stats, and partition pruning before proposing another index.
+                Inspect existing index details, not only existence: column order, uniqueness, status, visibility,
+                blevel, leaf_blocks, distinct_keys, clustering_factor, num_rows, and last_analyzed.
+                If an existing index is unusable, invalid, invisible, stale, or has unsuitable leading columns,
+                explain why it is insufficient before recommending a different index.
+                If Index Collection Diagnostics indicates incomplete collection, avoid definitive DDL and put
+                the gap in missing_inputs or validation_steps.
+                For INSERT/load SQL, do not recommend a future query index unless supplied query predicates prove it is needed.
+                If duplicate risk cannot be ruled out, state it in missing_inputs or validation_steps.
                 DBA_*, V$, and GV$ views are valid diagnostic sources and should remain visible in analysis.
                 Never recommend CREATE INDEX against Oracle data dictionary or dynamic performance views.
                 For those SQLs, recommend rewrite/scope reduction, dictionary statistics validation,

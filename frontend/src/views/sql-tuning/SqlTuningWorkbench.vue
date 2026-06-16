@@ -277,7 +277,35 @@ ORDER BY o.created_at DESC"
           <div v-if="showContextInputs" class="awr-form-grid">
             <label class="awr-field sql-tuning-context-wide">
               Existing Indexes
-              <pre v-if="sourceMode === 'DIRECT' && existingIndexes" class="sql-tuning-context-viewer sql-tuning-index-viewer">{{ existingIndexes }}</pre>
+              <div v-if="sourceMode === 'DIRECT' && relatedIndexRows.length" class="sql-tuning-index-table-wrap">
+                <table class="sql-tuning-index-table">
+                  <thead>
+                    <tr>
+                      <th>Table</th>
+                      <th>Index</th>
+                      <th>Columns</th>
+                      <th>Uniqueness</th>
+                      <th>Status</th>
+                      <th>Visibility</th>
+                      <th>Logging</th>
+                      <th>Stats</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    <tr v-for="row in relatedIndexRows" :key="`related-${row.table}-${row.index}`">
+                      <td>{{ row.table }}</td>
+                      <td>{{ row.index }}</td>
+                      <td>{{ row.columns }}</td>
+                      <td>{{ row.uniqueness }}</td>
+                      <td>{{ row.status }}</td>
+                      <td>{{ row.visibility }}</td>
+                      <td>{{ row.logging }}</td>
+                      <td>{{ row.stats }}</td>
+                    </tr>
+                  </tbody>
+                </table>
+              </div>
+              <pre v-else-if="sourceMode === 'DIRECT' && legacyExistingIndexes" class="sql-tuning-context-viewer sql-tuning-index-viewer">{{ legacyExistingIndexes }}</pre>
               <div v-else-if="sourceMode === 'DIRECT'" class="awr-empty compact">No existing indexes collected for the referenced tables.</div>
               <textarea
                 v-else
@@ -286,6 +314,34 @@ ORDER BY o.created_at DESC"
                 placeholder="?? CREATE INDEX idx_orders_status ON orders(status);
 CREATE INDEX idx_orders_created ON orders(created_at);"
               ></textarea>
+            </label>
+            <label v-if="sourceMode === 'DIRECT'" class="awr-field sql-tuning-context-wide">
+              Used Indexes
+              <div v-if="usedIndexRows.length" class="sql-tuning-index-table-wrap">
+                <table class="sql-tuning-index-table">
+                  <thead>
+                    <tr>
+                      <th>Table</th>
+                      <th>Index</th>
+                      <th>Access</th>
+                      <th>Uniqueness</th>
+                      <th>Status</th>
+                      <th>Visibility</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    <tr v-for="row in usedIndexRows" :key="`used-${row.table}-${row.index}-${row.access}`">
+                      <td>{{ row.table }}</td>
+                      <td>{{ row.index }}</td>
+                      <td>{{ row.access }}</td>
+                      <td>{{ row.uniqueness }}</td>
+                      <td>{{ row.status }}</td>
+                      <td>{{ row.visibility }}</td>
+                    </tr>
+                  </tbody>
+                </table>
+              </div>
+              <div v-else class="awr-empty compact">No used indexes found in the collected execution plan.</div>
             </label>
             <label v-if="sourceMode === 'DIRECT' && !directManualFallback" class="awr-field sql-tuning-context-wide">
               Collected SQL Text
@@ -525,6 +581,18 @@ interface ExecutionPlanTableBlock {
 
 type ExecutionPlanBlock = ExecutionPlanTextBlock | ExecutionPlanTableBlock
 
+interface IndexMetadataRow {
+  table: string
+  index: string
+  columns: string
+  access: string
+  uniqueness: string
+  status: string
+  visibility: string
+  logging: string
+  stats: string
+}
+
 const route = useRoute()
 const sourceMode = ref<SourceMode>('DIRECT')
 const sqlText = ref('')
@@ -643,6 +711,15 @@ const topSqlEmptyMessage = computed(() => {
     return 'All loaded SQL_IDs are hidden. Turn off Hide tuned SQL_ID to show them.'
   }
   return 'No SQL was found in the target database current SQL views.'
+})
+const relatedTableIndexes = computed(() => contextSection(existingIndexes.value, 'Related Table Indexes'))
+const planUsedIndexes = computed(() => contextSection(existingIndexes.value, 'Plan Used Indexes'))
+const relatedIndexRows = computed(() => parseIndexRows(relatedTableIndexes.value))
+const usedIndexRows = computed(() => parseIndexRows(planUsedIndexes.value))
+const legacyExistingIndexes = computed(() => {
+  if (!existingIndexes.value.trim()) return ''
+  if (relatedTableIndexes.value || planUsedIndexes.value) return ''
+  return existingIndexes.value
 })
 const executionPlanBlocks = computed(() => parseExecutionPlan(executionPlan.value))
 const selectedIndexRecommendations = computed(() =>
@@ -1045,6 +1122,57 @@ function restoreInput(input?: SqlTuningRequest | null, fallbackSqlText?: string 
   schemaDdl.value = input?.schemaDdl || ''
   existingIndexes.value = input?.existingIndexes || ''
   bindSamples.value = input?.bindSamples || ''
+}
+
+function contextSection(value: string, title: string) {
+  if (!value.trim()) return ''
+  const escapedTitle = title.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')
+  const match = value.match(new RegExp(`(?:^|\\n)--\\s*${escapedTitle}\\s*\\n([\\s\\S]*?)(?=\\n--\\s+|$)`, 'i'))
+  return match?.[1]?.trim() || ''
+}
+
+function parseIndexRows(value: string): IndexMetadataRow[] {
+  return value
+    .split(/\r?\n/)
+    .map((line) => parseIndexRow(line))
+    .filter((row): row is IndexMetadataRow => Boolean(row))
+}
+
+function parseIndexRow(line: string): IndexMetadataRow | null {
+  const parts = line.split('|').map((part) => part.trim()).filter(Boolean)
+  if (parts.length < 2) return null
+  const attributes = new Map<string, string>()
+  parts.slice(2).forEach((part) => {
+    const separator = part.indexOf('=')
+    if (separator < 1) return
+    attributes.set(part.slice(0, separator).trim().toLowerCase(), part.slice(separator + 1).trim())
+  })
+  const stats = ['blevel', 'leaf_blocks', 'distinct_keys', 'clustering_factor', 'num_rows', 'last_analyzed']
+    .map((key) => {
+      const value = attributes.get(key)
+      return value ? `${key}=${value}` : ''
+    })
+    .filter(Boolean)
+    .join(', ')
+  return {
+    table: parts[0] || '-',
+    index: parts[1] || '-',
+    columns: unwrapAttribute(attributes.get('columns')) || '-',
+    access: attributes.get('access') || '-',
+    uniqueness: attributes.get('uniqueness') || '-',
+    status: attributes.get('status') || '-',
+    visibility: attributes.get('visibility') || '-',
+    logging: attributes.get('logging') || '-',
+    stats: stats || '-'
+  }
+}
+
+function unwrapAttribute(value?: string) {
+  if (!value) return ''
+  const trimmed = value.trim()
+  return trimmed.startsWith('(') && trimmed.endsWith(')')
+    ? trimmed.slice(1, -1)
+    : trimmed
 }
 
 function routeConnectionId() {

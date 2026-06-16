@@ -166,6 +166,266 @@ class AwrSqlTuningAdvisorTest {
     }
 
     @Test
+    void skipsIndexCandidateCoveredByRelatedTableIndexesSection() {
+        AwrDtos.SqlMetricResponse metric = directMetric(
+                "SELECT * FROM APP.ORDERS o WHERE o.status = :1",
+                20_000_000L,
+                5_000L
+        );
+        AwrDtos.SqlTuningRequest request = requestWithIndexes(
+                metric.sqlText(),
+                """
+                        -- Related Table Indexes
+                        APP.ORDERS | APP.IDX_ORDERS_STATUS_DATE | columns=(STATUS, ORDER_DATE) | uniqueness=NONUNIQUE | status=VALID | logging=YES | visibility=VISIBLE
+                        -- Plan Used Indexes
+                        APP.ORDERS | APP.IDX_ORDERS_STATUS_DATE | access=INDEX RANGE SCAN | uniqueness=NONUNIQUE | status=VALID | visibility=VISIBLE
+                        """
+        );
+
+        AwrDtos.SqlTuningResponse response = advisor.tune(
+                null,
+                metric.sqlId(),
+                "Tune this SQL",
+                metric,
+                request,
+                List.of()
+        );
+
+        assertThat(response.indexRecommendations()).isEmpty();
+    }
+
+    @Test
+    void recommendsCandidateWhenRelatedTableIndexesDoNotCoverPredicateColumns() {
+        AwrDtos.SqlMetricResponse metric = directMetric(
+                "SELECT * FROM APP.ORDERS o WHERE o.status = :1",
+                20_000_000L,
+                5_000L
+        );
+        AwrDtos.SqlTuningRequest request = requestWithIndexes(
+                metric.sqlText(),
+                """
+                        -- Related Table Indexes
+                        APP.ORDERS | APP.IDX_ORDERS_ORDER_DATE | columns=(ORDER_DATE) | uniqueness=NONUNIQUE | status=VALID | logging=YES | visibility=VISIBLE
+                        """
+        );
+
+        AwrDtos.SqlTuningResponse response = advisor.tune(
+                null,
+                metric.sqlId(),
+                "Tune this SQL",
+                metric,
+                request,
+                List.of()
+        );
+
+        assertThat(response.indexRecommendations()).hasSize(1);
+        assertThat(response.indexRecommendations().get(0).columns()).containsExactly("status");
+    }
+
+    @Test
+    void recommendsOrderDateWhenOnlyOrderIdIndexExists() {
+        AwrDtos.SqlMetricResponse metric = directMetric(
+                "SELECT * FROM TEST.AX_ORDERS o WHERE o.order_date >= :1",
+                20_000_000L,
+                5_000L
+        );
+        AwrDtos.SqlTuningRequest request = requestWithIndexes(
+                metric.sqlText(),
+                """
+                        -- Related Table Indexes
+                        TEST.AX_ORDERS | TEST.SYS_C007602 | columns=(ORDER_ID) | uniqueness=UNIQUE | status=VALID | logging=YES | visibility=VISIBLE | blevel=2 | leaf_blocks=13941 | distinct_keys=7000000 | clustering_factor=44983 | num_rows=7000000 | last_analyzed=2026-06-12 05:00:07.0
+                        """
+        );
+
+        AwrDtos.SqlTuningResponse response = advisor.tune(
+                null,
+                metric.sqlId(),
+                "Tune this SQL",
+                metric,
+                request,
+                List.of()
+        );
+
+        assertThat(response.indexRecommendations()).hasSize(1);
+        assertThat(response.indexRecommendations().get(0).columns()).containsExactly("order_date");
+    }
+
+    @Test
+    void keepsCandidateAndExplainsTrailingColumnOrderWhenExistingIndexHasCandidateLater() {
+        AwrDtos.SqlMetricResponse metric = directMetric(
+                "SELECT * FROM TEST.AX_ORDERS o WHERE o.order_date >= :1",
+                20_000_000L,
+                5_000L
+        );
+        AwrDtos.SqlTuningRequest request = requestWithIndexes(
+                metric.sqlText(),
+                """
+                        -- Related Table Indexes
+                        TEST.AX_ORDERS | TEST.IDX_AX_ORDERS_ID_DATE | columns=(ORDER_ID, ORDER_DATE) | uniqueness=NONUNIQUE | status=VALID | logging=YES | visibility=VISIBLE | blevel=2 | leaf_blocks=13941 | distinct_keys=7000000 | clustering_factor=6500000 | num_rows=7000000 | last_analyzed=2026-06-12 05:00:07.0
+                        """
+        );
+
+        AwrDtos.SqlTuningResponse response = advisor.tune(
+                null,
+                metric.sqlId(),
+                "Tune this SQL",
+                metric,
+                request,
+                List.of()
+        );
+
+        assertThat(response.indexRecommendations()).hasSize(1);
+        assertThat(response.indexRecommendations().get(0).reason()).contains("leading column order");
+    }
+
+    @Test
+    void doesNotTreatInvisibleOrUnusableIndexAsCoveringCandidate() {
+        AwrDtos.SqlMetricResponse metric = directMetric(
+                "SELECT * FROM TEST.AX_ORDERS o WHERE o.order_date >= :1",
+                20_000_000L,
+                5_000L
+        );
+        AwrDtos.SqlTuningRequest request = requestWithIndexes(
+                metric.sqlText(),
+                """
+                        -- Related Table Indexes
+                        TEST.AX_ORDERS | TEST.IDX_AX_ORDERS_DATE | columns=(ORDER_DATE) | uniqueness=NONUNIQUE | status=UNUSABLE | logging=YES | visibility=INVISIBLE | blevel=2 | leaf_blocks=13941 | distinct_keys=7000000 | clustering_factor=44983 | num_rows=7000000 | last_analyzed=2026-06-12 05:00:07.0
+                        """
+        );
+
+        AwrDtos.SqlTuningResponse response = advisor.tune(
+                null,
+                metric.sqlId(),
+                "Tune this SQL",
+                metric,
+                request,
+                List.of()
+        );
+
+        assertThat(response.indexRecommendations()).hasSize(1);
+        assertThat(response.validationSteps()).anySatisfy(item -> assertThat(item).contains("usable/visible"));
+    }
+
+    @Test
+    void addsIndexStatsValidationWhenExistingIndexStatsAreMissing() {
+        AwrDtos.SqlMetricResponse metric = directMetric(
+                "SELECT * FROM TEST.AX_ORDERS o WHERE o.order_date >= :1",
+                20_000_000L,
+                5_000L
+        );
+        AwrDtos.SqlTuningRequest request = requestWithIndexes(
+                metric.sqlText(),
+                """
+                        -- Related Table Indexes
+                        TEST.AX_ORDERS | TEST.SYS_C007602 | columns=(ORDER_ID) | uniqueness=UNIQUE | status=VALID | logging=YES | visibility=VISIBLE | blevel=- | leaf_blocks=- | distinct_keys=- | clustering_factor=- | num_rows=- | last_analyzed=-
+                        """
+        );
+
+        AwrDtos.SqlTuningResponse response = advisor.tune(
+                null,
+                metric.sqlId(),
+                "Tune this SQL",
+                metric,
+                request,
+                List.of()
+        );
+
+        assertThat(response.validationSteps()).anySatisfy(item -> assertThat(item).contains("missing or incomplete statistics"));
+    }
+
+    @Test
+    void doesNotRecommendQueryIndexForInsertLoadSql() {
+        AwrDtos.SqlMetricResponse metric = directMetric(
+                """
+                        INSERT /*+ APPEND */ INTO TEST.AX_ORDERS (ORDER_ID, ORDER_DATE)
+                        SELECT TEST.SEQ_AX_ORDER_ID.NEXTVAL, T.ORDER_DATE
+                          FROM (SELECT SYSDATE ORDER_DATE FROM DUAL CONNECT BY LEVEL <= 1000000) T
+                        """,
+                20_000_000L,
+                5_000L
+        );
+        AwrDtos.SqlTuningRequest request = requestWithIndexes(
+                metric.sqlText(),
+                """
+                        -- Related Table Indexes
+                        TEST.AX_ORDERS | TEST.SYS_C007602 | columns=(ORDER_ID) | uniqueness=UNIQUE | status=VALID | logging=YES | visibility=VISIBLE
+                        """
+        );
+
+        AwrDtos.SqlTuningResponse response = advisor.tune(
+                null,
+                metric.sqlId(),
+                "Tune this SQL",
+                metric,
+                request,
+                List.of()
+        );
+
+        assertThat(response.indexRecommendations()).isEmpty();
+        assertThat(response.summary()).contains("INSERT/load statement");
+        assertThat(response.validationSteps()).anySatisfy(item -> assertThat(item).contains("actual SELECT SQL_ID"));
+    }
+
+    @Test
+    void addsCurrentIndexEfficiencyChecksWhenUsedIndexExistsAndCostIsHigh() {
+        AwrDtos.SqlMetricResponse metric = directMetric(
+                "SELECT * FROM APP.ORDERS o WHERE o.status = :1",
+                20_000_000L,
+                200_000L
+        );
+        AwrDtos.SqlTuningRequest request = requestWithIndexes(
+                metric.sqlText(),
+                """
+                        -- Plan Used Indexes
+                        APP.ORDERS | APP.IDX_ORDERS_STATUS | access=INDEX RANGE SCAN | uniqueness=NONUNIQUE | status=VALID | visibility=VISIBLE
+                        """
+        );
+
+        AwrDtos.SqlTuningResponse response = advisor.tune(
+                null,
+                metric.sqlId(),
+                "Tune this SQL",
+                metric,
+                request,
+                List.of()
+        );
+
+        assertThat(response.indexRecommendations()).hasSize(1);
+        assertThat(response.rewriteRecommendations()).anySatisfy(item -> assertThat(item).contains("Plan Used Indexes"));
+        assertThat(response.validationSteps()).anySatisfy(item -> assertThat(item).contains("current index access path"));
+        assertThat(response.validationSteps()).anySatisfy(item -> assertThat(item).contains("partition pruning"));
+    }
+
+    @Test
+    void skipsCandidateCoveredByPlanUsedIndexWhenColumnsAreAvailable() {
+        AwrDtos.SqlMetricResponse metric = directMetric(
+                "SELECT * FROM APP.ORDERS o WHERE o.status = :1",
+                20_000_000L,
+                200_000L
+        );
+        AwrDtos.SqlTuningRequest request = requestWithIndexes(
+                metric.sqlText(),
+                """
+                        -- Plan Used Indexes
+                        APP.ORDERS | APP.IDX_ORDERS_STATUS | columns=(STATUS) | access=INDEX RANGE SCAN | uniqueness=NONUNIQUE | status=VALID | visibility=VISIBLE
+                        """
+        );
+
+        AwrDtos.SqlTuningResponse response = advisor.tune(
+                null,
+                metric.sqlId(),
+                "Tune this SQL",
+                metric,
+                request,
+                List.of()
+        );
+
+        assertThat(response.indexRecommendations()).isEmpty();
+        assertThat(response.summary()).contains("existing usable index");
+        assertThat(response.validationSteps()).anySatisfy(item -> assertThat(item).contains("current index access path"));
+    }
+
+    @Test
     void doesNotRecommendIndexOnOracleDictionaryViews() {
         AwrDtos.SqlMetricResponse metric = new AwrDtos.SqlMetricResponse(
                 "f9q9bnv12sxcx",
@@ -214,5 +474,35 @@ class AwrSqlTuningAdvisorTest {
         assertThat(response.rewriteRecommendations()).anySatisfy(item -> assertThat(item).contains("do not create user indexes"));
         assertThat(response.validationSteps()).anySatisfy(item -> assertThat(item).contains("dictionary statistics"));
         assertThat(response.confidence()).isEqualTo("low");
+    }
+
+    private AwrDtos.SqlMetricResponse directMetric(String sqlText, Long bufferGets, Long diskReads) {
+        return new AwrDtos.SqlMetricResponse(
+                "5yqqyn38m2jjw",
+                "Direct DB SQL",
+                1,
+                120.0,
+                80.0,
+                bufferGets,
+                diskReads,
+                40L,
+                1_000L,
+                123456789L,
+                "JDBC Thin Client",
+                sqlText,
+                99.0,
+                "High buffer gets."
+        );
+    }
+
+    private AwrDtos.SqlTuningRequest requestWithIndexes(String sqlText, String existingIndexes) {
+        return new AwrDtos.SqlTuningRequest(
+                sqlText,
+                "Tune this SQL",
+                "TABLE ACCESS FULL APP.ORDERS",
+                "APP.ORDERS num_rows=50000000, blocks=900000, avg_row_len=120, sample_size=50000000, last_analyzed=2026-06-05 10:00:00, partitioned=NO, temporary=N",
+                existingIndexes,
+                ":1=READY"
+        );
     }
 }

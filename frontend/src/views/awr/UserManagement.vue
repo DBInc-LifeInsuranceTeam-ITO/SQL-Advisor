@@ -2,7 +2,7 @@
   <div class="awr-page">
     <div class="awr-page-header">
       <div>
-        <h1>권한 관리</h1>
+        <h1>사용자 권한 관리</h1>
         <p>사용자 계정의 권한을 ADMIN / USER / MONITOR로 변경합니다.</p>
       </div>
       <button class="awr-btn" type="button" :disabled="isLoading" @click="loadUsers">

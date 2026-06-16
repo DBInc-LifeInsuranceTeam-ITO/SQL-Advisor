@@ -2,7 +2,7 @@
   <div class="awr-page">
     <div class="awr-page-header">
       <div>
-        <h1>AI 설정</h1>
+        <h1>AI 연동 설정</h1>
         <p>현재 사용 중인 모델과 설정 출처를 확인하고, 웹 저장값을 수정합니다.</p>
       </div>
       <div class="awr-actions">

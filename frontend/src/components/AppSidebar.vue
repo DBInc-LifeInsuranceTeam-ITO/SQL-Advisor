@@ -51,10 +51,11 @@
 
 <script setup lang="ts">
 import { computed, ref, watch } from 'vue'
-import { useRouter } from 'vue-router'
+import { useRoute, useRouter } from 'vue-router'
 import { useAuthStore } from '@/stores/auth'
 
 const router = useRouter()
+const route = useRoute()
 const authStore = useAuthStore()
 const avatarLoadFailed = ref(false)
 const userInitial = computed(() => {
@@ -68,28 +69,23 @@ watch(() => authStore.user?.pictureUrl, () => {
 
 const menuItems = [
   {
-    name: 'user-management',
-    label: '권한 관리',
-    icon: '<svg viewBox="0 0 24 24"><path d="M16 11c1.7 0 3-1.3 3-3s-1.3-3-3-3-3 1.3-3 3 1.3 3 3 3ZM8 12c1.7 0 3-1.3 3-3S9.7 6 8 6 5 7.3 5 9s1.3 3 3 3Zm8 2c-2 0-6 1-6 3v1h12v-1c0-2-4-3-6-3Zm-8 1c-1.9 0-6 .9-6 3v1h6v-1c0-1 .6-2 1.6-2.8A8 8 0 0 0 8 15Z"/></svg>'
-  },
-  {
     name: 'awr-dashboard',
     label: '대시보드',
     icon: '<svg viewBox="0 0 24 24"><path d="M4 13h7V4H4v9Zm0 7h7v-5H4v5Zm9 0h7v-9h-7v9Zm0-16v5h7V4h-7Z"/></svg>'
   },
   {
     name: 'awr-upload',
-    label: 'AWR 업로드',
+    label: 'AWR 분석 요청',
     icon: '<svg viewBox="0 0 24 24"><path d="M12 3 7 8h3v6h4V8h3l-5-5ZM5 19h14v-3h2v5H3v-5h2v3Z"/></svg>'
   },
   {
     name: 'awr-reports',
-    label: '리포트 목록',
+    label: 'AWR 분석 결과',
     icon: '<svg viewBox="0 0 24 24"><path d="M5 3h14v18H5V3Zm3 4v2h8V7H8Zm0 4v2h8v-2H8Zm0 4v2h5v-2H8Z"/></svg>'
   },
   {
     name: 'awr-chat',
-    label: 'Advisor Chat',
+    label: 'AI 리포트 분석',
     icon: '<svg viewBox="0 0 24 24"><path d="M4 4h16v11H7l-3 4V4Zm4 4v2h8V8H8Zm0 4v2h6v-2H8Z"/></svg>'
   },
   {
@@ -99,9 +95,14 @@ const menuItems = [
   },
   {
     name: 'awr-ai-settings',
-    label: 'AI 설정',
+    label: 'AI 연동 설정',
     icon: '<svg viewBox="0 0 24 24"><path d="M19.4 13.5c.1-.5.1-1 .1-1.5s0-1-.1-1.5l2-1.5-2-3.5-2.4 1a7.5 7.5 0 0 0-2.6-1.5L14 2h-4l-.4 3a7.5 7.5 0 0 0-2.6 1.5l-2.4-1-2 3.5 2 1.5A8 8 0 0 0 4.5 12c0 .5 0 1 .1 1.5l-2 1.5 2 3.5 2.4-1a7.5 7.5 0 0 0 2.6 1.5l.4 3h4l.4-3a7.5 7.5 0 0 0 2.6-1.5l2.4 1 2-3.5-2-1.5ZM12 15.5A3.5 3.5 0 1 1 12 8a3.5 3.5 0 0 1 0 7.5Z"/></svg>'
-  }
+  },
+    {
+      name: 'user-management',
+      label: '사용자 권한 관리',
+      icon: '<svg viewBox="0 0 24 24"><path d="M16 11c1.7 0 3-1.3 3-3s-1.3-3-3-3-3 1.3-3 3 1.3 3 3 3ZM8 12c1.7 0 3-1.3 3-3S9.7 6 8 6 5 7.3 5 9s1.3 3 3 3Zm8 2c-2 0-6 1-6 3v1h12v-1c0-2-4-3-6-3Zm-8 1c-1.9 0-6 .9-6 3v1h6v-1c0-1 .6-2 1.6-2.8A8 8 0 0 0 8 15Z"/></svg>'
+    }
 ]
 
 type MenuItem = typeof menuItems[number]
@@ -127,7 +128,7 @@ const visibleMenuItems = computed(() => {
 })
 
 function isActive(item: MenuItem) {
-  const current = router.currentRoute.value
+  const current = route
   if (item.name === 'awr-reports') {
     return current.name === 'awr-reports' || current.name === 'awr-report-detail'
   }
@@ -137,9 +138,17 @@ function isActive(item: MenuItem) {
   return current.name === item.name
 }
 
-function go(name: string) {
-  router.push({ name })
+async function go(name: string) {
+  const isSameRoute = route.name === name
+
+  if (isSameRoute) {
+    window.dispatchEvent(new CustomEvent('sql-advisor:refresh-current-view'))
+    return
+  }
+
+  await router.push({ name })
 }
+
 
 async function handleLogout() {
   await authStore.logout()
@@ -175,7 +184,9 @@ async function handleLogout() {
   color: inherit;
   cursor: pointer;
   text-align: left;
+  text-decoration: none;
 }
+
 
 .brand-logo {
   display: block;
@@ -214,6 +225,7 @@ async function handleLogout() {
   color: #214438;
   cursor: pointer;
   text-align: left;
+  text-decoration: none;
 }
 
 .nav-item:hover {

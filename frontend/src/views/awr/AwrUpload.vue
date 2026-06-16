@@ -2,7 +2,7 @@
   <div class="awr-page">
     <div class="awr-page-header">
       <div>
-        <h1>AWR 업로드</h1>
+        <h1>AWR 분석 요청</h1>
         <p>업로드 후 worker가 HTML/TXT/PDF 추출과 OCR fallback을 처리하고, API가 파싱/RAG indexing을 이어서 수행합니다.</p>
       </div>
       <div class="awr-actions">

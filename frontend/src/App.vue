@@ -1,10 +1,10 @@
 <template>
-  <RouterView v-if="isLoginRoute" />
+  <RouterView v-if="isLoginRoute" :key="viewKey" />
   <div v-else class="app">
     <AppSidebar class="sidebar" />
     <div class="content-wrapper">
       <main class="main-content">
-        <RouterView />
+        <RouterView :key="viewKey" />
         <SiteFooter />
       </main>
     </div>
@@ -12,14 +12,27 @@
 </template>
 
 <script setup lang="ts">
-import { computed } from 'vue'
-import { RouterView } from 'vue-router'
-import { useRoute } from 'vue-router'
+import { computed, onBeforeUnmount, onMounted, ref } from 'vue'
+import { RouterView, useRoute } from 'vue-router'
 import AppSidebar from '@/components/AppSidebar.vue'
 import SiteFooter from '@/components/SiteFooter.vue'
 
 const route = useRoute()
+const refreshSeq = ref(0)
 const isLoginRoute = computed(() => route.name === 'login')
+const viewKey = computed(() => `${route.fullPath}:${refreshSeq.value}`)
+
+function refreshCurrentView() {
+  refreshSeq.value += 1
+}
+
+onMounted(() => {
+  window.addEventListener('sql-advisor:refresh-current-view', refreshCurrentView)
+})
+
+onBeforeUnmount(() => {
+  window.removeEventListener('sql-advisor:refresh-current-view', refreshCurrentView)
+})
 </script>
 
 <style scoped>

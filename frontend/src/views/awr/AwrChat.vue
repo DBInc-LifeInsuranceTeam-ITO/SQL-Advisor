@@ -2,7 +2,7 @@
   <div class="awr-page">
     <div class="awr-page-header">
       <div>
-        <h1>AWR Chat</h1>
+        <h1>AI 리포트 분석</h1>
         <p>선택한 AWR의 SQL metric, wait event, section 근거만 사용해 튜닝 질문에 답합니다.</p>
       </div>
       <div class="awr-actions">

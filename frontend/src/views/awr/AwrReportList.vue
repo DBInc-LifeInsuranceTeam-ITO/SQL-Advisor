@@ -2,7 +2,7 @@
   <div class="awr-page">
     <div class="awr-page-header">
       <div>
-        <h1>AWR 리포트</h1>
+        <h1>AWR 분석 결과</h1>
         <p>업로드된 AWR의 snapshot, 파싱 상태, 추출된 Top SQL과 Wait Event 개수를 확인합니다.</p>
       </div>
       <div class="awr-actions">

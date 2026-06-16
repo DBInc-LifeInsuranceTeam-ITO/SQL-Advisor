@@ -68,6 +68,11 @@ watch(() => authStore.user?.pictureUrl, () => {
 
 const menuItems = [
   {
+    name: 'user-management',
+    label: '권한 관리',
+    icon: '<svg viewBox="0 0 24 24"><path d="M16 11c1.7 0 3-1.3 3-3s-1.3-3-3-3-3 1.3-3 3 1.3 3 3 3ZM8 12c1.7 0 3-1.3 3-3S9.7 6 8 6 5 7.3 5 9s1.3 3 3 3Zm8 2c-2 0-6 1-6 3v1h12v-1c0-2-4-3-6-3Zm-8 1c-1.9 0-6 .9-6 3v1h6v-1c0-1 .6-2 1.6-2.8A8 8 0 0 0 8 15Z"/></svg>'
+  },
+  {
     name: 'awr-dashboard',
     label: '대시보드',
     icon: '<svg viewBox="0 0 24 24"><path d="M4 13h7V4H4v9Zm0 7h7v-5H4v5Zm9 0h7v-9h-7v9Zm0-16v5h7V4h-7Z"/></svg>'
@@ -105,7 +110,20 @@ const visibleMenuItems = computed(() => {
   if (authStore.authEnabled && !authStore.isAuthenticated) {
     return menuItems.filter((item) => item.name === 'awr-dashboard')
   }
-  return menuItems
+
+  if (authStore.isAdmin) {
+    return menuItems
+  }
+
+  if (authStore.isMonitor) {
+    return menuItems.filter((item) =>
+      ['awr-dashboard', 'awr-reports', 'sql-tuning'].includes(item.name)
+    )
+  }
+
+  return menuItems.filter((item) =>
+    !['awr-ai-settings', 'user-management'].includes(item.name)
+  )
 })
 
 function isActive(item: MenuItem) {
@@ -125,9 +143,6 @@ function go(name: string) {
 
 async function handleLogout() {
   await authStore.logout()
-  if (authStore.authMode === 'internal') {
-    return
-  }
   router.push({ name: 'login' })
 }
 </script>

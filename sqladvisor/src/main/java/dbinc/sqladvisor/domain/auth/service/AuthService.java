@@ -135,6 +135,15 @@ public class AuthService {
         }
     }
 
+    public AppUserPrincipal refreshPrincipal(AppUserPrincipal principal) {
+        if (principal == null || principal.id() == null) {
+            return principal;
+        }
+
+        return authRepository.findUserById(principal.id())
+                .orElse(principal);
+    }
+
     public AuthDtos.CurrentUserResponse currentUserResponse(AppUserPrincipal principal) {
         if (principal == null) {
             return AuthDtos.CurrentUserResponse.anonymous();
@@ -247,5 +256,41 @@ public class AuthService {
     private String userAgent(HttpServletRequest request) {
         String userAgent = request.getHeader("User-Agent");
         return userAgent == null ? "" : userAgent;
+    }
+
+    public List<AuthDtos.UserSummaryResponse> users() {
+        return authRepository.findAllUsers().stream()
+                .map(user -> new AuthDtos.UserSummaryResponse(
+                        user.id(),
+                        user.email(),
+                        user.displayName(),
+                        user.pictureUrl(),
+                        user.normalizedRole(),
+                        user.enabled(),
+                        authRepository.findProviders(user.id())
+                ))
+                .toList();
+    }
+
+    public AuthDtos.UserSummaryResponse updateUserRole(Long userId, String role) {
+        String normalizedRole = normalizeRole(role);
+        AppUserPrincipal user = authRepository.updateUserRole(userId, normalizedRole);
+        return new AuthDtos.UserSummaryResponse(
+                user.id(),
+                user.email(),
+                user.displayName(),
+                user.pictureUrl(),
+                user.normalizedRole(),
+                user.enabled(),
+                authRepository.findProviders(user.id())
+        );
+    }
+
+    private String normalizeRole(String role) {
+        String normalized = role == null ? "" : role.trim().toUpperCase(Locale.ROOT);
+        if (!Set.of("ADMIN", "USER", "MONITOR").contains(normalized)) {
+            throw new IllegalArgumentException("허용되지 않은 권한입니다. ADMIN, USER, MONITOR 중 하나를 선택하세요.");
+        }
+        return normalized;
     }
 }

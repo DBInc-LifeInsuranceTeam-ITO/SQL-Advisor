@@ -46,4 +46,20 @@ public final class AuthDtos {
             return new CurrentUserResponse(false, null, null, null, null, null, List.of());
         }
     }
+
+    public record UserSummaryResponse(
+            Long id,
+            String email,
+            String displayName,
+            String pictureUrl,
+            String role,
+            boolean enabled,
+            List<String> authProviders
+    ) {
+    }
+
+    public record UpdateUserRoleRequest(
+            String role
+    ) {
+    }
 }

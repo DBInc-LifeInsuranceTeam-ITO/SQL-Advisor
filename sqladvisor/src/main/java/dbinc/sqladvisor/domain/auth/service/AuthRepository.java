@@ -381,4 +381,31 @@ public class AuthRepository {
     private String nullToEmpty(String value) {
         return value == null ? "" : value;
     }
+
+    public List<AppUserPrincipal> findAllUsers() {
+        return jdbcTemplate.query("""
+                    SELECT id, email, display_name, picture_url, role, enabled
+                      FROM app_user
+                     ORDER BY email
+                    """,
+                userMapper()
+        );
+    }
+
+    public AppUserPrincipal updateUserRole(Long userId, String role) {
+        int updated = jdbcTemplate.update("""
+                    UPDATE app_user
+                       SET role = ?,
+                           updated_at = CURRENT_TIMESTAMP
+                     WHERE id = ?
+                    """,
+                role,
+                userId
+        );
+        if (updated == 0) {
+            throw new IllegalArgumentException("사용자를 찾을 수 없습니다.");
+        }
+        return findUserById(userId)
+                .orElseThrow(() -> new IllegalStateException("수정한 사용자를 다시 조회하지 못했습니다."));
+    }
 }

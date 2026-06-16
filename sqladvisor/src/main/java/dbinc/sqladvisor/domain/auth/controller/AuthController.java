@@ -36,10 +36,15 @@ public class AuthController {
     }
 
     @GetMapping("/me")
-    public ResponseEntity<ApiResponse<AuthDtos.CurrentUserResponse>> me() {
+    public ResponseEntity<ApiResponse<AuthDtos.CurrentUserResponse>> me(HttpServletRequest request) {
         AuthDtos.CurrentUserResponse response = currentUserService.currentUser()
-                .map(authService::currentUserResponse)
+                .map(principal -> {
+                    AppUserPrincipal freshPrincipal = authService.refreshPrincipal(principal);
+                    setSecurityContext(freshPrincipal, request);
+                    return authService.currentUserResponse(freshPrincipal);
+                })
                 .orElseGet(AuthDtos.CurrentUserResponse::anonymous);
+
         return ResponseEntity.ok(ApiResponse.success(response));
     }
 

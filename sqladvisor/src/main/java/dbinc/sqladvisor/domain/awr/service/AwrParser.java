@@ -441,14 +441,15 @@ public class AwrParser {
 
     private String inferWaitClass(String eventName) {
         String lower = eventName.toLowerCase(Locale.ROOT);
+
         if (lower.contains("db cpu")) {
             return "CPU";
         }
-        if (lower.contains("read") || lower.contains("write") || lower.contains("file")) {
-            return "User I/O";
-        }
         if (lower.contains("log file")) {
             return "Commit";
+        }
+        if (lower.contains("read") || lower.contains("write") || lower.contains("file")) {
+            return "User I/O";
         }
         if (lower.contains("gc ") || lower.contains("global cache")) {
             return "Cluster";

@@ -199,6 +199,21 @@ interface WaitEventItem extends WaitEventResponse {
   segmentPercent: number
 }
 
+const WAIT_CLASS_SUMMARY_NAMES = new Set([
+  'CPU',
+  'USER I/O',
+  'SYSTEM I/O',
+  'COMMIT',
+  'CONCURRENCY',
+  'APPLICATION',
+  'CONFIGURATION',
+  'ADMINISTRATIVE',
+  'NETWORK',
+  'CLUSTER',
+  'QUEUEING',
+  'SCHEDULER',
+  'OTHER'
+])
 const router = useRouter()
 const authStore = useAuthStore()
 
@@ -283,9 +298,57 @@ const topWaitEvents = computed<WaitEventItem[]>(() => {
     })
   })
 
-  const rows = Array.from(grouped.values())
-    .sort((left, right) => right.dbTimePercent - left.dbTimePercent || right.totalWaitTimeSec - left.totalWaitTimeSec)
-    .slice(0, 3)
+const allRows = Array.from(grouped.values())
+const rows = allRows
+  .filter((row) => {
+    const rowName = normalizeWaitEventName(row.eventName)
+      .trim()
+      .toUpperCase()
+
+    // DB CPU, db file sequential read 같은 실제 이벤트는 유지
+    if (!WAIT_CLASS_SUMMARY_NAMES.has(rowName)) {
+      return true
+    }
+
+    // CPU / User I/O / Commit 등 Wait Class 집계 행인 경우,
+    // 같은 Wait Class의 실제 이벤트와 수치가 같으면 중복으로 판단해 숨김
+    const duplicateExists = allRows.some((other) => {
+      if (other === row) {
+        return false
+      }
+
+      const otherName = normalizeWaitEventName(other.eventName)
+        .trim()
+        .toUpperCase()
+
+      // 비교 대상은 Wait Class 집계 행이 아닌 실제 이벤트만 사용
+      if (WAIT_CLASS_SUMMARY_NAMES.has(otherName)) {
+        return false
+      }
+
+      const otherWaitClass = (other.waitClass || '')
+        .trim()
+        .toUpperCase()
+
+      const sameWaitClass =
+        otherWaitClass === rowName ||
+        otherName.endsWith(` ${rowName}`)
+
+      // 화면은 소수점 첫째 자리까지 보여주므로 0.05 이내면 같은 값으로 처리
+      const samePercent =
+        Math.abs((other.dbTimePercent || 0) - (row.dbTimePercent || 0)) < 0.05
+
+      return sameWaitClass && samePercent
+    })
+
+    return !duplicateExists
+  })
+  .sort(
+    (left, right) =>
+      right.dbTimePercent - left.dbTimePercent ||
+      right.totalWaitTimeSec - left.totalWaitTimeSec
+  )
+  .slice(0, 3)
 
   const maxPercent = Math.max(...rows.map((row) => row.dbTimePercent), 1)
   const totalPercent = Math.max(rows.reduce((sum, row) => sum + row.dbTimePercent, 0), 1)

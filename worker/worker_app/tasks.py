@@ -58,17 +58,23 @@ def extract_text(filename: str, raw_file_path: Path) -> tuple[str, list[str]]:
 
 
 def extract_html(raw_file_path: Path) -> str:
-    soup = BeautifulSoup(decode_bytes(raw_file_path.read_bytes()), "html.parser")
-    lines: list[str] = []
-    for element in soup.select("h1,h2,h3,h4,b,font"):
-        append_line(lines, element.get_text(" ", strip=True))
-    for row in soup.select("tr"):
-        append_line(lines, row.get_text(" ", strip=True))
-    body_text = soup.get_text("\n", strip=True)
-    if len(body_text) > sum(len(line) for line in lines):
-        append_line(lines, body_text)
-    return "\n".join(deduplicate(lines))
+    soup = BeautifulSoup(
+        decode_bytes(raw_file_path.read_bytes()),
+        "html.parser"
+    )
 
+    lines: list[str] = []
+
+    # h2와 tr을 문서에 있는 순서 그대로 순회해야
+    # "섹션 제목 → 해당 표 행" 구조가 유지된다.
+    for element in soup.select("h1,h2,h3,h4,b,font,tr"):
+        append_line(lines, element.get_text(" ", strip=True))
+
+    # 표/제목을 못 찾은 예외적인 HTML만 전체 텍스트로 fallback
+    if not lines:
+        append_line(lines, soup.get_text("\n", strip=True))
+
+    return "\n".join(deduplicate(lines))
 
 def extract_pdf(raw_file_path: Path) -> tuple[str, list[str]]:
     warnings: list[str] = []

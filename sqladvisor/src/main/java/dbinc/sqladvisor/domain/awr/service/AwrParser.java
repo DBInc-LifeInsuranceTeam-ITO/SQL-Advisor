@@ -177,8 +177,10 @@ public class AwrParser {
 
     private List<AwrDtos.WaitEventResponse> parseWaitEvents(List<AwrDtos.SectionResponse> sections) {
         List<AwrDtos.WaitEventResponse> waitEvents = new ArrayList<>();
+
         for (AwrDtos.SectionResponse section : sections) {
             String name = section.sectionName().toLowerCase(Locale.ROOT);
+
             if (!name.contains("wait") && !name.contains("foreground event")) {
                 continue;
             }
@@ -187,20 +189,39 @@ public class AwrParser {
                 if (line.length() < 12 || looksLikeHeader(line)) {
                     continue;
                 }
+
                 List<Double> numbers = numbers(line);
                 if (numbers.size() < 2) {
                     continue;
                 }
-                String eventName = removeNumbers(line).trim();
-                eventName = eventName.replaceAll("\\s{2,}", " ");
+
+                String eventAndWaitClass = removeNumbers(line).trim();
+                eventAndWaitClass = eventAndWaitClass.replaceAll("\\s{2,}", " ");
+
+                String waitClass = inferWaitClass(eventAndWaitClass);
+                String eventName = eventAndWaitClass;
+
+                Matcher waitClassMatcher = Pattern.compile(
+                        "(?i)\\b(User I/O|System I/O|CPU|Cluster|Commit|Concurrency|Application|Configuration|Administrative|Network|Queueing|Scheduler|Other)\\b"
+                ).matcher(eventAndWaitClass);
+
+                if (waitClassMatcher.find()) {
+                    waitClass = waitClassMatcher.group(1);
+                    eventName = eventAndWaitClass
+                            .substring(0, waitClassMatcher.start())
+                            .trim();
+                }
+
                 if (!isUsefulLine(eventName) || eventName.length() < 3) {
                     continue;
                 }
+
                 Double totalWait = numbers.get(0);
-                Double avgWait = numbers.size() > 1 ? numbers.get(1) : null;
-                Double dbTimePercent = numbers.get(numbers.size() - 1);
+                Double dbTimePercent = numbers.size() > 1 ? numbers.get(1) : null;
+                Double avgWait = numbers.size() > 2 ? numbers.get(2) : null;
+
                 waitEvents.add(new AwrDtos.WaitEventResponse(
-                        inferWaitClass(eventName),
+                        waitClass,
                         eventName,
                         totalWait,
                         avgWait,
@@ -210,7 +231,10 @@ public class AwrParser {
         }
 
         return waitEvents.stream()
-                .sorted(Comparator.comparing(AwrDtos.WaitEventResponse::dbTimePercent, Comparator.nullsLast(Comparator.reverseOrder())))
+                .sorted(Comparator.comparing(
+                        AwrDtos.WaitEventResponse::dbTimePercent,
+                        Comparator.nullsLast(Comparator.reverseOrder())
+                ))
                 .limit(12)
                 .toList();
     }

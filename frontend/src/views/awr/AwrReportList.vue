@@ -43,12 +43,6 @@
           <h2>리포트 목록</h2>
           <p>행을 선택하면 상세 분석 결과 화면으로 이동합니다.</p>
         </div>
-
-        <div class="awr-actions">
-          <span class="awr-format-badge awr-report-list-total">
-            TOTAL {{ reports.length }}
-          </span>
-        </div>
       </div>
 
       <div v-if="errorMessage" class="awr-empty awr-report-list-error">
@@ -63,101 +57,163 @@
         등록된 AWR 리포트가 없습니다.
       </div>
 
-      <div v-else class="awr-table-wrap awr-report-list-table-wrap">
-        <table class="awr-table awr-report-list-table">
-          <thead>
-            <tr>
-              <th>파일명</th>
-              <th>DB / 인스턴스</th>
-              <th>분석 구간</th>
-              <th>공유 여부</th>
-              <th>상태</th>
-              <th>추출 결과</th>
-              <th>등록일시</th>
-            </tr>
-          </thead>
+      <template v-else>
+        <div class="awr-table-wrap awr-report-list-table-wrap">
+          <table class="awr-table awr-report-list-table">
+            <colgroup>
+              <col class="awr-col-file" />
+              <col class="awr-col-db" />
+              <col class="awr-col-period" />
+              <col class="awr-col-share" />
+              <col class="awr-col-status" />
+              <col class="awr-col-extract" />
+              <col class="awr-col-date" />
+            </colgroup>
 
-          <tbody>
-            <tr
-              v-for="report in reports"
-              :key="report.id"
-              class="awr-report-list-row clickable"
-              tabindex="0"
-              @click="goToReportDetail(report.id)"
-              @keydown.enter="goToReportDetail(report.id)"
-            >
-              <td>
-                <span class="awr-link awr-report-list-file">
-                  {{ report.filename }}
-                </span>
-              </td>
+            <thead>
+              <tr>
+                <th>파일명</th>
+                <th>DB / 인스턴스</th>
+                <th>분석 구간</th>
+                <th>공유 여부</th>
+                <th>상태</th>
+                <th>추출 결과</th>
+                <th>등록일시</th>
+              </tr>
+            </thead>
 
-              <td>
-                <div class="awr-report-list-db">
-                  <strong>{{ normalizeDbName(report.dbName) }}</strong>
-                  <span>{{ normalizeInstanceName(report.instanceName) }}</span>
-                </div>
-              </td>
+            <tbody>
+              <tr
+                v-for="report in pagedReports"
+                :key="report.id"
+                class="awr-report-list-row clickable"
+                tabindex="0"
+                @click="goToReportDetail(report.id)"
+                @keydown.enter="goToReportDetail(report.id)"
+              >
+                <td>
+                  <span class="awr-link awr-report-list-file" :title="report.filename">
+                    {{ report.filename }}
+                  </span>
+                </td>
 
-              <td>
-                <div class="awr-report-list-snapshot">
-                  <template v-if="report.snapBegin || report.snapEnd">
-                    <span>{{ report.snapBegin || '-' }}</span>
-                    <em>~</em>
-                    <span>{{ report.snapEnd || '-' }}</span>
-                  </template>
-                  <span v-else>-</span>
-                </div>
-              </td>
+                <td>
+                  <div class="awr-report-list-db">
+                    <strong :title="normalizeDbName(report.dbName)">
+                      {{ normalizeDbName(report.dbName) }}
+                    </strong>
+                    <span :title="normalizeInstanceName(report.instanceName)">
+                      {{ normalizeInstanceName(report.instanceName) }}
+                    </span>
+                  </div>
+                </td>
 
-              <td>
-                <span
-                  :class="[
-                    'awr-report-list-visibility',
-                    report.visibility === 'PRIVATE' ? 'private' : 'shared'
-                  ]"
-                >
-                  {{ report.visibility === 'PRIVATE' ? '비공유' : '공유' }}
-                </span>
-              </td>
+                <td>
+                  <div class="awr-report-list-snapshot">
+                    <template v-if="report.snapBegin || report.snapEnd">
+                      <span :title="formatSnapshotText(report.snapBegin)">
+                        {{ formatSnapshotText(report.snapBegin) || '-' }}
+                      </span>
+                      <em>~</em>
+                      <span :title="formatSnapshotText(report.snapEnd)">
+                        {{ formatSnapshotText(report.snapEnd) || '-' }}
+                      </span>
+                    </template>
+                    <span v-else>-</span>
+                  </div>
+                </td>
 
-              <td>
-                <span :class="['awr-status-chip', statusClass(report.status)]">
-                  {{ statusLabel(report.status) }}
-                </span>
-              </td>
+                <td>
+                  <span
+                    :class="[
+                      'awr-report-list-visibility',
+                      report.visibility === 'PRIVATE' ? 'private' : 'shared'
+                    ]"
+                  >
+                    {{ report.visibility === 'PRIVATE' ? '비공유' : '공유' }}
+                  </span>
+                </td>
 
-              <td>
-                <div class="awr-report-list-extract">
-                  <span>SQL {{ report.topSqlCount }}건</span>
-                  <span>Wait {{ report.waitEventCount }}건</span>
-                </div>
-              </td>
+                <td>
+                  <span :class="['awr-status-chip', statusClass(report.status)]">
+                    {{ statusLabel(report.status) }}
+                  </span>
+                </td>
 
-              <td>
-                <span class="awr-report-list-date">
-                  {{ formatDateTime(report.uploadedAt) }}
-                </span>
-              </td>
-            </tr>
-          </tbody>
-        </table>
-      </div>
+                <td>
+                  <div class="awr-report-list-extract">
+                    <span>SQL {{ report.topSqlCount }}건</span>
+                    <span>Wait {{ report.waitEventCount }}건</span>
+                  </div>
+                </td>
+
+                <td>
+                  <span class="awr-report-list-date">
+                    {{ formatDateTime(report.uploadedAt) }}
+                  </span>
+                </td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+
+        <div v-if="totalPages > 1" class="awr-report-pagination">
+          <button
+            class="awr-page-nav-button"
+            type="button"
+            :disabled="currentPage === 1"
+            @click="goToPage(currentPage - 1)"
+          >
+            ‹
+          </button>
+
+          <button
+            v-for="page in visiblePages"
+            :key="page.key"
+            class="awr-page-number-button"
+            :class="{ active: page.page === currentPage, ellipsis: page.type === 'ellipsis' }"
+            type="button"
+            :disabled="page.type === 'ellipsis'"
+            @click="page.type === 'page' && goToPage(page.page)"
+          >
+            {{ page.label }}
+          </button>
+
+          <button
+            class="awr-page-nav-button"
+            type="button"
+            :disabled="currentPage === totalPages"
+            @click="goToPage(currentPage + 1)"
+          >
+            ›
+          </button>
+        </div>
+      </template>
     </section>
   </div>
 </template>
 
 <script setup lang="ts">
-import { computed, onMounted, ref } from 'vue'
+import { computed, onMounted, ref, watch } from 'vue'
 import { useRouter } from 'vue-router'
 import { getAwrReports } from '@/api/awr'
 import type { ReportSummaryResponse } from '@/types/awr'
+
+type PageItem = {
+  key: string
+  type: 'page' | 'ellipsis'
+  page: number
+  label: string
+}
 
 const router = useRouter()
 
 const reports = ref<ReportSummaryResponse[]>([])
 const isLoading = ref(false)
 const errorMessage = ref('')
+
+const pageSize = 10
+const currentPage = ref(1)
 
 const indexedCount = computed(() => {
   return reports.value.filter((report) => {
@@ -175,6 +231,62 @@ const totalWaits = computed(() => {
   return reports.value.reduce((sum, report) => sum + report.waitEventCount, 0)
 })
 
+const totalPages = computed(() => {
+  return Math.max(1, Math.ceil(reports.value.length / pageSize))
+})
+
+const pagedReports = computed(() => {
+  const start = (currentPage.value - 1) * pageSize
+  const end = start + pageSize
+
+  return reports.value.slice(start, end)
+})
+
+const visiblePages = computed<PageItem[]>(() => {
+  const total = totalPages.value
+  const current = currentPage.value
+  const pages: PageItem[] = []
+  const maxVisiblePages = 5
+
+  if (total <= maxVisiblePages + 1) {
+    for (let page = 1; page <= total; page += 1) {
+      pages.push(createPageItem(page))
+    }
+
+    return pages
+  }
+
+  let start = Math.max(1, current - 2)
+  let end = Math.min(total, start + maxVisiblePages - 1)
+
+  if (end - start + 1 < maxVisiblePages) {
+    start = Math.max(1, end - maxVisiblePages + 1)
+  }
+
+  for (let page = start; page <= end; page += 1) {
+    pages.push(createPageItem(page))
+  }
+
+  if (end < total) {
+    pages.push({
+      key: 'ellipsis-right',
+      type: 'ellipsis',
+      page: -1,
+      label: '...'
+    })
+
+    pages.push(createPageItem(total))
+  }
+
+  return pages
+})
+
+watch(totalPages, (nextTotalPages) => {
+  if (currentPage.value > nextTotalPages) {
+    currentPage.value = nextTotalPages
+  }
+})
+
 onMounted(loadReports)
 
 async function loadReports() {
@@ -183,11 +295,27 @@ async function loadReports() {
 
   try {
     reports.value = await getAwrReports()
+    currentPage.value = 1
   } catch (error) {
     errorMessage.value = error instanceof Error ? error.message : '리포트 목록을 불러오지 못했습니다.'
   } finally {
     isLoading.value = false
   }
+}
+
+function createPageItem(page: number): PageItem {
+  return {
+    key: `page-${page}`,
+    type: 'page',
+    page,
+    label: String(page)
+  }
+}
+
+function goToPage(page: number) {
+  if (page < 1 || page > totalPages.value) return
+
+  currentPage.value = page
 }
 
 function goToReportDetail(reportId: number) {
@@ -236,11 +364,23 @@ function normalizeInstanceName(value?: string | null) {
   return value
 }
 
+function formatSnapshotText(value?: string | null) {
+  if (!value || value.trim() === '') return ''
+
+  return value.replace(/\s+/g, ' ').trim()
+}
+
 function formatDateTime(value: string) {
+  const date = new Date(value)
+
   return new Intl.DateTimeFormat('ko-KR', {
-    dateStyle: 'short',
-    timeStyle: 'short'
-  }).format(new Date(value))
+    year: '2-digit',
+    month: 'numeric',
+    day: 'numeric',
+    hour: '2-digit',
+    minute: '2-digit',
+    hour12: false
+  }).format(date)
 }
 </script>
 

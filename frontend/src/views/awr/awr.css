@@ -2967,10 +2967,6 @@
   justify-content: flex-start;
 }
 
-.awr-report-list-page .awr-main-title {
-  font-size: 1.48rem;
-  letter-spacing: -0.045em;
-}
 
 .awr-report-list-kpi-grid {
   display: grid;
@@ -3223,5 +3219,708 @@
     width: 100%;
     justify-content: flex-start;
     margin-left: 0;
+  }
+}
+/* ===== AWR Report List Pagination ===== */
+
+.awr-report-pagination {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.75rem;
+  margin-top: 0.9rem;
+  padding-top: 0.8rem;
+  border-top: 1px solid #e2e8f0;
+}
+
+.awr-report-pagination-info {
+  color: #64748b;
+  font-size: 0.74rem;
+  font-weight: 700;
+  white-space: nowrap;
+}
+
+.awr-report-pagination-buttons {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 0.28rem;
+  flex-wrap: wrap;
+}
+
+.awr-page-button {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 2rem;
+  min-height: 2rem;
+  border: 1px solid #d8e2ea;
+  border-radius: 9px;
+  background: #ffffff;
+  color: #475569;
+  cursor: pointer;
+  font-size: 0.74rem;
+  font-weight: 800;
+  transition:
+    background 0.15s ease,
+    border-color 0.15s ease,
+    color 0.15s ease;
+}
+
+.awr-page-button:hover:not(:disabled) {
+  border-color: #9fd9bd;
+  background: #f3fff8;
+  color: #008a52;
+}
+
+.awr-page-button.active {
+  border-color: #008a52;
+  background: #008a52;
+  color: #ffffff;
+}
+
+.awr-page-button:disabled {
+  cursor: not-allowed;
+  opacity: 0.45;
+}
+
+.awr-page-button.ellipsis {
+  border-color: transparent;
+  background: transparent;
+  cursor: default;
+  opacity: 1;
+}
+
+@media (max-width: 720px) {
+  .awr-report-pagination {
+    align-items: flex-start;
+    flex-direction: column;
+  }
+
+  .awr-report-pagination-buttons {
+    justify-content: flex-start;
+  }
+}
+/* ===== AWR Report List Column / Pagination Override ===== */
+
+.awr-report-list-table {
+  table-layout: fixed;
+  width: 100%;
+  min-width: 1180px;
+}
+
+.awr-report-list-table th,
+.awr-report-list-table td {
+  overflow: hidden;
+  padding: 0.82rem 0.7rem;
+  text-align: center;
+  vertical-align: middle;
+}
+
+.awr-col-file {
+  width: 31%;
+}
+
+.awr-col-db {
+  width: 25%;
+}
+
+.awr-col-period {
+  width: 14%;
+}
+
+.awr-col-share {
+  width: 8%;
+}
+
+.awr-col-status {
+  width: 8%;
+}
+
+.awr-col-extract {
+  width: 7%;
+}
+
+.awr-col-date {
+  width: 7%;
+}
+
+.awr-report-list-file {
+  display: block;
+  width: 100%;
+  max-width: 100%;
+  overflow: hidden;
+  color: #005fa3;
+  font-size: 0.82rem;
+  font-weight: 750;
+  text-align: center;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.awr-report-list-db {
+  width: 100%;
+}
+
+.awr-report-list-db strong,
+.awr-report-list-db span {
+  display: block;
+  width: 100%;
+  max-width: 100%;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.awr-report-list-snapshot {
+  width: 100%;
+}
+
+.awr-report-list-snapshot span {
+  display: block;
+  width: 100%;
+  max-width: 100%;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.awr-report-list-snapshot em {
+  display: block;
+  color: #94a3b8;
+  font-size: 0.68rem;
+  font-style: normal;
+  font-weight: 700;
+  line-height: 1.1;
+}
+
+.awr-report-list-extract {
+  width: 100%;
+}
+
+.awr-report-list-extract span {
+  display: block;
+  width: 100%;
+  max-width: 100%;
+  line-height: 1.45;
+  white-space: nowrap;
+}
+
+.awr-report-list-date {
+  display: block;
+  width: 100%;
+  line-height: 1.45;
+  word-break: keep-all;
+}
+
+.awr-report-pagination {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 1.1rem;
+  margin-top: 1.15rem;
+  padding-top: 1rem;
+  border-top: 1px solid #e2e8f0;
+}
+
+.awr-page-nav-button,
+.awr-page-number-button {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border: 0;
+  background: transparent;
+  color: #0f172a;
+  cursor: pointer;
+  font-size: 0.95rem;
+  font-weight: 900;
+  line-height: 1;
+  transition:
+    background 0.15s ease,
+    color 0.15s ease,
+    transform 0.15s ease;
+}
+
+.awr-page-nav-button {
+  width: 2.1rem;
+  height: 2.1rem;
+  font-size: 2.2rem;
+  font-weight: 700;
+}
+
+.awr-page-number-button {
+  min-width: 2.25rem;
+  height: 2.25rem;
+  border-radius: 999px;
+  font-size: 0.92rem;
+}
+
+.awr-page-number-button.active {
+  background: #37b51f;
+  color: #ffffff;
+  box-shadow: 0 5px 12px rgba(55, 181, 31, 0.25);
+}
+
+.awr-page-number-button:hover:not(:disabled):not(.active),
+.awr-page-nav-button:hover:not(:disabled) {
+  color: #008a52;
+  transform: translateY(-1px);
+}
+
+.awr-page-number-button.ellipsis {
+  cursor: default;
+  color: #0f172a;
+}
+
+.awr-page-nav-button:disabled,
+.awr-page-number-button:disabled {
+  cursor: not-allowed;
+  opacity: 0.35;
+  transform: none;
+}
+
+@media (max-width: 720px) {
+  .awr-report-pagination {
+    gap: 0.45rem;
+  }
+
+  .awr-page-nav-button {
+    width: 1.8rem;
+    height: 1.8rem;
+    font-size: 1.8rem;
+  }
+
+  .awr-page-number-button {
+    min-width: 2rem;
+    height: 2rem;
+  }
+}
+/* ===== AWR Report List Final Override ===== */
+
+.awr-report-list-page {
+  gap: 0.7rem;
+}
+
+.awr-report-list-hero {
+  align-items: center;
+  justify-content: flex-start;
+}
+
+.awr-report-list-kpi-grid {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 0.65rem;
+}
+
+.awr-report-list-kpi {
+  position: relative;
+  min-height: 5.8rem;
+  overflow: hidden;
+  border-radius: 14px;
+  box-shadow: 0 12px 30px rgba(15, 23, 42, 0.045);
+}
+
+.awr-report-list-kpi::before {
+  position: absolute;
+  top: 0;
+  right: 0;
+  left: 0;
+  height: 0.18rem;
+  background: #64748b;
+  opacity: 0.9;
+  content: "";
+}
+
+.awr-report-list-kpi.accent-green::before {
+  background: #008a52;
+}
+
+.awr-report-list-kpi.accent-blue::before {
+  background: #0b6fa4;
+}
+
+.awr-report-list-kpi.accent-amber::before {
+  background: #c27a12;
+}
+
+.awr-report-list-kpi.accent-slate::before {
+  background: #64748b;
+}
+
+.awr-report-list-kpi .awr-kpi-label {
+  color: #637083;
+  font-size: 0.72rem;
+  font-weight: 850;
+}
+
+.awr-report-list-kpi .awr-kpi-value {
+  margin-top: 0.28rem;
+  color: #0f172a;
+  font-size: 1.48rem;
+  font-weight: 850;
+}
+
+.awr-report-list-kpi .awr-kpi-sub {
+  color: #64748b;
+  font-size: 0.72rem;
+  font-weight: 650;
+}
+
+.awr-report-list-card {
+  padding: 0.82rem 0.9rem;
+  border-radius: 14px;
+  box-shadow: 0 12px 30px rgba(15, 23, 42, 0.045);
+}
+
+.awr-report-list-title-row {
+  align-items: center;
+  margin-bottom: 0.75rem;
+}
+
+.awr-report-list-title-row .awr-actions {
+  margin-left: auto;
+}
+
+.awr-report-list-total {
+  min-width: 4.9rem;
+  justify-content: center;
+}
+
+.awr-report-list-error {
+  border-color: #f0b8b2;
+  background: #fff7f6;
+  color: #b42318;
+  font-weight: 800;
+}
+
+.awr-report-list-empty {
+  border: 1px dashed #b9c7d4;
+  border-radius: 12px;
+  background: #fbfdff;
+}
+
+.awr-report-list-table-wrap {
+  overflow-x: auto;
+  border: 1px solid #dce3ea;
+  border-radius: 12px;
+  background: #ffffff;
+}
+
+.awr-report-list-table {
+  table-layout: fixed;
+  width: 100%;
+  min-width: 1120px;
+}
+
+.awr-report-list-table th,
+.awr-report-list-table td {
+  overflow: hidden;
+  padding: 0.76rem 0.95rem;
+  text-align: center;
+  vertical-align: middle;
+}
+
+.awr-report-list-table th {
+  background: #f3f7fa;
+  color: #465568;
+  font-size: 0.74rem;
+  font-weight: 800;
+  white-space: nowrap;
+}
+
+.awr-report-list-table td {
+  color: #1f2933;
+  font-size: 0.78rem;
+  font-weight: 500;
+}
+
+.awr-col-file {
+  width: 27%;
+}
+
+.awr-col-db {
+  width: 21%;
+}
+
+.awr-col-period {
+  width: 17%;
+}
+
+.awr-col-share {
+  width: 9%;
+}
+
+.awr-col-status {
+  width: 9%;
+}
+
+.awr-col-extract {
+  width: 9%;
+}
+
+.awr-col-date {
+  width: 8%;
+}
+
+.awr-report-list-row {
+  transition: background 0.15s ease;
+}
+
+.awr-report-list-row.clickable {
+  cursor: pointer;
+}
+
+.awr-report-list-row.clickable:hover td {
+  background: #f3fff8;
+}
+
+.awr-report-list-row.clickable:focus {
+  outline: none;
+}
+
+.awr-report-list-row.clickable:focus td {
+  background: #f3fff8;
+}
+
+.awr-report-list-row.clickable:focus-visible td:first-child {
+  box-shadow: inset 3px 0 0 #008a52;
+}
+
+.awr-report-list-file {
+  display: block;
+  width: 100%;
+  max-width: 22rem;
+  margin: 0 auto;
+  overflow: hidden;
+  color: #005fa3;
+  font-size: 0.82rem;
+  font-weight: 750;
+  text-align: center;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  vertical-align: middle;
+}
+
+.awr-report-list-db,
+.awr-report-list-snapshot,
+.awr-report-list-extract {
+  display: flex;
+  width: 100%;
+  min-width: 0;
+  flex-direction: column;
+  align-items: center;
+  gap: 0.14rem;
+  text-align: center;
+}
+
+.awr-report-list-db {
+  max-width: 19rem;
+  margin: 0 auto;
+}
+
+.awr-report-list-db strong {
+  color: #0f172a;
+  font-size: 0.78rem;
+  font-weight: 650;
+}
+
+.awr-report-list-db strong,
+.awr-report-list-db span {
+  display: block;
+  width: 100%;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.awr-report-list-db span,
+.awr-report-list-snapshot span,
+.awr-report-list-date,
+.awr-report-list-extract span {
+  color: #475569;
+  font-size: 0.74rem;
+  font-weight: 500;
+}
+
+.awr-report-list-snapshot {
+  max-width: 14rem;
+  margin: 0 auto;
+}
+
+.awr-report-list-snapshot span {
+  display: block;
+  width: 100%;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.awr-report-list-snapshot em {
+  display: block;
+  color: #94a3b8;
+  font-size: 0.68rem;
+  font-style: normal;
+  font-weight: 700;
+  line-height: 1.1;
+}
+
+.awr-report-list-visibility {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 4.2rem;
+  min-height: 1.45rem;
+  margin: 0 auto;
+  border-radius: 999px;
+  padding: 0 0.58rem;
+  font-size: 0.68rem;
+  font-weight: 800;
+  white-space: nowrap;
+}
+
+.awr-report-list-visibility.shared {
+  background: #e8f5fb;
+  color: #0b6fa4;
+}
+
+.awr-report-list-visibility.private {
+  background: #f1f5f9;
+  color: #475569;
+}
+
+.awr-report-list-table .awr-status-chip {
+  min-width: 4.8rem;
+  min-height: 1.45rem;
+  margin: 0 auto;
+  font-size: 0.66rem;
+  font-weight: 800;
+}
+
+.awr-report-list-extract {
+  max-width: 5rem;
+  margin: 0 auto;
+}
+
+.awr-report-list-extract span {
+  display: block;
+  width: 100%;
+  max-width: 100%;
+  line-height: 1.45;
+  white-space: nowrap;
+}
+
+.awr-report-list-date {
+  display: block;
+  width: 100%;
+  line-height: 1.35;
+  word-break: keep-all;
+}
+
+.awr-report-pagination {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.42rem;
+  margin-top: 0.85rem;
+  padding-top: 0.55rem;
+  border-top: 0;
+}
+
+.awr-page-nav-button,
+.awr-page-number-button {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border: 0;
+  background: transparent;
+  color: #0f172a;
+  cursor: pointer;
+  font-size: 0.78rem;
+  font-weight: 850;
+  line-height: 1;
+  transition:
+    background 0.15s ease,
+    color 0.15s ease,
+    transform 0.15s ease;
+}
+
+.awr-page-nav-button {
+  width: 1.65rem;
+  height: 1.65rem;
+  font-size: 1.55rem;
+  font-weight: 700;
+}
+
+.awr-page-number-button {
+  min-width: 1.75rem;
+  height: 1.75rem;
+  border-radius: 999px;
+  font-size: 0.78rem;
+}
+
+.awr-page-number-button.active {
+  background: #008a52;
+  color: #ffffff;
+  box-shadow: 0 4px 10px rgba(0, 138, 82, 0.22);
+}
+
+.awr-page-number-button:hover:not(:disabled):not(.active),
+.awr-page-nav-button:hover:not(:disabled) {
+  color: #008a52;
+  transform: translateY(-1px);
+}
+
+.awr-page-number-button.ellipsis {
+  min-width: 1.4rem;
+  color: #475569;
+  cursor: default;
+}
+
+.awr-page-nav-button:disabled,
+.awr-page-number-button:disabled {
+  cursor: not-allowed;
+  opacity: 0.35;
+  transform: none;
+}
+
+@media (max-width: 1100px) {
+  .awr-report-list-kpi-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .awr-report-list-hero {
+    align-items: flex-start;
+    flex-direction: column;
+  }
+}
+
+@media (max-width: 720px) {
+  .awr-report-list-kpi-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .awr-report-list-title-row {
+    flex-direction: column;
+  }
+
+  .awr-report-list-title-row .awr-actions {
+    width: 100%;
+    justify-content: flex-start;
+    margin-left: 0;
+  }
+
+  .awr-report-pagination {
+    gap: 0.35rem;
+  }
+
+  .awr-page-nav-button {
+    width: 1.45rem;
+    height: 1.45rem;
+    font-size: 1.35rem;
+  }
+
+  .awr-page-number-button {
+    min-width: 1.55rem;
+    height: 1.55rem;
   }
 }

@@ -1,76 +1,144 @@
 <template>
-  <div class="awr-page">
-    <div class="awr-page-header">
+  <div class="awr-page awr-report-list-page">
+    <div class="awr-upload-hero awr-report-list-hero">
       <div>
-        <h1>AWR 분석 결과</h1>
-        <p>업로드된 AWR의 snapshot, 파싱 상태, 추출된 Top SQL과 Wait Event 개수를 확인합니다.</p>
-      </div>
-      <div class="awr-actions">
-        <button class="awr-btn primary" type="button" @click="router.push({ name: 'awr-upload' })">AWR 업로드</button>
+        <p class="awr-upload-eyebrow">AWR Report Analysis</p>
+        <h1 class="awr-main-title">AWR 분석 결과</h1>
+        <p>
+          업로드된 AWR 리포트의 분석 상태, 분석 구간, SQL/Wait Event 추출 현황을
+          한 화면에서 확인할 수 있습니다.
+        </p>
       </div>
     </div>
 
-    <section class="awr-grid">
-      <div class="awr-kpi">
-        <div class="awr-kpi-label">Reports</div>
+    <section class="awr-report-list-kpi-grid">
+      <div class="awr-kpi awr-report-list-kpi accent-green">
+        <div class="awr-kpi-label">등록 리포트</div>
         <div class="awr-kpi-value">{{ reports.length }}</div>
-        <div class="awr-kpi-sub">현재 세션</div>
+        <div class="awr-kpi-sub">전체 등록 건수</div>
       </div>
-      <div class="awr-kpi">
-        <div class="awr-kpi-label">Indexed</div>
+
+      <div class="awr-kpi awr-report-list-kpi accent-blue">
+        <div class="awr-kpi-label">분석 완료</div>
         <div class="awr-kpi-value">{{ indexedCount }}</div>
-        <div class="awr-kpi-sub">분석 가능</div>
+        <div class="awr-kpi-sub">결과 조회 가능</div>
       </div>
-      <div class="awr-kpi">
-        <div class="awr-kpi-label">SQL Metrics</div>
+
+      <div class="awr-kpi awr-report-list-kpi accent-amber">
+        <div class="awr-kpi-label">SQL 지표</div>
         <div class="awr-kpi-value">{{ totalSql }}</div>
-        <div class="awr-kpi-sub">구조화 row</div>
+        <div class="awr-kpi-sub">추출 SQL 수</div>
       </div>
-      <div class="awr-kpi">
-        <div class="awr-kpi-label">Wait Events</div>
+
+      <div class="awr-kpi awr-report-list-kpi accent-slate">
+        <div class="awr-kpi-label">대기 이벤트</div>
         <div class="awr-kpi-value">{{ totalWaits }}</div>
-        <div class="awr-kpi-sub">추출 이벤트</div>
+        <div class="awr-kpi-sub">추출 Wait Event 수</div>
       </div>
     </section>
 
-    <section class="awr-panel">
-      <div class="awr-panel-header">
-        <h2 class="awr-panel-title">목록</h2>
-        <button class="awr-btn" type="button" :disabled="isLoading" @click="loadReports">새로고침</button>
+    <section class="awr-panel awr-upload-card awr-report-list-card">
+      <div class="awr-upload-section-title awr-report-list-title-row">
+        <div>
+          <h2>리포트 목록</h2>
+          <p>행을 선택하면 상세 분석 결과 화면으로 이동합니다.</p>
+        </div>
+
+        <div class="awr-actions">
+          <span class="awr-format-badge awr-report-list-total">
+            TOTAL {{ reports.length }}
+          </span>
+        </div>
       </div>
 
-      <div v-if="errorMessage" class="awr-empty">{{ errorMessage }}</div>
-      <div v-else-if="!isLoading && reports.length === 0" class="awr-empty">등록된 AWR 리포트가 없습니다.</div>
-      <div v-else class="awr-table-wrap">
-        <table class="awr-table">
+      <div v-if="errorMessage" class="awr-empty awr-report-list-error">
+        {{ errorMessage }}
+      </div>
+
+      <div v-else-if="isLoading" class="awr-empty awr-report-list-empty">
+        리포트 목록을 불러오는 중입니다.
+      </div>
+
+      <div v-else-if="reports.length === 0" class="awr-empty awr-report-list-empty">
+        등록된 AWR 리포트가 없습니다.
+      </div>
+
+      <div v-else class="awr-table-wrap awr-report-list-table-wrap">
+        <table class="awr-table awr-report-list-table">
           <thead>
             <tr>
-              <th>ID</th>
               <th>파일명</th>
-              <th>DB / Instance</th>
-              <th>Snapshot</th>
-              <th>공유</th>
-              <th>Status</th>
-              <th>SQL</th>
-              <th>Wait</th>
-              <th>업로드</th>
+              <th>DB / 인스턴스</th>
+              <th>분석 구간</th>
+              <th>공유 여부</th>
+              <th>상태</th>
+              <th>추출 결과</th>
+              <th>등록일시</th>
             </tr>
           </thead>
+
           <tbody>
-            <tr v-for="report in reports" :key="report.id">
-              <td>{{ report.id }}</td>
+            <tr
+              v-for="report in reports"
+              :key="report.id"
+              class="awr-report-list-row clickable"
+              tabindex="0"
+              @click="goToReportDetail(report.id)"
+              @keydown.enter="goToReportDetail(report.id)"
+            >
               <td>
-                <button class="awr-link" type="button" @click="router.push({ name: 'awr-report-detail', params: { id: report.id } })">
+                <span class="awr-link awr-report-list-file">
                   {{ report.filename }}
-                </button>
+                </span>
               </td>
-              <td>{{ report.dbName }} / {{ report.instanceName }}</td>
-              <td>{{ report.snapBegin || '-' }}<br />{{ report.snapEnd || '-' }}</td>
-              <td><span class="awr-badge">{{ report.visibility === 'PRIVATE' ? '비공유' : '공유' }}</span></td>
-              <td><span :class="['awr-badge', report.status === 'INDEXED' ? 'ok' : 'warn']">{{ report.status }}</span></td>
-              <td>{{ report.topSqlCount }}</td>
-              <td>{{ report.waitEventCount }}</td>
-              <td>{{ formatDateTime(report.uploadedAt) }}</td>
+
+              <td>
+                <div class="awr-report-list-db">
+                  <strong>{{ normalizeDbName(report.dbName) }}</strong>
+                  <span>{{ normalizeInstanceName(report.instanceName) }}</span>
+                </div>
+              </td>
+
+              <td>
+                <div class="awr-report-list-snapshot">
+                  <template v-if="report.snapBegin || report.snapEnd">
+                    <span>{{ report.snapBegin || '-' }}</span>
+                    <em>~</em>
+                    <span>{{ report.snapEnd || '-' }}</span>
+                  </template>
+                  <span v-else>-</span>
+                </div>
+              </td>
+
+              <td>
+                <span
+                  :class="[
+                    'awr-report-list-visibility',
+                    report.visibility === 'PRIVATE' ? 'private' : 'shared'
+                  ]"
+                >
+                  {{ report.visibility === 'PRIVATE' ? '비공유' : '공유' }}
+                </span>
+              </td>
+
+              <td>
+                <span :class="['awr-status-chip', statusClass(report.status)]">
+                  {{ statusLabel(report.status) }}
+                </span>
+              </td>
+
+              <td>
+                <div class="awr-report-list-extract">
+                  <span>SQL {{ report.topSqlCount }}건</span>
+                  <span>Wait {{ report.waitEventCount }}건</span>
+                </div>
+              </td>
+
+              <td>
+                <span class="awr-report-list-date">
+                  {{ formatDateTime(report.uploadedAt) }}
+                </span>
+              </td>
             </tr>
           </tbody>
         </table>
@@ -86,19 +154,33 @@ import { getAwrReports } from '@/api/awr'
 import type { ReportSummaryResponse } from '@/types/awr'
 
 const router = useRouter()
+
 const reports = ref<ReportSummaryResponse[]>([])
 const isLoading = ref(false)
 const errorMessage = ref('')
 
-const indexedCount = computed(() => reports.value.filter((report) => report.status === 'INDEXED').length)
-const totalSql = computed(() => reports.value.reduce((sum, report) => sum + report.topSqlCount, 0))
-const totalWaits = computed(() => reports.value.reduce((sum, report) => sum + report.waitEventCount, 0))
+const indexedCount = computed(() => {
+  return reports.value.filter((report) => {
+    const status = normalizeStatus(report.status)
+
+    return status === 'INDEXED' || status === 'COMPLETED' || status === 'DONE'
+  }).length
+})
+
+const totalSql = computed(() => {
+  return reports.value.reduce((sum, report) => sum + report.topSqlCount, 0)
+})
+
+const totalWaits = computed(() => {
+  return reports.value.reduce((sum, report) => sum + report.waitEventCount, 0)
+})
 
 onMounted(loadReports)
 
 async function loadReports() {
   isLoading.value = true
   errorMessage.value = ''
+
   try {
     reports.value = await getAwrReports()
   } catch (error) {
@@ -106,6 +188,52 @@ async function loadReports() {
   } finally {
     isLoading.value = false
   }
+}
+
+function goToReportDetail(reportId: number) {
+  router.push({
+    name: 'awr-report-detail',
+    params: { id: reportId }
+  })
+}
+
+function normalizeStatus(status?: string | null) {
+  return status?.trim().toUpperCase() || ''
+}
+
+function statusLabel(status?: string | null) {
+  const normalized = normalizeStatus(status)
+
+  if (normalized === 'QUEUED') return '분석 대기'
+  if (normalized === 'PROCESSING' || normalized === 'PARSING' || normalized === 'INDEXING') return '분석 중'
+  if (normalized === 'INDEXED' || normalized === 'COMPLETED' || normalized === 'DONE') return '분석 완료'
+  if (normalized === 'FAILED' || normalized === 'ERROR') return '분석 실패'
+
+  return status || '상태 확인'
+}
+
+function statusClass(status?: string | null) {
+  const normalized = normalizeStatus(status)
+
+  if (normalized === 'INDEXED' || normalized === 'COMPLETED' || normalized === 'DONE') return 'done'
+  if (normalized === 'FAILED' || normalized === 'ERROR') return 'failed'
+  if (normalized === 'PROCESSING' || normalized === 'PARSING' || normalized === 'INDEXING') return 'processing'
+
+  return 'waiting'
+}
+
+function normalizeDbName(value?: string | null) {
+  if (!value || value.trim() === '') return '-'
+  if (value.trim().toLowerCase() === 'unknown') return 'DB 미확인'
+
+  return value
+}
+
+function normalizeInstanceName(value?: string | null) {
+  if (!value || value.trim() === '') return '-'
+  if (value.trim().toLowerCase() === 'unknown') return 'Instance 미확인'
+
+  return value
 }
 
 function formatDateTime(value: string) {

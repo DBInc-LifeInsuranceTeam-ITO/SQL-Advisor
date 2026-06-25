@@ -2620,3 +2620,608 @@
     transform: translateX(100%);
   }
 }
+/* ===== AWR Report List Page - Upload Style Matched ===== */
+
+.awr-report-list-page {
+  gap: 0.7rem;
+}
+
+.awr-report-list-hero {
+  align-items: center;
+}
+
+.awr-report-list-hero-actions {
+  display: flex;
+  flex: 0 0 auto;
+  align-items: center;
+  justify-content: flex-end;
+}
+
+.awr-report-list-upload-button {
+  min-width: 8.8rem;
+  min-height: 2.25rem;
+  font-size: 0.8rem;
+  font-weight: 900;
+}
+
+.awr-report-list-kpi-grid {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 0.65rem;
+}
+
+.awr-report-list-kpi {
+  position: relative;
+  min-height: 5.8rem;
+  overflow: hidden;
+  border-radius: 14px;
+  box-shadow: 0 12px 30px rgba(15, 23, 42, 0.045);
+}
+
+.awr-report-list-kpi::before {
+  position: absolute;
+  top: 0;
+  right: 0;
+  left: 0;
+  height: 0.24rem;
+  background: #64748b;
+  content: "";
+}
+
+.awr-report-list-kpi.accent-green::before {
+  background: #008a52;
+}
+
+.awr-report-list-kpi.accent-blue::before {
+  background: #0b6fa4;
+}
+
+.awr-report-list-kpi.accent-amber::before {
+  background: #c27a12;
+}
+
+.awr-report-list-kpi.accent-slate::before {
+  background: #64748b;
+}
+
+.awr-report-list-kpi .awr-kpi-label {
+  color: #637083;
+  font-size: 0.72rem;
+  font-weight: 900;
+}
+
+.awr-report-list-kpi .awr-kpi-value {
+  margin-top: 0.28rem;
+  color: #0f172a;
+  font-size: 1.55rem;
+  font-weight: 900;
+}
+
+.awr-report-list-kpi .awr-kpi-sub {
+  color: #64748b;
+  font-size: 0.72rem;
+  font-weight: 750;
+}
+
+.awr-report-list-card {
+  padding: 0.82rem 0.9rem;
+  border-radius: 14px;
+  box-shadow: 0 12px 30px rgba(15, 23, 42, 0.045);
+}
+
+.awr-report-list-title-row {
+  margin-bottom: 0.75rem;
+}
+
+.awr-report-list-error {
+  border-color: #f0b8b2;
+  background: #fff7f6;
+  color: #b42318;
+  font-weight: 800;
+}
+
+.awr-report-list-empty {
+  border: 1px dashed #b9c7d4;
+  border-radius: 12px;
+  background: #fbfdff;
+}
+
+.awr-report-list-table-wrap {
+  overflow-x: auto;
+  border: 1px solid #dce3ea;
+  border-radius: 12px;
+  background: #ffffff;
+}
+
+.awr-report-list-table {
+  min-width: 980px;
+}
+
+.awr-report-list-table th {
+  background: #f3f7fa;
+  color: #465568;
+  font-size: 0.74rem;
+  font-weight: 900;
+  white-space: nowrap;
+}
+
+.awr-report-list-table td {
+  font-size: 0.78rem;
+  vertical-align: middle;
+}
+
+.awr-report-list-row {
+  transition: background 0.15s ease;
+}
+
+.awr-report-list-row:hover td {
+  background: #fbfffd;
+}
+
+.awr-report-list-id {
+  color: #475569;
+  font-weight: 850;
+}
+
+.awr-report-list-file {
+  max-width: 23rem;
+  overflow: hidden;
+  color: #005fa3;
+  font-size: 0.82rem;
+  font-weight: 750;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.awr-report-list-db,
+.awr-report-list-snapshot {
+  display: flex;
+  min-width: 0;
+  flex-direction: column;
+  gap: 0.14rem;
+}
+
+.awr-report-list-db strong {
+  color: #0f172a;
+  font-size: 0.78rem;
+  font-weight: 750;
+}
+
+.awr-report-list-db span,
+.awr-report-list-snapshot span,
+.awr-report-list-date {
+  color: #475569;
+  font-size: 0.74rem;
+  font-weight: 550;
+}
+
+.awr-report-list-visibility {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 1.45rem;
+  border-radius: 999px;
+  padding: 0 0.58rem;
+  font-size: 0.68rem;
+  font-weight: 900;
+  white-space: nowrap;
+}
+
+.awr-report-list-visibility.shared {
+  background: #e8f5fb;
+  color: #0b6fa4;
+}
+
+.awr-report-list-visibility.private {
+  background: #f1f5f9;
+  color: #475569;
+}
+
+.awr-report-list-count {
+  color: #0f172a;
+  font-size: 0.86rem;
+  font-weight: 750;
+}
+
+.awr-report-list-table .awr-status-chip {
+  min-width: 4.8rem;
+  min-height: 1.45rem;
+  font-size: 0.66rem;
+}
+
+@media (max-width: 1100px) {
+  .awr-report-list-kpi-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .awr-report-list-hero {
+    align-items: flex-start;
+    flex-direction: column;
+  }
+
+  .awr-report-list-hero-actions {
+    width: 100%;
+    justify-content: flex-start;
+  }
+}
+
+@media (max-width: 720px) {
+  .awr-report-list-kpi-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .awr-report-list-hero-actions,
+  .awr-report-list-upload-button {
+    width: 100%;
+  }
+
+  .awr-report-list-title-row {
+    flex-direction: column;
+  }
+
+  .awr-report-list-title-row .awr-actions {
+    width: 100%;
+    justify-content: flex-start;
+  }
+}
+/* ===== AWR Report List Alignment / Weight Tuning ===== */
+
+.awr-report-list-hero {
+  justify-content: flex-start;
+}
+
+.awr-report-list-title-row {
+  align-items: center;
+}
+
+.awr-report-list-title-row .awr-actions {
+  margin-left: auto;
+}
+
+.awr-report-list-total {
+  min-width: 4.9rem;
+  justify-content: center;
+}
+
+.awr-report-list-table th,
+.awr-report-list-table td {
+  text-align: center;
+  vertical-align: middle;
+}
+
+.awr-report-list-table th {
+  font-weight: 800;
+}
+
+.awr-report-list-table td {
+  font-weight: 500;
+}
+
+.awr-report-list-file {
+  display: inline-block;
+  max-width: 23rem;
+  font-weight: 750;
+  text-align: center;
+  vertical-align: middle;
+}
+
+.awr-report-list-db,
+.awr-report-list-snapshot {
+  align-items: center;
+  text-align: center;
+}
+
+.awr-report-list-db strong {
+  font-weight: 650;
+}
+
+.awr-report-list-db span,
+.awr-report-list-snapshot span,
+.awr-report-list-date {
+  font-weight: 500;
+}
+
+.awr-report-list-count {
+  font-weight: 750;
+}
+
+.awr-report-list-id {
+  font-weight: 650;
+}
+
+.awr-report-list-table .awr-status-chip,
+.awr-report-list-visibility {
+  margin: 0 auto;
+}
+
+.awr-report-list-row:hover td {
+  background: #fbfffd;
+}
+.awr-report-list-row.clickable {
+  cursor: pointer;
+}
+
+.awr-report-list-row.clickable:hover td {
+  background: #f3fff8;
+}
+
+.awr-report-list-row.clickable:focus {
+  outline: none;
+}
+
+.awr-report-list-row.clickable:focus td {
+  background: #f3fff8;
+}
+
+.awr-report-list-row.clickable:focus-visible td:first-child {
+  box-shadow: inset 3px 0 0 #008a52;
+}
+/* ===== AWR Report List Page - Upload Style Matched ===== */
+
+.awr-report-list-page {
+  gap: 0.7rem;
+}
+
+.awr-report-list-hero {
+  align-items: center;
+  justify-content: flex-start;
+}
+
+.awr-report-list-page .awr-main-title {
+  font-size: 1.48rem;
+  letter-spacing: -0.045em;
+}
+
+.awr-report-list-kpi-grid {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 0.65rem;
+}
+
+.awr-report-list-kpi {
+  position: relative;
+  min-height: 5.8rem;
+  overflow: hidden;
+  border-radius: 14px;
+  box-shadow: 0 12px 30px rgba(15, 23, 42, 0.045);
+}
+
+.awr-report-list-kpi::before {
+  position: absolute;
+  top: 0;
+  right: 0;
+  left: 0;
+  height: 0.18rem;
+  background: #64748b;
+  opacity: 0.9;
+  content: "";
+}
+
+.awr-report-list-kpi.accent-green::before {
+  background: #008a52;
+}
+
+.awr-report-list-kpi.accent-blue::before {
+  background: #0b6fa4;
+}
+
+.awr-report-list-kpi.accent-amber::before {
+  background: #c27a12;
+}
+
+.awr-report-list-kpi.accent-slate::before {
+  background: #64748b;
+}
+
+.awr-report-list-kpi .awr-kpi-label {
+  color: #637083;
+  font-size: 0.72rem;
+  font-weight: 850;
+}
+
+.awr-report-list-kpi .awr-kpi-value {
+  margin-top: 0.28rem;
+  color: #0f172a;
+  font-size: 1.48rem;
+  font-weight: 850;
+}
+
+.awr-report-list-kpi .awr-kpi-sub {
+  color: #64748b;
+  font-size: 0.72rem;
+  font-weight: 650;
+}
+
+.awr-report-list-card {
+  padding: 0.82rem 0.9rem;
+  border-radius: 14px;
+  box-shadow: 0 12px 30px rgba(15, 23, 42, 0.045);
+}
+
+.awr-report-list-title-row {
+  align-items: center;
+  margin-bottom: 0.75rem;
+}
+
+.awr-report-list-title-row .awr-actions {
+  margin-left: auto;
+}
+
+.awr-report-list-total {
+  min-width: 4.9rem;
+  justify-content: center;
+}
+
+.awr-report-list-error {
+  border-color: #f0b8b2;
+  background: #fff7f6;
+  color: #b42318;
+  font-weight: 800;
+}
+
+.awr-report-list-empty {
+  border: 1px dashed #b9c7d4;
+  border-radius: 12px;
+  background: #fbfdff;
+}
+
+.awr-report-list-table-wrap {
+  overflow-x: auto;
+  border: 1px solid #dce3ea;
+  border-radius: 12px;
+  background: #ffffff;
+}
+
+.awr-report-list-table {
+  min-width: 1040px;
+}
+
+.awr-report-list-table th,
+.awr-report-list-table td {
+  text-align: center;
+  vertical-align: middle;
+}
+
+.awr-report-list-table th {
+  background: #f3f7fa;
+  color: #465568;
+  font-size: 0.74rem;
+  font-weight: 800;
+  white-space: nowrap;
+}
+
+.awr-report-list-table td {
+  color: #1f2933;
+  font-size: 0.78rem;
+  font-weight: 500;
+}
+
+.awr-report-list-row {
+  transition: background 0.15s ease;
+}
+
+.awr-report-list-row.clickable {
+  cursor: pointer;
+}
+
+.awr-report-list-row.clickable:hover td {
+  background: #f3fff8;
+}
+
+.awr-report-list-row.clickable:focus {
+  outline: none;
+}
+
+.awr-report-list-row.clickable:focus td {
+  background: #f3fff8;
+}
+
+.awr-report-list-row.clickable:focus-visible td:first-child {
+  box-shadow: inset 3px 0 0 #008a52;
+}
+
+.awr-report-list-file {
+  display: inline-block;
+  max-width: 26rem;
+  overflow: hidden;
+  color: #005fa3;
+  font-size: 0.82rem;
+  font-weight: 750;
+  text-align: center;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  vertical-align: middle;
+}
+
+.awr-report-list-db,
+.awr-report-list-snapshot,
+.awr-report-list-extract {
+  display: flex;
+  min-width: 0;
+  flex-direction: column;
+  align-items: center;
+  gap: 0.14rem;
+  text-align: center;
+}
+
+.awr-report-list-db strong {
+  color: #0f172a;
+  font-size: 0.78rem;
+  font-weight: 650;
+}
+
+.awr-report-list-db span,
+.awr-report-list-snapshot span,
+.awr-report-list-date,
+.awr-report-list-extract span {
+  color: #475569;
+  font-size: 0.74rem;
+  font-weight: 500;
+}
+
+.awr-report-list-snapshot em {
+  color: #94a3b8;
+  font-size: 0.68rem;
+  font-style: normal;
+  font-weight: 700;
+  line-height: 1;
+}
+
+.awr-report-list-visibility {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 4.2rem;
+  min-height: 1.45rem;
+  margin: 0 auto;
+  border-radius: 999px;
+  padding: 0 0.58rem;
+  font-size: 0.68rem;
+  font-weight: 800;
+  white-space: nowrap;
+}
+
+.awr-report-list-visibility.shared {
+  background: #e8f5fb;
+  color: #0b6fa4;
+}
+
+.awr-report-list-visibility.private {
+  background: #f1f5f9;
+  color: #475569;
+}
+
+.awr-report-list-table .awr-status-chip {
+  min-width: 4.8rem;
+  min-height: 1.45rem;
+  margin: 0 auto;
+  font-size: 0.66rem;
+  font-weight: 800;
+}
+
+@media (max-width: 1100px) {
+  .awr-report-list-kpi-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .awr-report-list-hero {
+    align-items: flex-start;
+    flex-direction: column;
+  }
+}
+
+@media (max-width: 720px) {
+  .awr-report-list-kpi-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .awr-report-list-title-row {
+    flex-direction: column;
+  }
+
+  .awr-report-list-title-row .awr-actions {
+    width: 100%;
+    justify-content: flex-start;
+    margin-left: 0;
+  }
+}

@@ -24,6 +24,12 @@ import java.util.regex.Pattern;
 public class AwrParser {
 
     private static final Pattern SQL_ID_PATTERN = Pattern.compile("(?i)\\b([0-9a-z]{13})\\b");
+    private static final Pattern WAIT_CLASS_SUFFIX_PATTERN = Pattern.compile(
+            "(?i)\\s+(User I/O|System I/O|CPU|Cluster|Commit|Concurrency|Application|Configuration|Administrative|Network|Queueing|Scheduler|Other)\\s*$"
+    );
+    private static final Pattern EVENT_METRIC_TAIL_PATTERN = Pattern.compile(
+            "^(.*?)(\\s+-?\\d[\\d,]*(?:\\.\\d+)?(?:\\s+-?\\d[\\d,]*(?:\\.\\d+)?)+)\\s*$"
+    );
     private static final Pattern NUMBER_PATTERN = Pattern.compile("-?\\d[\\d,]*(?:\\.\\d+)?");
     private static final int PREVIEW_LIMIT = 6000;
 
@@ -179,52 +185,80 @@ public class AwrParser {
         List<AwrDtos.WaitEventResponse> waitEvents = new ArrayList<>();
 
         for (AwrDtos.SectionResponse section : sections) {
-            String name = section.sectionName().toLowerCase(Locale.ROOT);
-
-            if (!name.contains("wait") && !name.contains("foreground event")) {
+            // SQL ordered by Cluster Wait Time 같은 SQL 통계 섹션은 제외
+            // 실제 Top Foreground Event 섹션만 병목 이벤트로 처리
+            if (!"Top 10 Foreground Events by Total Wait Time"
+                    .equalsIgnoreCase(section.sectionName())) {
                 continue;
             }
 
-            for (String line : section.rawText().split("\\R")) {
+            for (String rawLine : section.rawText().split("\\R")) {
+                String line = clean(rawLine);
+
                 if (line.length() < 12 || looksLikeHeader(line)) {
                     continue;
                 }
 
-                List<Double> numbers = numbers(line);
-                if (numbers.size() < 2) {
-                    continue;
-                }
-
-                String eventAndWaitClass = removeNumbers(line).trim();
-                eventAndWaitClass = eventAndWaitClass.replaceAll("\\s{2,}", " ");
-
-                String waitClass = inferWaitClass(eventAndWaitClass);
-                String eventName = eventAndWaitClass;
-
-                Matcher waitClassMatcher = Pattern.compile(
-                        "(?i)\\b(User I/O|System I/O|CPU|Cluster|Commit|Concurrency|Application|Configuration|Administrative|Network|Queueing|Scheduler|Other)\\b"
-                ).matcher(eventAndWaitClass);
+                // 행 끝의 Wait Class 분리
+                // 예: "db file sequential read 100 20 1.2 19.1 User I/O"
+                //     → Wait Class = User I/O
+                String waitClass = null;
+                Matcher waitClassMatcher = WAIT_CLASS_SUFFIX_PATTERN.matcher(line);
 
                 if (waitClassMatcher.find()) {
                     waitClass = waitClassMatcher.group(1);
-                    eventName = eventAndWaitClass
-                            .substring(0, waitClassMatcher.start())
-                            .trim();
+                    line = line.substring(0, waitClassMatcher.start()).trim();
                 }
 
-                if (!isUsefulLine(eventName) || eventName.length() < 3) {
+                // 이벤트명과 숫자 컬럼 분리
+                // 예: "gc current block 2-way 37214690 123 0.1 20.5"
+                //     이벤트명 = gc current block 2-way
+                //     숫자값 = 37214690, 123, 0.1, 20.5
+                Matcher metricMatcher = EVENT_METRIC_TAIL_PATTERN.matcher(line);
+
+                if (!metricMatcher.matches()) {
                     continue;
                 }
 
-                Double totalWait = numbers.get(0);
-                Double dbTimePercent = numbers.size() > 1 ? numbers.get(1) : null;
-                Double avgWait = numbers.size() > 2 ? numbers.get(2) : null;
+                String eventName = metricMatcher.group(1).trim();
+                List<Double> metricValues = numbers(metricMatcher.group(2));
+
+                if (!isUsefulLine(eventName) || eventName.length() < 3 || metricValues.size() < 2) {
+                    continue;
+                }
+
+                // Top Foreground Events 표의 마지막 숫자는 일반적으로 % DB Time
+                Double dbTimePercent = metricValues.get(metricValues.size() - 1);
+
+                // 0~100 밖이면 Waits/Time/SQL 통계값을 잘못 읽은 것이므로 제외
+                if (dbTimePercent == null || dbTimePercent < 0 || dbTimePercent > 100) {
+                    continue;
+                }
+
+                /*
+                 * 일반적인 AWR Top Foreground Events 컬럼:
+                 * Event | Waits | Time(s) | Avg wait(ms) | % DB time | Wait Class
+                 *
+                 * metricValues가 4개라면:
+                 * [Waits, Time(s), Avg wait(ms), % DB Time]
+                 */
+                Double totalWaitTimeSec = metricValues.size() >= 4
+                        ? metricValues.get(metricValues.size() - 3)
+                        : metricValues.get(0);
+
+                Double avgWaitMs = metricValues.size() >= 3
+                        ? metricValues.get(metricValues.size() - 2)
+                        : null;
+
+                if (waitClass == null || waitClass.isBlank()) {
+                    waitClass = inferWaitClass(eventName);
+                }
 
                 waitEvents.add(new AwrDtos.WaitEventResponse(
                         waitClass,
                         eventName,
-                        totalWait,
-                        avgWait,
+                        totalWaitTimeSec,
+                        avgWaitMs,
                         dbTimePercent
                 ));
             }
@@ -241,6 +275,7 @@ public class AwrParser {
 
     private List<AwrDtos.SqlMetricResponse> parseSqlMetrics(List<AwrDtos.SectionResponse> sections) {
         List<AwrDtos.SqlMetricResponse> sqlMetrics = new ArrayList<>();
+
         for (AwrDtos.SectionResponse section : sections) {
             if (!section.sectionName().toLowerCase(Locale.ROOT).startsWith("sql ordered by")) {
                 continue;
@@ -248,21 +283,27 @@ public class AwrParser {
 
             int rank = 1;
             List<AwrDtos.SqlMetricResponse> sectionMetrics = new ArrayList<>();
+
             for (String line : section.rawText().split("\\R")) {
                 Matcher matcher = SQL_ID_PATTERN.matcher(line);
+
                 if (!matcher.find() || looksLikeHeader(line)) {
                     continue;
                 }
+
                 String sqlId = matcher.group(1).toLowerCase(Locale.ROOT);
                 String beforeSqlId = line.substring(0, matcher.start());
                 String afterSqlId = line.substring(matcher.end()).trim();
+
                 List<Double> nums = numbers(beforeSqlId);
                 if (nums.isEmpty()) {
                     continue;
                 }
+
                 MetricValues values = mapMetricValues(section.sectionName(), nums);
                 String sqlText = afterSqlId.isBlank() ? null : afterSqlId;
                 Double score = score(values, rank);
+
                 sectionMetrics.add(new AwrDtos.SqlMetricResponse(
                         sqlId,
                         section.sectionName(),
@@ -280,14 +321,19 @@ public class AwrParser {
                         interpretationHint(values, section.sectionName())
                 ));
             }
+
             if (sectionMetrics.isEmpty()) {
                 sectionMetrics.addAll(parseVerticalSqlRows(section, rank));
             }
+
             sqlMetrics.addAll(sectionMetrics);
         }
 
         return sqlMetrics.stream()
-                .sorted(Comparator.comparing(AwrDtos.SqlMetricResponse::score, Comparator.nullsLast(Comparator.reverseOrder())))
+                .sorted(Comparator.comparing(
+                        AwrDtos.SqlMetricResponse::score,
+                        Comparator.nullsLast(Comparator.reverseOrder())
+                ))
                 .limit(50)
                 .toList();
     }

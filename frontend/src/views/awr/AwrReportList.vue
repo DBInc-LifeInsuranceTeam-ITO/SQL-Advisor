@@ -45,6 +45,30 @@
         </div>
       </div>
 
+      <div class="awr-report-search-row">
+        <div class="awr-report-search-box">
+          <span class="awr-report-search-label">검색</span>
+          <input
+            v-model="searchKeyword"
+            class="awr-report-search-input"
+            type="text"
+            placeholder="파일명, DB명, 인스턴스명으로 검색"
+          />
+          <button
+            v-if="searchKeyword"
+            class="awr-report-search-clear"
+            type="button"
+            @click="clearSearch"
+          >
+            초기화
+          </button>
+        </div>
+
+        <div class="awr-report-search-count">
+          {{ filteredReports.length }}건 표시
+        </div>
+      </div>
+
       <div v-if="errorMessage" class="awr-empty awr-report-list-error">
         {{ errorMessage }}
       </div>
@@ -55,6 +79,10 @@
 
       <div v-else-if="reports.length === 0" class="awr-empty awr-report-list-empty">
         등록된 AWR 리포트가 없습니다.
+      </div>
+
+      <div v-else-if="filteredReports.length === 0" class="awr-empty awr-report-list-empty">
+        검색 조건에 해당하는 리포트가 없습니다.
       </div>
 
       <template v-else>
@@ -211,6 +239,7 @@ const router = useRouter()
 const reports = ref<ReportSummaryResponse[]>([])
 const isLoading = ref(false)
 const errorMessage = ref('')
+const searchKeyword = ref('')
 
 const pageSize = 10
 const currentPage = ref(1)
@@ -231,15 +260,29 @@ const totalWaits = computed(() => {
   return reports.value.reduce((sum, report) => sum + report.waitEventCount, 0)
 })
 
+const filteredReports = computed(() => {
+  const keyword = searchKeyword.value.trim().toLowerCase()
+
+  if (!keyword) return reports.value
+
+  return reports.value.filter((report) => {
+    const filename = report.filename?.toLowerCase() || ''
+    const dbName = report.dbName?.toLowerCase() || ''
+    const instanceName = report.instanceName?.toLowerCase() || ''
+
+    return filename.includes(keyword) || dbName.includes(keyword) || instanceName.includes(keyword)
+  })
+})
+
 const totalPages = computed(() => {
-  return Math.max(1, Math.ceil(reports.value.length / pageSize))
+  return Math.max(1, Math.ceil(filteredReports.value.length / pageSize))
 })
 
 const pagedReports = computed(() => {
   const start = (currentPage.value - 1) * pageSize
   const end = start + pageSize
 
-  return reports.value.slice(start, end)
+  return filteredReports.value.slice(start, end)
 })
 
 const visiblePages = computed<PageItem[]>(() => {
@@ -279,6 +322,10 @@ const visiblePages = computed<PageItem[]>(() => {
   }
 
   return pages
+})
+
+watch(searchKeyword, () => {
+  currentPage.value = 1
 })
 
 watch(totalPages, (nextTotalPages) => {
@@ -323,6 +370,10 @@ function goToReportDetail(reportId: number) {
     name: 'awr-report-detail',
     params: { id: reportId }
   })
+}
+
+function clearSearch() {
+  searchKeyword.value = ''
 }
 
 function normalizeStatus(status?: string | null) {

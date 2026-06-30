@@ -3924,3 +3924,114 @@
     height: 1.55rem;
   }
 }
+/* ===== AWR Report List Search Override ===== */
+
+.awr-report-search-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.75rem;
+  margin-bottom: 0.75rem;
+}
+
+.awr-report-search-box {
+  display: flex;
+  align-items: center;
+  width: min(100%, 36rem);
+  min-height: 2.25rem;
+  overflow: hidden;
+  border: 1px solid #d8e2ea;
+  border-radius: 999px;
+  background: #ffffff;
+  box-shadow: 0 6px 16px rgba(15, 23, 42, 0.035);
+}
+
+.awr-report-search-label {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  height: 100%;
+  padding: 0 0.85rem;
+  color: #008a52;
+  font-size: 0.74rem;
+  font-weight: 900;
+  white-space: nowrap;
+}
+
+.awr-report-search-input {
+  width: 100%;
+  min-width: 0;
+  border: 0;
+  outline: none;
+  background: transparent;
+  color: #0f172a;
+  font-size: 0.78rem;
+  font-weight: 600;
+}
+
+.awr-report-search-input::placeholder {
+  color: #94a3b8;
+  font-weight: 500;
+}
+
+.awr-report-search-clear {
+  min-width: 3.4rem;
+  margin-right: 0.28rem;
+  border: 0;
+  border-radius: 999px;
+  padding: 0.38rem 0.62rem;
+  background: #eef8f3;
+  color: #008a52;
+  cursor: pointer;
+  font-size: 0.7rem;
+  font-weight: 850;
+}
+
+.awr-report-search-clear:hover {
+  background: #dff4ea;
+}
+
+.awr-report-search-count {
+  color: #64748b;
+  font-size: 0.74rem;
+  font-weight: 800;
+  white-space: nowrap;
+}
+
+@media (max-width: 720px) {
+  .awr-report-search-row {
+    align-items: stretch;
+    flex-direction: column;
+  }
+
+  .awr-report-search-box {
+    width: 100%;
+  }
+
+  .awr-report-search-count {
+    padding-left: 0.15rem;
+  }
+}
+/* ===== AWR Report List Row Height Compact Override ===== */
+
+.awr-report-list-table th,
+.awr-report-list-table td {
+  padding-top: 0.58rem;
+  padding-bottom: 0.58rem;
+}
+
+.awr-report-list-db,
+.awr-report-list-snapshot,
+.awr-report-list-extract {
+  gap: 0.08rem;
+}
+
+.awr-report-list-visibility,
+.awr-report-list-table .awr-status-chip {
+  min-height: 1.32rem;
+}
+
+.awr-report-list-extract span,
+.awr-report-list-date {
+  line-height: 1.28;
+}

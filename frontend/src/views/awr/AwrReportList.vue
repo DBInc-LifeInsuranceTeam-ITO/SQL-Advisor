@@ -112,7 +112,7 @@
               </tr>
             </thead>
 
-            <tbody>
+            <tbody>docker exec -it sqladvisor-nginx sh
               <tr
                 v-for="report in pagedReports"
                 :key="report.id"
@@ -364,9 +364,7 @@ async function loadReports() {
 }
 
 async function deleteReport(report: ReportSummaryResponse) {
-  const confirmed = window.confirm(
-    `[${report.filename}] 리포트를 삭제할까요?\n\n관련 섹션, SQL 지표, Wait Event, 분석 결과, 채팅/튜닝 이력도 함께 삭제됩니다.`
-  )
+  const confirmed = window.confirm('삭제하시겠습니까?')
 
   if (!confirmed) {
     return
@@ -469,6 +467,7 @@ function formatDateTime(value: string) {
     month: 'numeric',
     day: 'numeric',
     hour: '2-digit',
+    minute: '2-digit',
     minute: '2-digit',
     hour12: false
   }).format(date)

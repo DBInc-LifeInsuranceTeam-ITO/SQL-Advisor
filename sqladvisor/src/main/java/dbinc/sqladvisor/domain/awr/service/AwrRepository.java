@@ -496,6 +496,21 @@ public class AwrRepository {
     }
 
     public int deleteReport(long reportId) {
+        jdbcTemplate.update("""
+            DELETE FROM feedback
+             WHERE analysis_id IN (
+                   SELECT id
+                     FROM analysis_result
+                    WHERE report_id = ?
+             )
+            """, reportId);
+
+        jdbcTemplate.update("DELETE FROM analysis_result WHERE report_id = ?", reportId);
+        jdbcTemplate.update("DELETE FROM rag_chunk WHERE report_id = ?", reportId);
+        jdbcTemplate.update("DELETE FROM awr_wait_event WHERE report_id = ?", reportId);
+        jdbcTemplate.update("DELETE FROM awr_sql_metric WHERE report_id = ?", reportId);
+        jdbcTemplate.update("DELETE FROM awr_section WHERE report_id = ?", reportId);
+
         return jdbcTemplate.update("DELETE FROM awr_report WHERE id = ?", reportId);
     }
 

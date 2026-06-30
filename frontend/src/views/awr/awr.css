@@ -4279,3 +4279,376 @@
   cursor: not-allowed;
   opacity: 0.55;
 }
+/* ===== AWR Report List Alignment Final Fix ===== */
+
+/* 테이블 전체 기준 */
+.awr-report-list-table {
+  table-layout: fixed;
+  width: 100%;
+  min-width: 1120px;
+}
+
+.awr-report-list-table th,
+.awr-report-list-table td {
+  overflow: hidden;
+  padding: 0.56rem 0.55rem;
+  text-align: center;
+  vertical-align: middle;
+}
+
+.awr-report-list-table th {
+  height: 2.2rem;
+  background: #f3f7fa;
+  color: #334155;
+  font-size: 0.74rem;
+  font-weight: 850;
+  white-space: nowrap;
+}
+
+.awr-report-list-table td {
+  color: #1f2933;
+  font-size: 0.78rem;
+  font-weight: 500;
+}
+
+/* 컬럼 폭 재정렬: 합계 100% */
+.awr-col-file {
+  width: 26%;
+}
+
+.awr-col-db {
+  width: 22%;
+}
+
+.awr-col-period {
+  width: 15%;
+}
+
+.awr-col-uploader {
+  width: 8%;
+}
+
+.awr-col-status {
+  width: 8%;
+}
+
+.awr-col-extract {
+  width: 8%;
+}
+
+.awr-col-date {
+  width: 8%;
+}
+
+.awr-col-action {
+  width: 5%;
+}
+
+/* 파일명 */
+.awr-report-list-file {
+  display: block;
+  width: 100%;
+  max-width: 22rem;
+  margin: 0 auto;
+  overflow: hidden;
+  color: #005fa3;
+  font-size: 0.8rem;
+  font-weight: 800;
+  text-align: center;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+/* DB / 인스턴스 */
+.awr-report-list-db {
+  display: flex;
+  width: 100%;
+  max-width: 18rem;
+  min-width: 0;
+  flex-direction: column;
+  align-items: center;
+  gap: 0.08rem;
+  margin: 0 auto;
+  text-align: center;
+}
+
+.awr-report-list-db strong,
+.awr-report-list-db span {
+  display: block;
+  width: 100%;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.awr-report-list-db strong {
+  color: #0f172a;
+  font-size: 0.78rem;
+  font-weight: 750;
+}
+
+.awr-report-list-db span {
+  color: #475569;
+  font-size: 0.72rem;
+  font-weight: 500;
+}
+
+/* 분석 구간 */
+.awr-report-list-snapshot {
+  display: flex;
+  width: 100%;
+  max-width: 12rem;
+  min-width: 0;
+  flex-direction: column;
+  align-items: center;
+  gap: 0.05rem;
+  margin: 0 auto;
+  text-align: center;
+}
+
+.awr-report-list-snapshot span {
+  display: block;
+  width: 100%;
+  overflow: hidden;
+  color: #334155;
+  font-size: 0.72rem;
+  font-weight: 500;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.awr-report-list-snapshot em {
+  display: block;
+  color: #94a3b8;
+  font-size: 0.64rem;
+  font-style: normal;
+  font-weight: 700;
+  line-height: 1;
+}
+
+/* 등록자 / 상태 / 삭제: 각각 역할에 맞게 별도 규격 */
+.awr-report-uploader,
+.awr-report-list-table .awr-status-chip {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 4.35rem;
+  min-width: 4.35rem;
+  max-width: 4.35rem;
+  height: 1.55rem;
+  min-height: 1.55rem;
+  border-radius: 999px;
+  padding: 0 0.45rem;
+  font-size: 0.68rem;
+  font-weight: 850;
+  line-height: 1;
+  white-space: nowrap;
+  box-sizing: border-box;
+}
+
+.awr-report-uploader {
+  overflow: hidden;
+  background: #f1f5f9;
+  color: #334155;
+  text-overflow: ellipsis;
+}
+
+.awr-report-list-table .awr-status-chip {
+  margin: 0 auto;
+}
+
+/* 삭제 버튼은 관리 컬럼에 맞게 작게 */
+.awr-report-delete-button {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 2.75rem;
+  min-width: 2.75rem;
+  max-width: 2.75rem;
+  height: 1.55rem;
+  min-height: 1.55rem;
+  border: 1px solid #fecaca;
+  border-radius: 999px;
+  padding: 0;
+  background: #fff5f5;
+  color: #d0182f;
+  cursor: pointer;
+  font-size: 0.67rem;
+  font-weight: 850;
+  line-height: 1;
+  white-space: nowrap;
+  box-sizing: border-box;
+}
+
+.awr-report-delete-button:hover:not(:disabled) {
+  border-color: #fca5a5;
+  background: #ffecec;
+}
+
+.awr-report-delete-button:disabled {
+  cursor: not-allowed;
+  opacity: 0.55;
+}
+
+/* 추출 결과 */
+.awr-report-list-extract {
+  display: flex;
+  width: 100%;
+  max-width: 4.8rem;
+  min-width: 0;
+  flex-direction: column;
+  align-items: center;
+  gap: 0.05rem;
+  margin: 0 auto;
+  text-align: center;
+}
+
+.awr-report-list-extract span {
+  display: block;
+  width: 100%;
+  color: #334155;
+  font-size: 0.72rem;
+  font-weight: 500;
+  line-height: 1.25;
+  white-space: nowrap;
+}
+
+/* 등록일시 */
+.awr-report-list-date {
+  display: block;
+  width: 100%;
+  color: #334155;
+  font-size: 0.72rem;
+  font-weight: 500;
+  line-height: 1.28;
+  text-align: center;
+  white-space: normal;
+  word-break: keep-all;
+}
+
+/* 행 hover */
+.awr-report-list-row.clickable {
+  cursor: pointer;
+}
+
+.awr-report-list-row.clickable:hover td {
+  background: #f8fffb;
+}
+
+/* 검색 영역 정렬 */
+.awr-report-search-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.75rem;
+  margin-bottom: 0.75rem;
+}
+
+.awr-report-search-box {
+  width: min(100%, 34rem);
+}
+
+.awr-report-search-count {
+  color: #334155;
+  font-size: 0.74rem;
+  font-weight: 850;
+  white-space: nowrap;
+}
+
+/* 페이지네이션 */
+.awr-report-pagination {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.35rem;
+  margin-top: 0.75rem;
+  padding-top: 0.45rem;
+  border-top: 0;
+}
+
+.awr-page-nav-button,
+.awr-page-number-button {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border: 0;
+  background: transparent;
+  color: #0f172a;
+  cursor: pointer;
+  font-weight: 850;
+  line-height: 1;
+}
+
+.awr-page-nav-button {
+  width: 1.45rem;
+  height: 1.45rem;
+  font-size: 1.35rem;
+}
+
+.awr-page-number-button {
+  min-width: 1.55rem;
+  height: 1.55rem;
+  border-radius: 999px;
+  font-size: 0.74rem;
+}
+
+.awr-page-number-button.active {
+  background: #008a52;
+  color: #ffffff;
+  box-shadow: 0 4px 10px rgba(0, 138, 82, 0.2);
+}
+
+.awr-page-number-button:hover:not(:disabled):not(.active),
+.awr-page-nav-button:hover:not(:disabled) {
+  color: #008a52;
+}
+
+.awr-page-number-button.ellipsis {
+  min-width: 1.2rem;
+  cursor: default;
+  color: #475569;
+}
+
+.awr-page-nav-button:disabled,
+.awr-page-number-button:disabled {
+  cursor: not-allowed;
+  opacity: 0.35;
+}
+/* ===== AWR Report List Date / Action Spacing Fix ===== */
+
+/* 관리 컬럼 오른쪽 여백 확보 */
+.awr-col-action {
+  width: 6%;
+}
+
+.awr-report-list-table th:last-child,
+.awr-report-list-table td:last-child {
+  padding-right: 0.95rem;
+}
+
+/* 삭제 버튼은 작게 유지 */
+.awr-report-delete-button {
+  width: 2.75rem;
+  min-width: 2.75rem;
+  max-width: 2.75rem;
+}
+
+/* 등록일시는 무조건 2줄 포맷으로 고정 */
+.awr-report-list-date {
+  display: inline-flex;
+  width: 4.8rem;
+  min-width: 4.8rem;
+  max-width: 4.8rem;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  line-height: 1.28;
+  text-align: center;
+  white-space: normal;
+  word-break: keep-all;
+}
+
+/* 등록일시 컬럼 폭도 고정 */
+.awr-col-date {
+  width: 8.5%;
+}

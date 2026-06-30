@@ -4062,3 +4062,220 @@
   cursor: not-allowed;
   opacity: 0.55;
 }
+.awr-col-uploader {
+  width: 120px;
+}
+
+.awr-report-uploader {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 72px;
+  max-width: 120px;
+  padding: 6px 12px;
+  border-radius: 999px;
+  background: #f1f5f9;
+  color: #334155;
+  font-size: 13px;
+  font-weight: 800;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+/* ===== AWR Upload Card Height Balance Override ===== */
+
+.awr-upload-layout {
+  align-items: flex-start;
+}
+
+.awr-upload-page .awr-upload-card,
+.awr-upload-page .awr-guide-card {
+  min-height: auto;
+  height: auto;
+}
+
+.awr-upload-page .awr-upload-card {
+  padding: 0.95rem 1rem 1rem;
+}
+
+.awr-upload-page .awr-guide-card {
+  padding: 0.95rem 1rem 1rem;
+}
+
+.awr-upload-page .awr-upload-section-title {
+  margin-bottom: 0.7rem;
+}
+
+.awr-upload-page .awr-file-upload-box {
+  margin-bottom: 0;
+}
+
+.awr-upload-page .awr-choice-group {
+  display: none;
+}
+
+.awr-upload-page .awr-upload-submit-row {
+  margin-top: 0.9rem !important;
+}
+
+.awr-upload-page .awr-guide-list {
+  gap: 0.5rem;
+}
+
+.awr-upload-page .awr-guide-list > div {
+  min-height: auto;
+  padding: 0.72rem 0.8rem;
+}
+
+.awr-upload-page .awr-guide-note {
+  display: none;
+}
+/* ===== AWR Upload Left Card Height Match Override ===== */
+
+.awr-upload-layout {
+  align-items: stretch;
+}
+
+/* 왼쪽/오른쪽 카드가 같은 높이를 먹게 */
+.awr-upload-page .awr-upload-card,
+.awr-upload-page .awr-guide-card {
+  height: auto;
+  min-height: 14.6rem;
+}
+
+/* 왼쪽 리포트 등록 카드 내부를 세로 flex로 구성 */
+.awr-upload-page .awr-upload-card {
+  display: flex;
+  flex-direction: column;
+}
+
+/* 파일 선택 영역 아래 남는 공간을 자연스럽게 확보 */
+.awr-upload-page .awr-file-upload-box {
+  margin-bottom: 0;
+}
+
+/* 공유/비공개 영역은 안 쓰기로 했으니 숨김 */
+.awr-upload-page .awr-choice-group {
+  display: none;
+}
+
+/* 버튼은 왼쪽 카드 하단 오른쪽에 고정 */
+.awr-upload-page .awr-upload-submit-row {
+  display: flex;
+  align-items: flex-end;
+  justify-content: flex-end;
+  margin-top: auto !important;
+  padding-top: 1rem;
+}
+
+/* 오른쪽 Tip 제거 */
+.awr-upload-page .awr-guide-note {
+  display: none;
+}
+
+/* 오른쪽 카드도 내용이 위에서 자연스럽게 정렬되게 */
+.awr-upload-page .awr-guide-card {
+  display: flex;
+  flex-direction: column;
+}
+
+.awr-upload-page .awr-guide-list {
+  gap: 0.55rem;
+}
+
+.awr-upload-page .awr-guide-list > div {
+  min-height: auto;
+  padding: 0.72rem 0.8rem;
+}
+.awr-report-uploader {
+  display: inline-block;
+  max-width: 5rem;
+  overflow: hidden;
+  text-align: center;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+/* ===== AWR Report List Badge/Button Size Normalize ===== */
+
+.awr-report-uploader,
+.awr-report-list-table .awr-status-chip,
+.awr-report-delete-button {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 4.8rem;
+  height: 1.8rem;
+  border-radius: 999px;
+  padding: 0 0.7rem;
+  font-size: 0.72rem;
+  font-weight: 850;
+  line-height: 1;
+  white-space: nowrap;
+  box-sizing: border-box;
+}
+
+.awr-report-uploader {
+  max-width: 4.8rem;
+  overflow: hidden;
+  background: #f1f5f9;
+  color: #334155;
+  text-overflow: ellipsis;
+}
+
+.awr-report-list-table .awr-status-chip {
+  min-height: 0;
+  margin: 0 auto;
+}
+
+.awr-report-delete-button {
+  border: 1px solid #fecaca;
+  background: #fff5f5;
+  color: #d0182f;
+  cursor: pointer;
+}
+
+.awr-report-delete-button:hover:not(:disabled) {
+  background: #ffecec;
+  border-color: #fca5a5;
+}
+
+.awr-report-delete-button:disabled {
+  cursor: not-allowed;
+  opacity: 0.55;
+}
+/* ===== Delete Button Compact Fix ===== */
+
+.awr-col-action {
+  width: 5.5%;
+}
+
+.awr-report-delete-button {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 3.2rem;
+  min-width: 3.2rem;
+  height: 1.55rem;
+  min-height: 1.55rem;
+  border: 1px solid #fecaca;
+  border-radius: 999px;
+  padding: 0;
+  background: #fff5f5;
+  color: #d0182f;
+  cursor: pointer;
+  font-size: 0.68rem;
+  font-weight: 850;
+  line-height: 1;
+  white-space: nowrap;
+  box-sizing: border-box;
+}
+
+.awr-report-delete-button:hover:not(:disabled) {
+  border-color: #fca5a5;
+  background: #ffecec;
+}
+
+.awr-report-delete-button:disabled {
+  cursor: not-allowed;
+  opacity: 0.55;
+}

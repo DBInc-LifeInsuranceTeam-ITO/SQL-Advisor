@@ -408,17 +408,18 @@ public class AwrRepository {
 
     public List<AwrDtos.ReportSummaryResponse> listReports(Long userId, boolean includePrivateReports) {
         return jdbcTemplate.query("""
-                        SELECT r.*,
-                               (SELECT count(*) FROM awr_section s WHERE s.report_id = r.id) section_count,
-                               (SELECT count(*) FROM awr_sql_metric m WHERE m.report_id = r.id) top_sql_count,
-                               (SELECT count(*) FROM awr_wait_event w WHERE w.report_id = r.id) wait_event_count
-                          FROM awr_report r
-                         WHERE r.visibility = 'SHARED'
-                            OR ?
-                            OR (?::bigint IS NULL AND r.uploaded_by IS NULL)
-                            OR r.uploaded_by = ?::bigint
-                         ORDER BY r.created_at DESC, r.id DESC
-                        """, (rs, rowNum) -> new AwrDtos.ReportSummaryResponse(
+                    SELECT r.*,
+                           u.display_name AS uploaded_by_name,
+                           (SELECT count(*) FROM awr_section s WHERE s.report_id = r.id) section_count,
+                           (SELECT count(*) FROM awr_sql_metric m WHERE m.report_id = r.id) top_sql_count,
+                           (SELECT count(*) FROM awr_wait_event w WHERE w.report_id = r.id) wait_event_count
+                      FROM awr_report r
+                      LEFT JOIN app_user u
+                        ON u.id = r.uploaded_by
+                     WHERE ?
+                        OR r.uploaded_by = ?::bigint
+                     ORDER BY r.created_at DESC, r.id DESC
+                    """, (rs, rowNum) -> new AwrDtos.ReportSummaryResponse(
                         rs.getLong("id"),
                         rs.getString("filename"),
                         rs.getString("db_name"),
@@ -430,13 +431,13 @@ public class AwrRepository {
                         rs.getString("status"),
                         toLocalDateTime(rs.getTimestamp("created_at")),
                         getLong(rs.getObject("uploaded_by")),
+                        rs.getString("uploaded_by_name"),
                         rs.getString("visibility"),
                         rs.getInt("section_count"),
                         rs.getInt("top_sql_count"),
                         rs.getInt("wait_event_count")
                 ),
                 includePrivateReports,
-                userId,
                 userId
         );
     }
@@ -455,23 +456,20 @@ public class AwrRepository {
 
     public Optional<ReportRecord> findAccessibleReport(long reportId, Long userId, boolean includePrivateReports) {
         List<ReportRecord> records = jdbcTemplate.query("""
-                        SELECT *
-                          FROM awr_report
-                         WHERE id = ?
-                           AND (visibility = 'SHARED'
-                                OR ?
-                                OR (?::bigint IS NULL AND uploaded_by IS NULL)
-                                OR uploaded_by = ?::bigint)
-                        """,
+                    SELECT *
+                      FROM awr_report
+                     WHERE id = ?
+                       AND (?
+                            OR uploaded_by = ?::bigint)
+                    """,
                 reportMapper(),
                 reportId,
                 includePrivateReports,
-                userId,
                 userId
         );
+
         return records.stream().findFirst();
     }
-
     public Optional<ReportRecord> findDeletableReport(long reportId, Long userId, boolean isAdmin) {
         if (isAdmin) {
             return findReport(reportId);

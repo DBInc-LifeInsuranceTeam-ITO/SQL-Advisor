@@ -92,7 +92,7 @@
               <col class="awr-col-file" />
               <col class="awr-col-db" />
               <col class="awr-col-period" />
-              <col class="awr-col-share" />
+              <col class="awr-col-uploader" />
               <col class="awr-col-status" />
               <col class="awr-col-extract" />
               <col class="awr-col-date" />
@@ -104,7 +104,7 @@
                 <th>파일명</th>
                 <th>DB / 인스턴스</th>
                 <th>분석 구간</th>
-                <th>공유 여부</th>
+                <th>등록자</th>
                 <th>상태</th>
                 <th>추출 결과</th>
                 <th>등록일시</th>
@@ -112,7 +112,7 @@
               </tr>
             </thead>
 
-            <tbody>docker exec -it sqladvisor-nginx sh
+            <tbody>
               <tr
                 v-for="report in pagedReports"
                 :key="report.id"
@@ -154,13 +154,8 @@
                 </td>
 
                 <td>
-                  <span
-                    :class="[
-                      'awr-report-list-visibility',
-                      report.visibility === 'PRIVATE' ? 'private' : 'shared'
-                    ]"
-                  >
-                    {{ report.visibility === 'PRIVATE' ? '비공유' : '공유' }}
+                  <span class="awr-report-uploader" :title="report.uploadedByName || '미확인'">
+                    {{ formatUploaderName(report.uploadedByName) }}
                   </span>
                 </td>
 
@@ -458,7 +453,11 @@ function formatSnapshotText(value?: string | null) {
 
   return value.replace(/\s+/g, ' ').trim()
 }
+function formatUploaderName(value?: string | null) {
+  if (!value || value.trim() === '') return '미확인'
 
+  return value.split('/')[0].trim()
+}
 function formatDateTime(value: string) {
   const date = new Date(value)
 

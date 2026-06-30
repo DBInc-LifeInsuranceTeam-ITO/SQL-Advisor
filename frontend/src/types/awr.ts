@@ -20,6 +20,7 @@ export interface ReportSummaryResponse {
   status: string
   uploadedAt: string
   uploadedBy?: number | null
+  uploadedByName?: string | null
   visibility: ReportVisibility
   sectionCount: number
   topSqlCount: number

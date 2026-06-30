@@ -33,24 +33,6 @@
           </div>
         </div>
 
-        <div class="awr-choice-group">
-          <label :class="['awr-choice-card', { active: visibility === 'SHARED' }]">
-            <input v-model="visibility" type="radio" value="SHARED" />
-            <div>
-              <strong>공유 분석</strong>
-              <span>팀 사용자가 함께 결과를 조회할 수 있습니다.</span>
-            </div>
-          </label>
-
-          <label :class="['awr-choice-card', { active: visibility === 'PRIVATE' }]">
-            <input v-model="visibility" type="radio" value="PRIVATE" />
-            <div>
-              <strong>비공개 분석</strong>
-              <span>업로드한 본인과 관리자만 조회할 수 있습니다.</span>
-            </div>
-          </label>
-        </div>
-
         <div class="awr-upload-submit-row">
           <p v-if="errorMessage" class="awr-upload-error">{{ errorMessage }}</p>
           <button
@@ -80,11 +62,6 @@
             <strong>AI 리포트 분석</strong>
             <span>분석 결과를 기반으로 원인과 조치 방향을 질의할 수 있습니다.</span>
           </div>
-        </div>
-
-        <div class="awr-guide-note">
-          <strong>Tip</strong>
-          <span>운영 DB 장애나 성능 저하 시점의 AWR을 등록하면 분석 정확도가 높아집니다.</span>
         </div>
       </aside>
     </div>
@@ -162,7 +139,7 @@
 import { computed, onBeforeUnmount, ref } from 'vue'
 import { useRouter } from 'vue-router'
 import { getAwrStatus, uploadAwrReport } from '@/api/awr'
-import type { ReportVisibility, StatusResponse, UploadResponse } from '@/types/awr'
+import type { StatusResponse, UploadResponse } from '@/types/awr'
 
 const router = useRouter()
 
@@ -171,7 +148,7 @@ const isUploading = ref(false)
 const errorMessage = ref('')
 const uploadResult = ref<UploadResponse | null>(null)
 const statusInfo = ref<StatusResponse | null>(null)
-const visibility = ref<ReportVisibility>('SHARED')
+
 
 let statusTimer: ReturnType<typeof window.setInterval> | null = null
 
@@ -340,7 +317,7 @@ async function upload() {
   stopStatusPolling()
 
   try {
-    const result = await uploadAwrReport(selectedFile.value, visibility.value)
+    const result = await uploadAwrReport(selectedFile.value, 'PRIVATE')
 
     uploadResult.value = result
     statusInfo.value = {

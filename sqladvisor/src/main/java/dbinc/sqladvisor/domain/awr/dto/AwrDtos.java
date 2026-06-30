@@ -30,6 +30,7 @@ public final class AwrDtos {
             String status,
             LocalDateTime uploadedAt,
             Long uploadedBy,
+            String uploadedByName,
             String visibility,
             int sectionCount,
             int topSqlCount,

@@ -472,6 +472,33 @@ public class AwrRepository {
         return records.stream().findFirst();
     }
 
+    public Optional<ReportRecord> findDeletableReport(long reportId, Long userId, boolean isAdmin) {
+        if (isAdmin) {
+            return findReport(reportId);
+        }
+
+        if (userId == null) {
+            return Optional.empty();
+        }
+
+        List<ReportRecord> records = jdbcTemplate.query("""
+                    SELECT *
+                      FROM awr_report
+                     WHERE id = ?
+                       AND uploaded_by = ?::bigint
+                    """,
+                reportMapper(),
+                reportId,
+                userId
+        );
+
+        return records.stream().findFirst();
+    }
+
+    public int deleteReport(long reportId) {
+        return jdbcTemplate.update("DELETE FROM awr_report WHERE id = ?", reportId);
+    }
+
     public List<AwrDtos.SectionResponse> findSections(long reportId) {
         return jdbcTemplate.query("""
                         SELECT *

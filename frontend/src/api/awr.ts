@@ -13,7 +13,8 @@ import type {
   SqlTuningResponse,
   SqlMetricResponse,
   StatusResponse,
-  UploadResponse
+  UploadResponse,
+  DeleteReportResponse
 } from '@/types/awr'
 
 export async function uploadAwrReport(file: File, visibility: ReportVisibility) {
@@ -96,5 +97,10 @@ export async function getLatestAwrSqlTuning(reportId: number, sqlId: string) {
 
 export async function getAwrSqlTuningHistory(reportId: number) {
   const response = await api.get<SqlTuningResponse[]>(`/reports/${reportId}/sql/tuning/history`)
+  return response.data
+}
+
+export async function deleteAwrReport(reportId: number) {
+  const response = await api.delete<DeleteReportResponse>(`/reports/${reportId}`)
   return response.data
 }

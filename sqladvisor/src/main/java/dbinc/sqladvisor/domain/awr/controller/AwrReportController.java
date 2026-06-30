@@ -18,6 +18,7 @@ import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RequestPart;
 import org.springframework.web.bind.annotation.RestController;
 import org.springframework.web.multipart.MultipartFile;
+import org.springframework.web.bind.annotation.DeleteMapping;
 
 import java.io.IOException;
 import java.util.List;
@@ -64,7 +65,12 @@ public class AwrReportController {
     public ResponseEntity<ApiResponse<AwrDtos.ReportDetailResponse>> getReport(@PathVariable Long reportId) {
         return ResponseEntity.ok(ApiResponse.success(awrReportService.getReport(reportId)));
     }
-
+    @DeleteMapping("/reports/{reportId}")
+    public ResponseEntity<ApiResponse<AwrDtos.DeleteReportResponse>> deleteReport(
+            @PathVariable Long reportId
+    ) {
+        return ResponseEntity.ok(ApiResponse.success(awrReportService.deleteReport(reportId)));
+    }
     @GetMapping("/reports/{reportId}/status")
     public ResponseEntity<ApiResponse<AwrDtos.StatusResponse>> getStatus(@PathVariable Long reportId) {
         return ResponseEntity.ok(ApiResponse.success(awrReportService.getStatus(reportId)));

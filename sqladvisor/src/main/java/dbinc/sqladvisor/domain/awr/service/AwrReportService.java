@@ -127,6 +127,28 @@ public class AwrReportService {
         );
     }
 
+    public AwrDtos.DeleteReportResponse deleteReport(Long reportId) {
+        AwrRepository.ReportRecord report = getDeletableReportRecord(reportId);
+
+        List<String> deletedFiles = new ArrayList<>();
+        List<String> warnings = new ArrayList<>();
+
+        deleteFileIfSafe(report.rawFilePath(), deletedFiles, warnings);
+        deleteFileIfSafe(report.textPath(), deletedFiles, warnings);
+
+        int deletedRows = repository.deleteReport(reportId);
+        if (deletedRows == 0) {
+            throw new IllegalArgumentException("삭제할 AWR 리포트를 찾을 수 없습니다: " + reportId);
+        }
+
+        return new AwrDtos.DeleteReportResponse(
+                reportId,
+                true,
+                deletedFiles,
+                warnings
+        );
+    }
+
     public AwrDtos.StatusResponse getStatus(Long reportId) {
         AwrRepository.ReportRecord report = getReportRecord(reportId);
         return buildStatus(reportId, report);
@@ -400,12 +422,47 @@ public class AwrReportService {
                 .orElseThrow(() -> new IllegalArgumentException("AWR 리포트를 찾을 수 없습니다: " + reportId));
     }
 
+    private AwrRepository.ReportRecord getDeletableReportRecord(Long reportId) {
+        if (reportId == null) {
+            throw new IllegalArgumentException("AWR 리포트 ID가 필요합니다.");
+        }
+        return repository.findDeletableReport(
+                        reportId,
+                        currentUserService.currentUserIdOrNull(),
+                        currentUserService.isCurrentUserAdmin()
+                )
+                .orElseThrow(() -> new IllegalArgumentException("삭제 권한이 없거나 AWR 리포트를 찾을 수 없습니다: " + reportId));
+    }
+
     private AwrRepository.ReportRecord getReportRecordInternal(Long reportId) {
         if (reportId == null) {
             throw new IllegalArgumentException("AWR report ID is required.");
         }
         return repository.findReport(reportId)
                 .orElseThrow(() -> new IllegalArgumentException("AWR report not found: " + reportId));
+    }
+
+    private void deleteFileIfSafe(String filePath, List<String> deletedFiles, List<String> warnings) {
+        if (filePath == null || filePath.isBlank()) {
+            return;
+        }
+
+        try {
+            Path root = Paths.get(storageRoot).toAbsolutePath().normalize();
+            Path target = Paths.get(filePath).toAbsolutePath().normalize();
+
+            if (!target.startsWith(root)) {
+                warnings.add("storage root 외부 파일이라 삭제하지 않음: " + target);
+                return;
+            }
+
+            boolean deleted = Files.deleteIfExists(target);
+            if (deleted) {
+                deletedFiles.add(target.toString());
+            }
+        } catch (Exception exception) {
+            warnings.add("파일 삭제 실패: " + filePath + " / " + exception.getMessage());
+        }
     }
 
     private String normalizeVisibility(String visibility) {

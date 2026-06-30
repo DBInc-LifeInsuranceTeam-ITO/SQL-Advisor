@@ -352,4 +352,12 @@ public final class AwrDtos {
             List<String> warnings
     ) {
     }
+
+    public record DeleteReportResponse(
+            Long reportId,
+            boolean deleted,
+            List<String> deletedFiles,
+            List<String> warnings
+    ) {
+    }
 }

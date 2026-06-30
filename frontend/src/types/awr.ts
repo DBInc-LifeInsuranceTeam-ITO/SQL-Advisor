@@ -312,3 +312,10 @@ export interface AiModelOptionsResponse {
   ollamaEmbeddingModels: string[]
   warnings: string[]
 }
+
+export interface DeleteReportResponse {
+  reportId: number
+  deleted: boolean
+  deletedFiles: string[]
+  warnings: string[]
+}

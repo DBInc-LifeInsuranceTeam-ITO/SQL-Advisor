@@ -4035,3 +4035,30 @@
 .awr-report-list-date {
   line-height: 1.28;
 }
+.awr-col-action {
+  width: 92px;
+}
+
+.awr-report-delete-button {
+  border: 1px solid #fecaca;
+  background: #fff1f2;
+  color: #be123c;
+  border-radius: 999px;
+  padding: 7px 14px;
+  font-size: 13px;
+  font-weight: 800;
+  cursor: pointer;
+  transition: background 0.15s ease, border-color 0.15s ease, color 0.15s ease, transform 0.15s ease;
+}
+
+.awr-report-delete-button:hover:not(:disabled) {
+  background: #ffe4e6;
+  border-color: #fb7185;
+  color: #9f1239;
+  transform: translateY(-1px);
+}
+
+.awr-report-delete-button:disabled {
+  cursor: not-allowed;
+  opacity: 0.55;
+}

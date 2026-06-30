@@ -96,6 +96,7 @@
               <col class="awr-col-status" />
               <col class="awr-col-extract" />
               <col class="awr-col-date" />
+              <col class="awr-col-action" />
             </colgroup>
 
             <thead>
@@ -107,6 +108,7 @@
                 <th>상태</th>
                 <th>추출 결과</th>
                 <th>등록일시</th>
+                <th>관리</th>
               </tr>
             </thead>
 
@@ -180,6 +182,17 @@
                     {{ formatDateTime(report.uploadedAt) }}
                   </span>
                 </td>
+
+                <td>
+                  <button
+                    class="awr-report-delete-button"
+                    type="button"
+                    :disabled="deletingReportId === report.id"
+                    @click.stop="deleteReport(report)"
+                  >
+                    {{ deletingReportId === report.id ? '삭제 중' : '삭제' }}
+                  </button>
+                </td>
               </tr>
             </tbody>
           </table>
@@ -224,7 +237,7 @@
 <script setup lang="ts">
 import { computed, onMounted, ref, watch } from 'vue'
 import { useRouter } from 'vue-router'
-import { getAwrReports } from '@/api/awr'
+import { deleteAwrReport, getAwrReports } from '@/api/awr'
 import type { ReportSummaryResponse } from '@/types/awr'
 
 type PageItem = {
@@ -240,6 +253,7 @@ const reports = ref<ReportSummaryResponse[]>([])
 const isLoading = ref(false)
 const errorMessage = ref('')
 const searchKeyword = ref('')
+const deletingReportId = ref<number | null>(null)
 
 const pageSize = 10
 const currentPage = ref(1)
@@ -300,7 +314,7 @@ const visiblePages = computed<PageItem[]>(() => {
   }
 
   let start = Math.max(1, current - 2)
-  let end = Math.min(total, start + maxVisiblePages - 1)
+  const end = Math.min(total, start + maxVisiblePages - 1)
 
   if (end - start + 1 < maxVisiblePages) {
     start = Math.max(1, end - maxVisiblePages + 1)
@@ -317,7 +331,6 @@ const visiblePages = computed<PageItem[]>(() => {
       page: -1,
       label: '...'
     })
-
     pages.push(createPageItem(total))
   }
 
@@ -347,6 +360,33 @@ async function loadReports() {
     errorMessage.value = error instanceof Error ? error.message : '리포트 목록을 불러오지 못했습니다.'
   } finally {
     isLoading.value = false
+  }
+}
+
+async function deleteReport(report: ReportSummaryResponse) {
+  const confirmed = window.confirm(
+    `[${report.filename}] 리포트를 삭제할까요?\n\n관련 섹션, SQL 지표, Wait Event, 분석 결과, 채팅/튜닝 이력도 함께 삭제됩니다.`
+  )
+
+  if (!confirmed) {
+    return
+  }
+
+  deletingReportId.value = report.id
+  errorMessage.value = ''
+
+  try {
+    const result = await deleteAwrReport(report.id)
+
+    reports.value = reports.value.filter((item) => item.id !== report.id)
+
+    if (result.warnings.length > 0) {
+      window.alert(`리포트는 삭제됐지만 일부 파일 삭제 경고가 있습니다.\n\n${result.warnings.join('\n')}`)
+    }
+  } catch (error) {
+    errorMessage.value = error instanceof Error ? error.message : '리포트 삭제에 실패했습니다.'
+  } finally {
+    deletingReportId.value = null
   }
 }
 

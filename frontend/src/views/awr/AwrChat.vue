@@ -1,56 +1,297 @@
 <template>
-  <div class="awr-page awr-chat-page awr-chat-pro-page">
-    <div class="awr-upload-hero awr-chat-hero awr-chat-pro-hero">
+  <div class="awr-page awr-chat-page awr-ai-chat-page">
+    <div class="awr-upload-hero awr-ai-chat-hero">
       <div>
         <p class="awr-upload-eyebrow">AWR Report Analysis</p>
         <h1 class="awr-main-title">AI 리포트 분석</h1>
         <p>
-          선택한 AWR 리포트의 SQL 지표, Wait Event, Section 근거를 기반으로
-          병목 원인과 튜닝 방향을 질의할 수 있습니다.
+          선택한 AWR 리포트를 기준으로 병목 원인, 우선순위, 운영 조치 방향을 AI에게 질의할 수 있습니다.
         </p>
       </div>
     </div>
 
-    <div class="awr-chat-pro-layout">
-      <aside class="awr-chat-pro-sidebar">
-        <section class="awr-panel awr-chat-pro-card awr-chat-target-card">
-          <div class="awr-chat-card-head">
+    <div class="awr-ai-chat-shell">
+      <main class="awr-ai-chat-main">
+        <section class="awr-ai-chat-window">
+          <div class="awr-ai-chat-topbar">
+            <div class="awr-ai-chat-title">
+              <span class="awr-ai-chat-status-dot"></span>
+              <div>
+                <strong>AI 분석 채팅</strong>
+                <span>SQL 지표 · Wait Event · Section 근거 기반 답변</span>
+              </div>
+            </div>
+
+            <div class="awr-ai-report-picker">
+              <span>분석 리포트</span>
+              <div class="awr-chat-select-wrap">
+                <select
+                  v-model.number="selectedReportId"
+                  class="awr-input awr-chat-select awr-ai-report-select"
+                >
+                  <option :value="0">리포트 선택</option>
+                  <option v-for="report in reports" :key="report.id" :value="report.id">
+                    #{{ report.id }} {{ report.filename }}
+                  </option>
+                </select>
+                <span class="awr-chat-select-arrow">▾</span>
+              </div>
+            </div>
+          </div>
+
+          <div class="awr-ai-prompt-strip">
+            <span>추천 질문</span>
+            <button
+              v-for="prompt in prompts"
+              :key="prompt.label"
+              class="awr-ai-prompt-chip"
+              type="button"
+              :disabled="!selectedReportId"
+              @click="question = prompt.question"
+            >
+              {{ prompt.label }}
+            </button>
+          </div>
+
+          <div class="awr-ai-conversation">
+            <div v-if="errorMessage" class="awr-empty awr-chat-error">
+              {{ errorMessage }}
+            </div>
+
+            <div v-else-if="!answer" class="awr-ai-empty-state">
+              <div class="awr-ai-empty-orb">AI</div>
+              <h2>리포트를 선택하고 질문을 입력해보세요.</h2>
+              <p>
+                우선 확인해야 할 SQL, Wait Event 기준 병목, CPU/I/O 의심 구간,
+                운영 조치 순서를 AI가 정리합니다.
+              </p>
+
+              <div class="awr-ai-empty-examples">
+                <button
+                  v-for="prompt in prompts.slice(0, 3)"
+                  :key="prompt.label"
+                  type="button"
+                  :disabled="!selectedReportId"
+                  @click="question = prompt.question"
+                >
+                  {{ prompt.question }}
+                </button>
+              </div>
+            </div>
+
+            <template v-else>
+              <div class="awr-ai-message user">
+                <div class="awr-ai-avatar user">Q</div>
+                <div class="awr-ai-bubble user">
+                  <div class="awr-ai-message-meta">사용자 질문</div>
+                  <p>{{ answer.question }}</p>
+                </div>
+              </div>
+
+              <div class="awr-ai-message assistant">
+                <div class="awr-ai-avatar assistant">AI</div>
+
+                <div class="awr-ai-bubble assistant">
+                  <div class="awr-ai-answer-head">
+                    <div>
+                      <span>AI Answer</span>
+                      <strong>분석 결과</strong>
+                    </div>
+
+                    <span class="awr-badge ok">confidence {{ answer.confidence }}</span>
+                  </div>
+
+                  <div class="awr-answer markdown-answer awr-chat-answer pro">
+                    <template v-for="(block, blockIndex) in answerBlocks" :key="blockIndex">
+                      <component
+                        :is="block.level <= 2 ? 'h3' : 'h4'"
+                        v-if="block.type === 'heading'"
+                        class="md-heading"
+                      >
+                        <template v-for="(segment, segmentIndex) in block.content" :key="segmentIndex">
+                          <code v-if="segment.type === 'code'">{{ segment.text }}</code>
+                          <strong v-else-if="segment.type === 'strong'">{{ segment.text }}</strong>
+                          <span v-else>{{ segment.text }}</span>
+                        </template>
+                      </component>
+
+                      <p v-else-if="block.type === 'paragraph'" class="md-paragraph">
+                        <template v-for="(segment, segmentIndex) in block.content" :key="segmentIndex">
+                          <code v-if="segment.type === 'code'">{{ segment.text }}</code>
+                          <strong v-else-if="segment.type === 'strong'">{{ segment.text }}</strong>
+                          <span v-else>{{ segment.text }}</span>
+                        </template>
+                      </p>
+
+                      <blockquote v-else-if="block.type === 'quote'" class="md-quote">
+                        <template v-for="(segment, segmentIndex) in block.content" :key="segmentIndex">
+                          <code v-if="segment.type === 'code'">{{ segment.text }}</code>
+                          <strong v-else-if="segment.type === 'strong'">{{ segment.text }}</strong>
+                          <span v-else>{{ segment.text }}</span>
+                        </template>
+                      </blockquote>
+
+                      <ol v-else-if="block.type === 'list' && block.ordered" class="md-list">
+                        <li v-for="(item, itemIndex) in block.items" :key="itemIndex">
+                          <template v-for="(segment, segmentIndex) in item" :key="segmentIndex">
+                            <code v-if="segment.type === 'code'">{{ segment.text }}</code>
+                            <strong v-else-if="segment.type === 'strong'">{{ segment.text }}</strong>
+                            <span v-else>{{ segment.text }}</span>
+                          </template>
+                        </li>
+                      </ol>
+
+                      <ul v-else-if="block.type === 'list'" class="md-list">
+                        <li v-for="(item, itemIndex) in block.items" :key="itemIndex">
+                          <template v-for="(segment, segmentIndex) in item" :key="segmentIndex">
+                            <code v-if="segment.type === 'code'">{{ segment.text }}</code>
+                            <strong v-else-if="segment.type === 'strong'">{{ segment.text }}</strong>
+                            <span v-else>{{ segment.text }}</span>
+                          </template>
+                        </li>
+                      </ul>
+
+                      <pre v-else-if="block.type === 'code'" class="md-code"><code>{{ block.text }}</code></pre>
+                    </template>
+                  </div>
+
+                  <div
+                    v-if="
+                      answer.citations.length ||
+                      answer.evidenceSql.length ||
+                      answer.evidenceWaitEvents.length
+                    "
+                    class="awr-ai-evidence-area"
+                  >
+                    <details v-if="answer.citations.length" class="awr-ai-evidence-details">
+                      <summary>
+                        <span>답변 근거</span>
+                        <em>{{ answer.citations.length }}건</em>
+                      </summary>
+
+                      <ul class="awr-chat-citation-list pro">
+                        <li v-for="citation in answer.citations" :key="citation">
+                          {{ formatCitation(citation) }}
+                        </li>
+                      </ul>
+                    </details>
+
+                    <details v-if="answer.evidenceSql.length" class="awr-ai-evidence-details">
+                      <summary>
+                        <span>근거 SQL</span>
+                        <em>{{ answer.evidenceSql.length }}건</em>
+                      </summary>
+
+                      <div class="awr-table-wrap awr-chat-table-wrap">
+                        <table class="awr-table awr-report-list-table">
+                          <thead>
+                            <tr>
+                              <th>SQL_ID</th>
+                              <th>Section</th>
+                              <th>Elapsed</th>
+                              <th>CPU</th>
+                              <th>Gets</th>
+                              <th>Reads</th>
+                              <th>Execs</th>
+                            </tr>
+                          </thead>
+
+                          <tbody>
+                            <tr
+                              v-for="metric in answer.evidenceSql"
+                              :key="`${metric.sectionName}-${metric.sqlId}-${metric.rankNo}`"
+                            >
+                              <td>
+                                <span class="awr-chat-sql-id">{{ metric.sqlId }}</span>
+                              </td>
+                              <td>{{ metric.sectionName }}</td>
+                              <td>{{ formatNumber(metric.elapsedTimeSec) }}</td>
+                              <td>{{ formatNumber(metric.cpuTimeSec) }}</td>
+                              <td>{{ formatNumber(metric.bufferGets) }}</td>
+                              <td>{{ formatNumber(metric.diskReads) }}</td>
+                              <td>{{ formatNumber(metric.executions) }}</td>
+                            </tr>
+                          </tbody>
+                        </table>
+                      </div>
+                    </details>
+
+                    <details v-if="answer.evidenceWaitEvents.length" class="awr-ai-evidence-details">
+                      <summary>
+                        <span>근거 Wait Event</span>
+                        <em>{{ answer.evidenceWaitEvents.length }}건</em>
+                      </summary>
+
+                      <div class="awr-table-wrap awr-chat-table-wrap">
+                        <table class="awr-table awr-report-list-table">
+                          <thead>
+                            <tr>
+                              <th>Wait Class</th>
+                              <th>Event Name</th>
+                              <th>Total Wait Sec</th>
+                              <th>Avg Wait ms</th>
+                              <th>DB Time %</th>
+                            </tr>
+                          </thead>
+
+                          <tbody>
+                            <tr
+                              v-for="event in answer.evidenceWaitEvents"
+                              :key="`${event.waitClass}-${event.eventName}`"
+                            >
+                              <td>{{ event.waitClass }}</td>
+                              <td>{{ event.eventName }}</td>
+                              <td>{{ formatNumber(event.totalWaitTimeSec) }}</td>
+                              <td>{{ formatNumber(event.avgWaitMs) }}</td>
+                              <td>{{ formatNumber(event.dbTimePercent) }}</td>
+                            </tr>
+                          </tbody>
+                        </table>
+                      </div>
+                    </details>
+                  </div>
+                </div>
+              </div>
+            </template>
+          </div>
+
+          <div class="awr-ai-composer">
+            <textarea
+              v-model="question"
+              class="awr-ai-composer-input"
+              placeholder="예: 이 AWR에서 제일 먼저 봐야 할 SQL은?"
+              @keydown.enter.exact.prevent="ask"
+            ></textarea>
+
+            <button
+              class="awr-ai-send-button"
+              type="button"
+              :disabled="!canAsk || isAsking"
+              @click="ask"
+            >
+              <span v-if="isAsking">...</span>
+              <span v-else>↑</span>
+            </button>
+          </div>
+        </section>
+      </main>
+
+      <aside class="awr-ai-chat-sidebar">
+        <section class="awr-panel awr-ai-side-card">
+          <div class="awr-ai-side-head">
+            <span>분석 대상</span>
+            <strong>선택 리포트</strong>
+          </div>
+
+          <div v-if="selectedReport" class="awr-ai-selected-report">
+            <div class="awr-ai-selected-id">#{{ selectedReport.id }}</div>
+
             <div>
-              <span class="awr-chat-card-eyebrow">분석 대상</span>
-              <h2>리포트 선택</h2>
-            </div>
-
-            <span v-if="selectedReport" class="awr-badge ok">#{{ selectedReport.id }}</span>
-          </div>
-
-          <div class="awr-chat-report-select-box">
-            <label class="awr-chat-field-label" for="report-select">AWR 리포트</label>
-
-            <div class="awr-chat-select-wrap">
-              <select
-                id="report-select"
-                v-model.number="selectedReportId"
-                class="awr-input awr-chat-select"
-              >
-                <option :value="0">리포트 선택</option>
-                <option v-for="report in reports" :key="report.id" :value="report.id">
-                  #{{ report.id }} {{ report.filename }}
-                </option>
-              </select>
-
-              <span class="awr-chat-select-arrow">▾</span>
-            </div>
-          </div>
-
-          <div v-if="selectedReport" class="awr-chat-report-summary">
-            <div class="awr-chat-report-main">
               <span>파일명</span>
-              <strong :title="selectedReport.filename">
-                {{ selectedReport.filename }}
-              </strong>
+              <strong :title="selectedReport.filename">{{ selectedReport.filename }}</strong>
             </div>
 
-            <div class="awr-chat-report-meta-grid">
+            <div class="awr-ai-report-meta-grid">
               <div>
                 <span>DB</span>
                 <strong :title="normalizeValue(selectedReport.dbName)">
@@ -66,7 +307,7 @@
               </div>
             </div>
 
-            <div class="awr-chat-report-main">
+            <div>
               <span>분석 구간</span>
               <strong>
                 {{ formatSnapshotText(selectedReport.snapBegin) }}
@@ -76,19 +317,19 @@
             </div>
           </div>
 
-          <div v-else class="awr-chat-target-empty">
+          <div v-else class="awr-empty compact">
             분석할 AWR 리포트를 선택하세요.
           </div>
         </section>
 
-        <section class="awr-panel awr-chat-pro-card awr-chat-history-card">
-          <div class="awr-chat-card-head">
+        <section class="awr-panel awr-ai-side-card awr-ai-history-card">
+          <div class="awr-ai-side-head row">
             <div>
-              <span class="awr-chat-card-eyebrow">이전 질의</span>
-              <h2>채팅 히스토리</h2>
+              <span>이전 질의</span>
+              <strong>채팅 히스토리</strong>
             </div>
 
-            <span class="awr-badge">{{ chatHistory.length }}</span>
+            <em>{{ chatHistory.length }}</em>
           </div>
 
           <div v-if="isLoadingHistory" class="awr-empty compact">
@@ -103,268 +344,23 @@
             아직 저장된 채팅이 없습니다.
           </div>
 
-          <ul v-else class="awr-chat-history-list">
+          <ul v-else class="awr-ai-history-list">
             <li v-for="item in chatHistory" :key="item.chatId">
               <button
-                :class="['awr-chat-history-item', { active: selectedHistoryId === item.chatId }]"
+                :class="['awr-ai-history-item', { active: selectedHistoryId === item.chatId }]"
                 type="button"
                 @click="selectHistory(item)"
               >
-                <span class="awr-chat-history-question">{{ item.question }}</span>
-                <span class="awr-chat-history-meta">
+                <span>{{ item.question }}</span>
+                <em>
                   {{ formatDateTime(item.createdAt) }}
-                  <span v-if="item.model"> · {{ item.model }}</span>
-                </span>
+                  <template v-if="item.model"> · {{ item.model }}</template>
+                </em>
               </button>
             </li>
           </ul>
         </section>
       </aside>
-
-      <main class="awr-chat-pro-main">
-        <section class="awr-panel awr-chat-pro-card awr-chat-command-card">
-          <div class="awr-chat-command-head">
-            <div>
-              <span class="awr-chat-card-eyebrow">AI 질의</span>
-              <h2>질문하기</h2>
-              <p>
-                리포트 내용 기준으로 병목 원인, 우선순위, 조치 방향을 질문할 수 있습니다.
-              </p>
-            </div>
-
-            <span v-if="answer" class="awr-status-chip done">답변 생성 완료</span>
-          </div>
-
-          <div class="awr-chat-prompt-chip-row">
-            <button
-              v-for="prompt in prompts"
-              :key="prompt.label"
-              class="awr-chat-prompt-chip"
-              type="button"
-              :disabled="!selectedReportId"
-              @click="question = prompt.question"
-            >
-              {{ prompt.label }}
-            </button>
-          </div>
-
-          <div class="awr-chat-question-box pro">
-            <textarea
-              v-model="question"
-              class="awr-textarea awr-chat-question-textarea pro"
-              placeholder="예: 이 AWR에서 제일 먼저 봐야 할 SQL은?"
-            ></textarea>
-
-            <div class="awr-chat-submit-row pro">
-              <p class="awr-chat-helper">
-                선택한 리포트의 SQL metric, Wait Event, Section 근거만 사용해 답변합니다.
-              </p>
-
-              <button
-                class="awr-btn primary awr-chat-submit"
-                type="button"
-                :disabled="!canAsk || isAsking"
-                @click="ask"
-              >
-                {{ isAsking ? '답변 생성 중' : '질문하기' }}
-              </button>
-            </div>
-          </div>
-        </section>
-
-        <div v-if="errorMessage" class="awr-empty awr-chat-error">
-          {{ errorMessage }}
-        </div>
-
-        <section
-          v-if="!answer && !errorMessage"
-          class="awr-panel awr-chat-pro-card awr-chat-ready-state"
-        >
-          <div class="awr-chat-ready-emoji">💬</div>
-
-          <div class="awr-chat-ready-copy">
-            <h3>질문을 입력하면 AI 분석 결과가 표시됩니다.</h3>
-            <p>
-              선택한 AWR 리포트를 기준으로 우선 확인 대상, 병목 원인, 조치 방향을 정리합니다.
-            </p>
-          </div>
-        </section>
-
-        <template v-if="answer">
-          <section class="awr-panel awr-chat-pro-card awr-chat-answer-section pro">
-            <div class="awr-chat-answer-header pro">
-              <div>
-                <span class="awr-chat-answer-label">AI Answer</span>
-                <h3>{{ answer.question }}</h3>
-              </div>
-
-              <span class="awr-badge ok">confidence {{ answer.confidence }}</span>
-            </div>
-
-            <div class="awr-answer markdown-answer awr-chat-answer pro">
-              <template v-for="(block, blockIndex) in answerBlocks" :key="blockIndex">
-                <component
-                  :is="block.level <= 2 ? 'h3' : 'h4'"
-                  v-if="block.type === 'heading'"
-                  class="md-heading"
-                >
-                  <template v-for="(segment, segmentIndex) in block.content" :key="segmentIndex">
-                    <code v-if="segment.type === 'code'">{{ segment.text }}</code>
-                    <strong v-else-if="segment.type === 'strong'">{{ segment.text }}</strong>
-                    <span v-else>{{ segment.text }}</span>
-                  </template>
-                </component>
-
-                <p v-else-if="block.type === 'paragraph'" class="md-paragraph">
-                  <template v-for="(segment, segmentIndex) in block.content" :key="segmentIndex">
-                    <code v-if="segment.type === 'code'">{{ segment.text }}</code>
-                    <strong v-else-if="segment.type === 'strong'">{{ segment.text }}</strong>
-                    <span v-else>{{ segment.text }}</span>
-                  </template>
-                </p>
-
-                <blockquote v-else-if="block.type === 'quote'" class="md-quote">
-                  <template v-for="(segment, segmentIndex) in block.content" :key="segmentIndex">
-                    <code v-if="segment.type === 'code'">{{ segment.text }}</code>
-                    <strong v-else-if="segment.type === 'strong'">{{ segment.text }}</strong>
-                    <span v-else>{{ segment.text }}</span>
-                  </template>
-                </blockquote>
-
-                <ol v-else-if="block.type === 'list' && block.ordered" class="md-list">
-                  <li v-for="(item, itemIndex) in block.items" :key="itemIndex">
-                    <template v-for="(segment, segmentIndex) in item" :key="segmentIndex">
-                      <code v-if="segment.type === 'code'">{{ segment.text }}</code>
-                      <strong v-else-if="segment.type === 'strong'">{{ segment.text }}</strong>
-                      <span v-else>{{ segment.text }}</span>
-                    </template>
-                  </li>
-                </ol>
-
-                <ul v-else-if="block.type === 'list'" class="md-list">
-                  <li v-for="(item, itemIndex) in block.items" :key="itemIndex">
-                    <template v-for="(segment, segmentIndex) in item" :key="segmentIndex">
-                      <code v-if="segment.type === 'code'">{{ segment.text }}</code>
-                      <strong v-else-if="segment.type === 'strong'">{{ segment.text }}</strong>
-                      <span v-else>{{ segment.text }}</span>
-                    </template>
-                  </li>
-                </ul>
-
-                <pre v-else-if="block.type === 'code'" class="md-code"><code>{{ block.text }}</code></pre>
-              </template>
-            </div>
-          </section>
-
-          <section
-            v-if="answer.citations.length"
-            class="awr-panel awr-chat-pro-card awr-chat-evidence-card pro"
-          >
-            <div class="awr-chat-section-head">
-              <div>
-                <span class="awr-chat-card-eyebrow">답변 근거</span>
-                <h3>답변에 사용된 리포트 구간</h3>
-              </div>
-
-              <span class="awr-badge small">{{ answer.citations.length }}</span>
-            </div>
-
-            <ul class="awr-chat-citation-list pro">
-              <li v-for="citation in answer.citations" :key="citation">
-                {{ formatCitation(citation) }}
-              </li>
-            </ul>
-          </section>
-
-          <section
-            v-if="answer.evidenceSql.length"
-            class="awr-panel awr-chat-pro-card awr-chat-evidence-card pro"
-          >
-            <div class="awr-chat-section-head">
-              <div>
-                <span class="awr-chat-card-eyebrow">SQL 근거</span>
-                <h3>근거 SQL</h3>
-              </div>
-
-              <span class="awr-badge small">{{ answer.evidenceSql.length }}건</span>
-            </div>
-
-            <div class="awr-table-wrap awr-chat-table-wrap">
-              <table class="awr-table awr-report-list-table">
-                <thead>
-                  <tr>
-                    <th>SQL_ID</th>
-                    <th>Section</th>
-                    <th>Elapsed</th>
-                    <th>CPU</th>
-                    <th>Gets</th>
-                    <th>Reads</th>
-                    <th>Execs</th>
-                  </tr>
-                </thead>
-
-                <tbody>
-                  <tr
-                    v-for="metric in answer.evidenceSql"
-                    :key="`${metric.sectionName}-${metric.sqlId}-${metric.rankNo}`"
-                  >
-                    <td>
-                      <span class="awr-chat-sql-id">{{ metric.sqlId }}</span>
-                    </td>
-                    <td>{{ metric.sectionName }}</td>
-                    <td>{{ formatNumber(metric.elapsedTimeSec) }}</td>
-                    <td>{{ formatNumber(metric.cpuTimeSec) }}</td>
-                    <td>{{ formatNumber(metric.bufferGets) }}</td>
-                    <td>{{ formatNumber(metric.diskReads) }}</td>
-                    <td>{{ formatNumber(metric.executions) }}</td>
-                  </tr>
-                </tbody>
-              </table>
-            </div>
-          </section>
-
-          <section
-            v-if="answer.evidenceWaitEvents.length"
-            class="awr-panel awr-chat-pro-card awr-chat-evidence-card pro"
-          >
-            <div class="awr-chat-section-head">
-              <div>
-                <span class="awr-chat-card-eyebrow">Wait Event 근거</span>
-                <h3>근거 Wait Event</h3>
-              </div>
-
-              <span class="awr-badge small">{{ answer.evidenceWaitEvents.length }}건</span>
-            </div>
-
-            <div class="awr-table-wrap awr-chat-table-wrap">
-              <table class="awr-table awr-report-list-table">
-                <thead>
-                  <tr>
-                    <th>Wait Class</th>
-                    <th>Event Name</th>
-                    <th>Total Wait Sec</th>
-                    <th>Avg Wait ms</th>
-                    <th>DB Time %</th>
-                  </tr>
-                </thead>
-
-                <tbody>
-                  <tr
-                    v-for="event in answer.evidenceWaitEvents"
-                    :key="`${event.waitClass}-${event.eventName}`"
-                  >
-                    <td>{{ event.waitClass }}</td>
-                    <td>{{ event.eventName }}</td>
-                    <td>{{ formatNumber(event.totalWaitTimeSec) }}</td>
-                    <td>{{ formatNumber(event.avgWaitMs) }}</td>
-                    <td>{{ formatNumber(event.dbTimePercent) }}</td>
-                  </tr>
-                </tbody>
-              </table>
-            </div>
-          </section>
-        </template>
-      </main>
     </div>
   </div>
 </template>
@@ -459,7 +455,7 @@ watch(selectedReportId, () => {
 })
 
 async function ask() {
-  if (!canAsk.value) return
+  if (!canAsk.value || isAsking.value) return
 
   isAsking.value = true
   errorMessage.value = ''

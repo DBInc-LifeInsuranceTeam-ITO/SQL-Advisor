@@ -6,16 +6,46 @@
     </button>
 
     <nav class="nav-menu">
-      <button
-        v-for="item in visibleMenuItems"
-        :key="item.name"
-        type="button"
-        :class="['nav-item', { active: isActive(item) }]"
-        @click="go(item.name)"
-      >
-        <span class="nav-icon" aria-hidden="true" v-html="item.icon"></span>
-        <span>{{ item.label }}</span>
-      </button>
+      <template v-for="entry in visibleMenuEntries" :key="entry.key">
+        <button
+          v-if="entry.type === 'item'"
+          type="button"
+          :class="['nav-item', { active: isActive(entry.item) }]"
+          @click="go(entry.item.name)"
+        >
+          <span class="nav-icon" aria-hidden="true" v-html="entry.item.icon"></span>
+          <span>{{ entry.item.label }}</span>
+        </button>
+
+        <div v-else class="nav-group">
+          <button
+            type="button"
+            :class="['nav-group-header', { active: isGroupActive(entry.group) }]"
+            :aria-expanded="!collapsedGroups[entry.group.key]"
+            @click="toggleGroup(entry.group.key)"
+          >
+            <span class="nav-group-chevron" aria-hidden="true">
+              {{ collapsedGroups[entry.group.key] ? '▶' : '▼' }}
+            </span>
+            <span class="nav-icon" aria-hidden="true" v-html="entry.group.icon"></span>
+            <span>{{ entry.group.label }}</span>
+          </button>
+
+          <div v-show="!collapsedGroups[entry.group.key]" class="nav-group-children">
+            <button
+              v-for="item in entry.group.items"
+              :key="item.name"
+              type="button"
+              :class="['nav-item', 'nav-sub-item', { active: isActive(item) }]"
+              @click="go(item.name)"
+            >
+              <span class="nav-tree-line" aria-hidden="true">├</span>
+              <span class="nav-icon" aria-hidden="true" v-html="item.icon"></span>
+              <span>{{ item.label }}</span>
+            </button>
+          </div>
+        </div>
+      </template>
     </nav>
 
     <div class="sidebar-foot">
@@ -50,7 +80,7 @@
 </template>
 
 <script setup lang="ts">
-import { computed, ref, watch } from 'vue'
+import { computed, reactive, ref, watch } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { useAuthStore } from '@/stores/auth'
 
@@ -58,6 +88,7 @@ const router = useRouter()
 const route = useRoute()
 const authStore = useAuthStore()
 const avatarLoadFailed = ref(false)
+
 const userInitial = computed(() => {
   const name = authStore.user?.displayName || authStore.user?.email || 'U'
   return name.trim().charAt(0).toUpperCase()
@@ -67,65 +98,149 @@ watch(() => authStore.user?.pictureUrl, () => {
   avatarLoadFailed.value = false
 })
 
-const menuItems = [
-  {
-    name: 'awr-dashboard',
-    label: '대시보드',
-    icon: '<svg viewBox="0 0 24 24"><path d="M4 13h7V4H4v9Zm0 7h7v-5H4v5Zm9 0h7v-9h-7v9Zm0-16v5h7V4h-7Z"/></svg>'
-  },
-  {
-    name: 'awr-upload',
-    label: 'AWR 분석 요청',
-    icon: '<svg viewBox="0 0 24 24"><path d="M12 3 7 8h3v6h4V8h3l-5-5ZM5 19h14v-3h2v5H3v-5h2v3Z"/></svg>'
-  },
-  {
-    name: 'awr-reports',
-    label: 'AWR 분석 결과',
-    icon: '<svg viewBox="0 0 24 24"><path d="M5 3h14v18H5V3Zm3 4v2h8V7H8Zm0 4v2h8v-2H8Zm0 4v2h5v-2H8Z"/></svg>'
-  },
-  {
-    name: 'awr-chat',
-    label: 'AI 리포트 분석',
-    icon: '<svg viewBox="0 0 24 24"><path d="M4 4h16v11H7l-3 4V4Zm4 4v2h8V8H8Zm0 4v2h6v-2H8Z"/></svg>'
-  },
-  {
-    name: 'sql-tuning',
-    label: 'SQL 튜닝',
-    icon: '<svg viewBox="0 0 24 24"><path d="M4 5h16v14H4V5Zm2 2v10h12V7H6Zm2 2h5v2H8V9Zm0 3h8v2H8v-2Z"/></svg>'
-  },
-  {
-    name: 'awr-ai-settings',
-    label: 'AI 연동 설정',
-    icon: '<svg viewBox="0 0 24 24"><path d="M19.4 13.5c.1-.5.1-1 .1-1.5s0-1-.1-1.5l2-1.5-2-3.5-2.4 1a7.5 7.5 0 0 0-2.6-1.5L14 2h-4l-.4 3a7.5 7.5 0 0 0-2.6 1.5l-2.4-1-2 3.5 2 1.5A8 8 0 0 0 4.5 12c0 .5 0 1 .1 1.5l-2 1.5 2 3.5 2.4-1a7.5 7.5 0 0 0 2.6 1.5l.4 3h4l.4-3a7.5 7.5 0 0 0 2.6-1.5l2.4 1 2-3.5-2-1.5ZM12 15.5A3.5 3.5 0 1 1 12 8a3.5 3.5 0 0 1 0 7.5Z"/></svg>'
-  },
+type MenuItem = {
+  name: string
+  label: string
+  icon: string
+}
+
+type MenuGroup = {
+  key: 'awr-analysis' | 'system-management'
+  label: string
+  icon: string
+  items: MenuItem[]
+}
+
+type MenuEntry =
+  | { type: 'item'; key: string; item: MenuItem }
+  | { type: 'group'; key: string; group: MenuGroup }
+
+const icons = {
+  dashboard: '<svg viewBox="0 0 24 24"><path d="M4 13h7V4H4v9Zm0 7h7v-5H4v5Zm9 0h7v-9h-7v9Zm0-16v5h7V4h-7Z"/></svg>',
+  upload: '<svg viewBox="0 0 24 24"><path d="M12 3 7 8h3v6h4V8h3l-5-5ZM5 19h14v-3h2v5H3v-5h2v3Z"/></svg>',
+  report: '<svg viewBox="0 0 24 24"><path d="M5 3h14v18H5V3Zm3 4v2h8V7H8Zm0 4v2h8v-2H8Zm0 4v2h5v-2H8Z"/></svg>',
+  chat: '<svg viewBox="0 0 24 24"><path d="M4 4h16v11H7l-3 4V4Zm4 4v2h8V8H8Zm0 4v2h6v-2H8Z"/></svg>',
+  sql: '<svg viewBox="0 0 24 24"><path d="M4 5h16v14H4V5Zm2 2v10h12V7H6Zm2 2h5v2H8V9Zm0 3h8v2H8v-2Z"/></svg>',
+  settings: '<svg viewBox="0 0 24 24"><path d="M19.4 13.5c.1-.5.1-1 .1-1.5s0-1-.1-1.5l2-1.5-2-3.5-2.4 1a7.5 7.5 0 0 0-2.6-1.5L14 2h-4l-.4 3a7.5 7.5 0 0 0-2.6 1.5l-2.4-1-2 3.5 2 1.5A8 8 0 0 0 4.5 12c0 .5 0 1 .1 1.5l-2 1.5 2 3.5 2.4-1a7.5 7.5 0 0 0 2.6 1.5l.4 3h4l.4-3a7.5 7.5 0 0 0 2.6-1.5l2.4 1 2-3.5-2-1.5ZM12 15.5A3.5 3.5 0 1 1 12 8a3.5 3.5 0 0 1 0 7.5Z"/></svg>',
+  users: '<svg viewBox="0 0 24 24"><path d="M16 11c1.7 0 3-1.3 3-3s-1.3-3-3-3-3 1.3-3 3 1.3 3 3 3ZM8 12c1.7 0 3-1.3 3-3S9.7 6 8 6 5 7.3 5 9s1.3 3 3 3Zm8 2c-2 0-6 1-6 3v1h12v-1c0-2-4-3-6-3Zm-8 1c-1.9 0-6 .9-6 3v1h6v-1c0-1 .6-2 1.6-2.8A8 8 0 0 0 8 15Z"/></svg>',
+  awr: '<svg viewBox="0 0 24 24"><path d="M4 4h16v4H4V4Zm0 6h16v10H4V10Zm3 3v2h4v-2H7Zm0 4v1h10v-1H7Zm6-4v2h4v-2h-4Z"/></svg>'
+}
+
+const dashboardItem: MenuItem = {
+  name: 'awr-dashboard',
+  label: '대시보드',
+  icon: icons.dashboard
+}
+
+const sqlTuningItem: MenuItem = {
+  name: 'sql-tuning',
+  label: 'SQL 튜닝',
+  icon: icons.sql
+}
+
+const aiReportItem: MenuItem = {
+  name: 'awr-chat',
+  label: 'AI 리포트 분석',
+  icon: icons.chat
+}
+
+const awrGroup: MenuGroup = {
+  key: 'awr-analysis',
+  label: 'AWR 분석',
+  icon: icons.awr,
+  items: [
+    {
+      name: 'awr-upload',
+      label: '분석 요청',
+      icon: icons.upload
+    },
+    {
+      name: 'awr-reports',
+      label: '분석 결과',
+      icon: icons.report
+    }
+  ]
+}
+
+const systemGroup: MenuGroup = {
+  key: 'system-management',
+  label: '시스템 관리',
+  icon: icons.settings,
+  items: [
+    {
+      name: 'awr-ai-settings',
+      label: 'AI 연동 설정',
+      icon: icons.settings
+    },
     {
       name: 'user-management',
       label: '사용자 권한 관리',
-      icon: '<svg viewBox="0 0 24 24"><path d="M16 11c1.7 0 3-1.3 3-3s-1.3-3-3-3-3 1.3-3 3 1.3 3 3 3ZM8 12c1.7 0 3-1.3 3-3S9.7 6 8 6 5 7.3 5 9s1.3 3 3 3Zm8 2c-2 0-6 1-6 3v1h12v-1c0-2-4-3-6-3Zm-8 1c-1.9 0-6 .9-6 3v1h6v-1c0-1 .6-2 1.6-2.8A8 8 0 0 0 8 15Z"/></svg>'
+      icon: icons.users
     }
+  ]
+}
+
+const menuEntries: MenuEntry[] = [
+  { type: 'item', key: dashboardItem.name, item: dashboardItem },
+  { type: 'item', key: sqlTuningItem.name, item: sqlTuningItem },
+  { type: 'item', key: aiReportItem.name, item: aiReportItem },
+  { type: 'group', key: awrGroup.key, group: awrGroup },
+  { type: 'group', key: systemGroup.key, group: systemGroup }
 ]
 
-type MenuItem = typeof menuItems[number]
+const collapsedGroups = reactive<Record<MenuGroup['key'], boolean>>({
+  'awr-analysis': false,
+  'system-management': false
+})
 
-const visibleMenuItems = computed(() => {
+const allowedMenuNames = computed(() => {
   if (authStore.authEnabled && !authStore.isAuthenticated) {
-    return menuItems.filter((item) => item.name === 'awr-dashboard')
+    return new Set(['awr-dashboard'])
   }
 
   if (authStore.isAdmin) {
-    return menuItems
+    return new Set([
+      'awr-dashboard',
+      'sql-tuning',
+      'awr-chat',
+      'awr-upload',
+      'awr-reports',
+      'awr-ai-settings',
+      'user-management'
+    ])
   }
 
   if (authStore.isMonitor) {
-    return menuItems.filter((item) =>
-      ['awr-dashboard', 'awr-reports', 'sql-tuning'].includes(item.name)
-    )
+    return new Set(['awr-dashboard', 'sql-tuning', 'awr-reports'])
   }
 
-  return menuItems.filter((item) =>
-    !['awr-ai-settings', 'user-management'].includes(item.name)
-  )
+  return new Set(['awr-dashboard', 'sql-tuning', 'awr-chat', 'awr-upload', 'awr-reports'])
 })
+
+const visibleMenuEntries = computed<MenuEntry[]>(() => {
+  return menuEntries.flatMap((entry) => {
+    if (entry.type === 'item') {
+      return allowedMenuNames.value.has(entry.item.name) ? [entry] : []
+    }
+
+    const visibleItems = entry.group.items.filter((item) => allowedMenuNames.value.has(item.name))
+    if (visibleItems.length === 0) {
+      return []
+    }
+
+    return [{
+      ...entry,
+      group: {
+        ...entry.group,
+        items: visibleItems
+      }
+    }]
+  })
+})
+
+function toggleGroup(groupKey: MenuGroup['key']) {
+  collapsedGroups[groupKey] = !collapsedGroups[groupKey]
+}
 
 function isActive(item: MenuItem) {
   const current = route
@@ -138,6 +253,10 @@ function isActive(item: MenuItem) {
   return current.name === item.name
 }
 
+function isGroupActive(group: MenuGroup) {
+  return group.items.some((item) => isActive(item))
+}
+
 async function go(name: string) {
   const isSameRoute = route.name === name
 
@@ -148,7 +267,6 @@ async function go(name: string) {
 
   await router.push({ name })
 }
-
 
 async function handleLogout() {
   await authStore.logout()
@@ -215,7 +333,14 @@ async function handleLogout() {
   gap: 0.35rem;
 }
 
-.nav-item {
+.nav-group {
+  display: flex;
+  flex-direction: column;
+  gap: 0.15rem;
+}
+
+.nav-item,
+.nav-group-header {
   display: flex;
   align-items: center;
   gap: 0.6rem;
@@ -231,7 +356,8 @@ async function handleLogout() {
   text-decoration: none;
 }
 
-.nav-item:hover {
+.nav-item:hover,
+.nav-group-header:hover {
   border-color: #b9d8c9;
   background: #eef8f3;
   color: #006d3d;
@@ -241,6 +367,41 @@ async function handleLogout() {
   border-color: #00854A;
   background: #00854A;
   color: #ffffff;
+}
+
+.nav-group-header.active:not(:hover) {
+  color: #00854A;
+}
+
+.nav-group-chevron {
+  width: 0.75rem;
+  flex: 0 0 0.75rem;
+  font-size: 0.63rem;
+  line-height: 1;
+  text-align: center;
+}
+
+.nav-group-children {
+  display: flex;
+  flex-direction: column;
+  gap: 0.1rem;
+}
+
+.nav-sub-item {
+  min-height: 2.35rem;
+  padding-left: 1rem;
+}
+
+.nav-tree-line {
+  width: 0.75rem;
+  flex: 0 0 0.75rem;
+  color: #7d958a;
+  font-size: 0.8rem;
+  text-align: center;
+}
+
+.nav-sub-item.active .nav-tree-line {
+  color: inherit;
 }
 
 .nav-icon {
@@ -256,7 +417,8 @@ async function handleLogout() {
   fill: currentColor;
 }
 
-.nav-item span:last-child {
+.nav-item span:last-child,
+.nav-group-header span:last-child {
   font-weight: 760;
 }
 
@@ -364,9 +526,19 @@ async function handleLogout() {
   .nav-menu {
     flex-direction: row;
     flex: 1 0 auto;
+    align-items: flex-start;
   }
 
-  .nav-item {
+  .nav-group {
+    flex: 0 0 auto;
+  }
+
+  .nav-group-children {
+    display: none;
+  }
+
+  .nav-item,
+  .nav-group-header {
     width: auto;
     white-space: nowrap;
   }

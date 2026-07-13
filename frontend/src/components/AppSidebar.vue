@@ -1,22 +1,98 @@
 <template>
   <aside class="app-sidebar">
-    <button class="brand" type="button" @click="go('awr-dashboard')">
+    <button class="brand" type="button" @click="goHome">
       <img class="brand-logo" src="/assets/logo_dblife.png" alt="DB생명" />
       <span class="brand-subtitle">SQL Advisor</span>
     </button>
 
-    <nav class="nav-menu">
+<nav class="nav-menu">
+  <!-- 단일 메뉴 -->
+  <button
+    v-for="item in visibleDirectMenuItems"
+    :key="item.name"
+    type="button"
+    :class="['nav-item', { active: isActive(item) }]"
+    @click="go(item.name)"
+  >
+    <span class="nav-icon" aria-hidden="true" v-html="item.icon"></span>
+    <span class="nav-label">{{ item.label }}</span>
+  </button>
+
+  <!-- AWR 분석 -->
+  <div v-if="visibleAwrMenuItems.length > 0" class="nav-group">
+    <button
+      type="button"
+      :class="['nav-item', 'nav-group-title']"
+      @click="awrMenuOpen = !awrMenuOpen"
+    >
+      <span class="nav-icon" aria-hidden="true">
+        <svg viewBox="0 0 24 24">
+          <path d="M4 4h16v16H4V4Zm3 3v2h10V7H7Zm0 4v2h10v-2H7Zm0 4v2h7v-2H7Z" />
+        </svg>
+      </span>
+
+      <span class="nav-label">AWR 분석</span>
+
+      <span :class="['nav-arrow', { open: awrMenuOpen }]" aria-hidden="true">
+        <svg viewBox="0 0 24 24">
+          <path d="m7 10 5 5 5-5H7Z" />
+        </svg>
+      </span>
+    </button>
+
+    <div v-show="awrMenuOpen" class="nav-submenu">
       <button
-        v-for="item in visibleMenuItems"
+        v-for="item in visibleAwrMenuItems"
         :key="item.name"
         type="button"
-        :class="['nav-item', { active: isActive(item) }]"
+        :class="['nav-item', 'nav-subitem', { active: isActive(item) }]"
         @click="go(item.name)"
       >
-        <span class="nav-icon" aria-hidden="true" v-html="item.icon"></span>
-        <span>{{ item.label }}</span>
+        <span class="nav-tree-line" aria-hidden="true"></span>
+        <span class="nav-label">{{ item.label }}</span>
       </button>
-    </nav>
+    </div>
+  </div>
+
+  <!-- 시스템 관리 -->
+  <div v-if="visibleSystemMenuItems.length > 0" class="nav-group">
+    <button
+      type="button"
+      :class="[
+        'nav-item',
+        'nav-group-title'
+      ]"
+      @click="systemMenuOpen = !systemMenuOpen"
+    >
+      <span class="nav-icon" aria-hidden="true">
+        <svg viewBox="0 0 24 24">
+          <path d="M19.4 13.5c.1-.5.1-1 .1-1.5s0-1-.1-1.5l2-1.5-2-3.5-2.4 1a7.5 7.5 0 0 0-2.6-1.5L14 2h-4l-.4 3a7.5 7.5 0 0 0-2.6 1.5l-2.4-1-2 3.5 2 1.5A8 8 0 0 0 4.5 12c0 .5 0 1 .1 1.5l-2 1.5 2 3.5 2.4-1a7.5 7.5 0 0 0 2.6 1.5l.4 3h4l.4-3a7.5 7.5 0 0 0 2.6-1.5l2.4 1 2-3.5-2-1.5ZM12 15.5A3.5 3.5 0 1 1 12 8a3.5 3.5 0 0 1 0 7.5Z" />
+        </svg>
+      </span>
+
+      <span class="nav-label">시스템 관리</span>
+
+      <span :class="['nav-arrow', { open: systemMenuOpen }]" aria-hidden="true">
+        <svg viewBox="0 0 24 24">
+          <path d="m7 10 5 5 5-5H7Z" />
+        </svg>
+      </span>
+    </button>
+
+    <div v-show="systemMenuOpen" class="nav-submenu">
+      <button
+        v-for="item in visibleSystemMenuItems"
+        :key="item.name"
+        type="button"
+        :class="['nav-item', 'nav-subitem', { active: isActive(item) }]"
+        @click="go(item.name)"
+      >
+        <span class="nav-tree-line" aria-hidden="true"></span>
+        <span class="nav-label">{{ item.label }}</span>
+      </button>
+    </div>
+  </div>
+</nav>
 
     <div class="sidebar-foot">
       <template v-if="authStore.authEnabled && authStore.user?.authenticated">
@@ -58,6 +134,8 @@ const router = useRouter()
 const route = useRoute()
 const authStore = useAuthStore()
 const avatarLoadFailed = ref(false)
+const awrMenuOpen = ref(false)
+const systemMenuOpen = ref(false)
 const userInitial = computed(() => {
   const name = authStore.user?.displayName || authStore.user?.email || 'U'
   return name.trim().charAt(0).toUpperCase()
@@ -74,14 +152,9 @@ const menuItems = [
     icon: '<svg viewBox="0 0 24 24"><path d="M4 13h7V4H4v9Zm0 7h7v-5H4v5Zm9 0h7v-9h-7v9Zm0-16v5h7V4h-7Z"/></svg>'
   },
   {
-    name: 'awr-upload',
-    label: 'AWR 분석 요청',
-    icon: '<svg viewBox="0 0 24 24"><path d="M12 3 7 8h3v6h4V8h3l-5-5ZM5 19h14v-3h2v5H3v-5h2v3Z"/></svg>'
-  },
-  {
-    name: 'awr-reports',
-    label: 'AWR 분석 결과',
-    icon: '<svg viewBox="0 0 24 24"><path d="M5 3h14v18H5V3Zm3 4v2h8V7H8Zm0 4v2h8v-2H8Zm0 4v2h5v-2H8Z"/></svg>'
+    name: 'sql-tuning',
+    label: 'SQL 튜닝',
+    icon: '<svg viewBox="0 0 24 24"><path d="M4 5h16v14H4V5Zm2 2v10h12V7H6Zm2 2h5v2H8V9Zm0 3h8v2H8v-2Z"/></svg>'
   },
   {
     name: 'awr-chat',
@@ -89,23 +162,43 @@ const menuItems = [
     icon: '<svg viewBox="0 0 24 24"><path d="M4 4h16v11H7l-3 4V4Zm4 4v2h8V8H8Zm0 4v2h6v-2H8Z"/></svg>'
   },
   {
-    name: 'sql-tuning',
-    label: 'SQL 튜닝',
-    icon: '<svg viewBox="0 0 24 24"><path d="M4 5h16v14H4V5Zm2 2v10h12V7H6Zm2 2h5v2H8V9Zm0 3h8v2H8v-2Z"/></svg>'
+    name: 'awr-upload',
+    label: '분석 요청',
+    icon: '<svg viewBox="0 0 24 24"><path d="M12 3 7 8h3v6h4V8h3l-5-5ZM5 19h14v-3h2v5H3v-5h2v3Z"/></svg>'
+  },
+  {
+    name: 'awr-reports',
+    label: '분석 결과',
+    icon: '<svg viewBox="0 0 24 24"><path d="M5 3h14v18H5V3Zm3 4v2h8V7H8Zm0 4v2h8v-2H8Zm0 4v2h5v-2H8Z"/></svg>'
   },
   {
     name: 'awr-ai-settings',
     label: 'AI 연동 설정',
     icon: '<svg viewBox="0 0 24 24"><path d="M19.4 13.5c.1-.5.1-1 .1-1.5s0-1-.1-1.5l2-1.5-2-3.5-2.4 1a7.5 7.5 0 0 0-2.6-1.5L14 2h-4l-.4 3a7.5 7.5 0 0 0-2.6 1.5l-2.4-1-2 3.5 2 1.5A8 8 0 0 0 4.5 12c0 .5 0 1 .1 1.5l-2 1.5 2 3.5 2.4-1a7.5 7.5 0 0 0 2.6 1.5l.4 3h4l.4-3a7.5 7.5 0 0 0 2.6-1.5l2.4 1 2-3.5-2-1.5ZM12 15.5A3.5 3.5 0 1 1 12 8a3.5 3.5 0 0 1 0 7.5Z"/></svg>'
   },
-    {
-      name: 'user-management',
-      label: '사용자 권한 관리',
-      icon: '<svg viewBox="0 0 24 24"><path d="M16 11c1.7 0 3-1.3 3-3s-1.3-3-3-3-3 1.3-3 3 1.3 3 3 3ZM8 12c1.7 0 3-1.3 3-3S9.7 6 8 6 5 7.3 5 9s1.3 3 3 3Zm8 2c-2 0-6 1-6 3v1h12v-1c0-2-4-3-6-3Zm-8 1c-1.9 0-6 .9-6 3v1h6v-1c0-1 .6-2 1.6-2.8A8 8 0 0 0 8 15Z"/></svg>'
-    }
+  {
+    name: 'user-management',
+    label: '사용자 권한 관리',
+    icon: '<svg viewBox="0 0 24 24"><path d="M16 11c1.7 0 3-1.3 3-3s-1.3-3-3-3-3 1.3-3 3 1.3 3 3 3ZM8 12c1.7 0 3-1.3 3-3S9.7 6 8 6 5 7.3 5 9s1.3 3 3 3Zm8 2c-2 0-6 1-6 3v1h12v-1c0-2-4-3-6-3Zm-8 1c-1.9 0-6 .9-6 3v1h6v-1c0-1 .6-2 1.6-2.8A8 8 0 0 0 8 15Z"/></svg>'
+  }
 ]
 
 type MenuItem = typeof menuItems[number]
+const directMenuNames = [
+  'awr-dashboard',
+  'sql-tuning',
+  'awr-chat'
+]
+
+const awrMenuNames = [
+  'awr-upload',
+  'awr-reports'
+]
+
+const systemMenuNames = [
+  'awr-ai-settings',
+  'user-management'
+]
 
 const visibleMenuItems = computed(() => {
   if (authStore.authEnabled && !authStore.isAuthenticated) {
@@ -126,6 +219,23 @@ const visibleMenuItems = computed(() => {
     !['awr-ai-settings', 'user-management'].includes(item.name)
   )
 })
+const visibleDirectMenuItems = computed(() =>
+  visibleMenuItems.value.filter((item) =>
+    directMenuNames.includes(item.name)
+  )
+)
+
+const visibleAwrMenuItems = computed(() =>
+  visibleMenuItems.value.filter((item) =>
+    awrMenuNames.includes(item.name)
+  )
+)
+
+const visibleSystemMenuItems = computed(() =>
+  visibleMenuItems.value.filter((item) =>
+    systemMenuNames.includes(item.name)
+  )
+)
 
 function isActive(item: MenuItem) {
   const current = route
@@ -136,6 +246,21 @@ function isActive(item: MenuItem) {
     return current.name === 'awr-chat' || current.name === 'awr-report-chat'
   }
   return current.name === item.name
+}
+
+function closeAllMenus() {
+  awrMenuOpen.value = false
+  systemMenuOpen.value = false
+}
+
+async function goHome() {
+  closeAllMenus()
+
+  if (route.name !== 'awr-dashboard') {
+    await router.push({ name: 'awr-dashboard' })
+  }
+
+  window.dispatchEvent(new CustomEvent('sql-advisor:refresh-current-view'))
 }
 
 async function go(name: string) {
@@ -256,10 +381,68 @@ async function handleLogout() {
   fill: currentColor;
 }
 
-.nav-item span:last-child {
-  font-weight: 760;
+
+.nav-item {
+  font-family: inherit;
+  font-size: 0.95rem;
 }
 
+.nav-label {
+  font-family: inherit;
+  font-size: inherit;
+  font-weight: 800 !important;
+  line-height: 1.2;
+}
+
+.nav-group {
+  display: flex;
+  flex-direction: column;
+}
+
+.nav-group-title {
+  position: relative;
+}
+
+.nav-arrow {
+  display: inline-flex;
+  width: 1rem;
+  height: 1rem;
+  margin-left: auto;
+  transition: transform 0.2s ease;
+}
+
+.nav-arrow.open {
+  transform: rotate(180deg);
+}
+
+.nav-arrow svg {
+  width: 100%;
+  height: 100%;
+  fill: currentColor;
+}
+
+.nav-submenu {
+  display: flex;
+  flex-direction: column;
+  gap: 0.15rem;
+  margin-top: 0.1rem;
+  padding-left: 1.9rem;
+}
+
+.nav-subitem {
+  width: calc(100% - 0.45rem);
+  min-height: 2.2rem;
+  padding: 0.35rem 0.55rem;
+  color: #214438;
+}
+
+.nav-subitem .nav-label {
+  font-size: 0.88rem;
+}
+
+.nav-tree-line {
+  display: none;
+}
 .sidebar-foot {
   margin-top: auto;
   border-top: 1px solid #d7e8df;

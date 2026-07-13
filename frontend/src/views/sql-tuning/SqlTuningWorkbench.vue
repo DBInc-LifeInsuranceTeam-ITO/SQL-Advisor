@@ -1,9 +1,13 @@
 <template>
   <div class="awr-page sql-tuning-page">
-    <div class="awr-page-header">
+    <div class="awr-upload-hero sql-tuning-hero">
       <div>
-        <h1>SQL 튜닝</h1>
-        <p>SQL Text / 실행계획 / DDL / 인덱스 / Bind</p>
+        <p class="awr-upload-eyebrow">SQL Performance Tuning</p>
+        <h1 class="awr-main-title">SQL 튜닝</h1>
+        <p>
+          SQL 실행 정보와 데이터베이스 오브젝트 정보를 분석하여
+          성능 저하 원인과 튜닝 권고사항을 확인할 수 있습니다.
+        </p>
       </div>
     </div>
 

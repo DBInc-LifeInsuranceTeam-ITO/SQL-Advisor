@@ -101,7 +101,7 @@ export interface AnalysisResponse {
 
 export interface FindingResponse {
   priority: number
-  sqlId: string
+  sqlId: string | null
   symptom: string
   evidence: string[]
   likelyCauses: string[]

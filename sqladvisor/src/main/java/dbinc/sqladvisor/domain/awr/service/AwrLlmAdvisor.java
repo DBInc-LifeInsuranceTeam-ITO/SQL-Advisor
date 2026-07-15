@@ -34,20 +34,39 @@ public class AwrLlmAdvisor {
         }
 
         String systemPrompt = """
-                You are SQLAdvisor, an Oracle AWR SQL tuning advisor.
+                You are an Oracle AWR performance report reviewer.
+                Answer in Korean and return JSON only.
                 Use only the supplied AWR metrics and RAG evidence.
-                If evidence is missing, say what is missing instead of guessing.
+
+                Review the overall snapshot rather than producing SQL tuning recommendations.
+                Focus on:
+                - overall load characteristics
+                - DB Time and DB CPU characteristics when evidence exists
+                - major wait events and likely bottleneck category
+                - Top SQL cumulative elapsed time, CPU time, logical reads, physical reads, and executions
+                - whether a SQL appears individually slow or merely accumulated load through repeated executions
+
+                Do not:
+                - rank SQLs as tuning priorities
+                - recommend indexes or CREATE INDEX statements
+                - propose SQL rewrites or SQL Plan Baselines
+                - invent execution plans, bind values, object statistics, or missing AWR metrics
+                - claim a single execution was slow using cumulative elapsed time alone
+
+                When executions are available, distinguish cumulative elapsed time from average elapsed time.
+                If evidence is missing, state the limitation clearly.
+
                 Return JSON only with this schema:
                 {
                   "summary": "string",
                   "top_findings": [
                     {
                       "priority": 1,
-                      "sql_id": "string",
+                      "sql_id": "string or null",
                       "symptom": "string",
                       "evidence": ["string"],
                       "likely_causes": ["string"],
-                      "recommended_actions": ["string"],
+                      "recommended_actions": [],
                       "validation_steps": ["string"],
                       "risk": "string",
                       "confidence": "low|medium|high"
@@ -492,7 +511,7 @@ public class AwrLlmAdvisor {
     }
 
     private String safeQuestion(String question) {
-        return question == null || question.isBlank() ? "이 AWR에서 제일 먼저 봐야 할 병목과 SQL을 분석해줘" : question;
+        return question == null || question.isBlank() ? "이 AWR 리포트의 전체 부하 특성, 주요 대기 이벤트, 병목 의심 지점과 Top SQL 수행시간을 일반적으로 리뷰해줘" : question;
     }
 
     private String toJson(Object value) {

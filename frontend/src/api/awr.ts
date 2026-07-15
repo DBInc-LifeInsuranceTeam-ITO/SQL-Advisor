@@ -61,7 +61,7 @@ export async function getAwrStatus(reportId: number) {
 
 export async function analyzeAwrReport(reportId: number, question?: string) {
   const response = await api.post<AnalysisResponse>(`/reports/${reportId}/analyze`, {
-    question: question || '이 AWR에서 제일 먼저 봐야 할 SQL과 병목을 분석해줘',
+    question: question || '이 AWR 리포트의 전체 부하 특성, 주요 대기 이벤트, 병목 의심 지점과 Top SQL의 수행시간 특성을 일반적인 관점에서 리뷰해줘. 인덱스 생성, SQL 재작성, 튜닝 우선순위는 제시하지 말아줘.',
     modelProvider: 'local-rule-advisor'
   })
   return response.data

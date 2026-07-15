@@ -226,10 +226,16 @@ const workspaceLoadMessage = ref('')
 
 const canUseWorkspace = computed(() => !authStore.authEnabled || authStore.isAuthenticated)
 
+function isReadyStatus(status?: string | null) {
+  return ['INDEXED', 'COMPLETED', 'DONE'].includes(
+    (status || '').trim().toUpperCase()
+  )
+}
+
 const reportCount = computed(() => reports.value.length)
 
 const readyReportCount = computed(() =>
-  reports.value.filter((report) => report.status === 'INDEXED').length
+  reports.value.filter((report) => isReadyStatus(report.status)).length
 )
 
 const failedReportCount = computed(() =>
@@ -523,14 +529,47 @@ async function loadDashboard() {
 }
 
 async function loadInsightDetails() {
-  const targets = reports.value
-    .filter((report) => report.status === 'INDEXED' && (report.topSqlCount > 0 || report.waitEventCount > 0))
+  const completedReports = reports.value.filter((report) =>
+    isReadyStatus(report.status)
+  )
+
+  // Wait Event 데이터가 있는 리포트를 우선 확보
+  const waitTargets = completedReports
+    .filter((report) => report.waitEventCount > 0)
     .slice(0, 5)
 
-  const results = await Promise.allSettled(targets.map((report) => getAwrReport(report.id)))
+  // Top SQL 데이터가 있는 리포트도 별도로 확보
+  const sqlTargets = completedReports
+    .filter((report) => report.topSqlCount > 0)
+    .slice(0, 5)
+
+  // 기존 데이터의 집계 건수가 0으로 잘못 저장된 경우를 위한 보조 조회
+  const fallbackTargets = completedReports.slice(0, 5)
+
+  // 동일 리포트 중복 제거
+  const targetMap = new Map<number, ReportSummaryResponse>()
+
+  for (const report of [
+    ...waitTargets,
+    ...sqlTargets,
+    ...fallbackTargets
+  ]) {
+    targetMap.set(report.id, report)
+  }
+
+  const targets = Array.from(targetMap.values())
+
+  const results = await Promise.allSettled(
+    targets.map((report) => getAwrReport(report.id))
+  )
 
   reportDetails.value = results
-    .filter((result): result is PromiseFulfilledResult<ReportDetailResponse> => result.status === 'fulfilled')
+    .filter(
+      (
+        result
+      ): result is PromiseFulfilledResult<ReportDetailResponse> =>
+        result.status === 'fulfilled'
+    )
     .map((result) => result.value)
 }
 

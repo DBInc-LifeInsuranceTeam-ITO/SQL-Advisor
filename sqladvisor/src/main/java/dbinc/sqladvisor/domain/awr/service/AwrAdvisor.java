@@ -19,36 +19,54 @@ import java.util.regex.Pattern;
 public class AwrAdvisor {
 
     private static final Pattern SQL_ID_PATTERN = Pattern.compile("(?i)\\b([0-9a-z]{13})\\b");
+    private static final String DEFAULT_REVIEW_QUESTION =
+            "이 AWR 리포트의 전체 부하 특성, 주요 대기 이벤트, 병목 의심 지점과 Top SQL 수행시간을 일반적으로 리뷰해줘";
     private final AtomicLong analysisSequence = new AtomicLong(1);
 
     public AwrDtos.AnalysisResponse analyze(
             Long reportId,
             String question,
+            String elapsedTime,
+            String dbTime,
             List<AwrDtos.SqlMetricResponse> sqlMetrics,
             List<AwrDtos.WaitEventResponse> waitEvents
     ) {
         List<AwrDtos.SqlMetricResponse> prioritizedSql = prioritizeSql(sqlMetrics);
         List<AwrDtos.FindingResponse> findings = new ArrayList<>();
-        int priority = 1;
 
-        for (AwrDtos.SqlMetricResponse metric : prioritizedSql.stream().limit(5).toList()) {
-            findings.add(toFinding(priority++, metric));
+        addWaitFinding(findings, waitEvents);
+        addElapsedSqlFinding(findings, sqlMetrics);
+        addCpuSqlFinding(findings, sqlMetrics);
+        addIoSqlFinding(findings, sqlMetrics);
+
+        if (findings.isEmpty()) {
+            findings.add(new AwrDtos.FindingResponse(
+                    1,
+                    null,
+                    "구조화된 진단 근거 부족",
+                    List.of("Top SQL 또는 Top Wait Event 데이터가 충분히 추출되지 않았습니다."),
+                    List.of("현재 데이터만으로는 CPU, I/O, Commit, Concurrency 병목 여부를 판단하기 어렵습니다."),
+                    List.of(),
+                    List.of("AWR의 Load Profile, Time Model Statistics, Top Foreground Events, SQL ordered by 섹션을 확인합니다."),
+                    "파서가 필요한 섹션을 추출하지 못했을 가능성이 있습니다.",
+                    "low"
+            ));
         }
 
-        String summary = buildSummary(prioritizedSql, waitEvents);
+        String summary = buildReviewSummary(elapsedTime, dbTime, sqlMetrics, waitEvents);
         List<String> missingInputs = List.of(
-                "SQL execution plan with actual row statistics",
-                "table/index DDL",
-                "object statistics and last_analyzed",
-                "bind variable samples",
-                "ASH or SQL Monitor evidence for the same snapshot"
+                "Load Profile과 Time Model Statistics의 상세 수치",
+                "DB CPU와 DB Time의 직접 비교",
+                "동일 시간대 Host CPU 및 스토리지 지연 정보",
+                "평상시 또는 이전 AWR 구간과의 비교",
+                "필요 시 ASH 또는 SQL Monitor의 세션별 근거"
         );
         List<String> citations = citations(prioritizedSql, waitEvents);
 
         return new AwrDtos.AnalysisResponse(
                 analysisSequence.getAndIncrement(),
                 reportId,
-                question == null || question.isBlank() ? "이 AWR에서 제일 먼저 봐야 할 병목과 SQL을 분석해줘" : question,
+                question == null || question.isBlank() ? DEFAULT_REVIEW_QUESTION : question,
                 summary,
                 findings,
                 missingInputs,
@@ -100,94 +118,282 @@ public class AwrAdvisor {
         );
     }
 
-    private AwrDtos.FindingResponse toFinding(int priority, AwrDtos.SqlMetricResponse metric) {
+    private void addWaitFinding(
+            List<AwrDtos.FindingResponse> findings,
+            List<AwrDtos.WaitEventResponse> waitEvents
+    ) {
+        Optional<AwrDtos.WaitEventResponse> candidate = waitEvents.stream()
+                .max(Comparator.comparingDouble(this::waitImportance));
+        if (candidate.isEmpty()) {
+            return;
+        }
+
+        AwrDtos.WaitEventResponse wait = candidate.get();
         List<String> evidence = new ArrayList<>();
-        addIfPresent(evidence, "section=" + metric.sectionName());
-        addIfPresent(evidence, "rank_no=" + metric.rankNo());
-        addIfPresent(evidence, "elapsed_time_sec=" + metric.elapsedTimeSec());
-        addIfPresent(evidence, "cpu_time_sec=" + metric.cpuTimeSec());
-        addIfPresent(evidence, "buffer_gets=" + metric.bufferGets());
-        addIfPresent(evidence, "disk_reads=" + metric.diskReads());
-        addIfPresent(evidence, "executions=" + metric.executions());
-        addIfPresent(evidence, "plan_hash_value=" + metric.planHashValue());
+        addIfPresent(evidence, "event=" + wait.eventName());
+        addIfPresent(evidence, "wait_class=" + wait.waitClass());
+        addIfPresent(evidence, "db_time_percent=" + wait.dbTimePercent());
+        addIfPresent(evidence, "total_wait_time_sec=" + wait.totalWaitTimeSec());
+        addIfPresent(evidence, "avg_wait_ms=" + wait.avgWaitMs());
 
-        List<String> likelyCauses = new ArrayList<>();
-        if (metric.bufferGets() != null && metric.bufferGets() > 10_000_000) {
-            likelyCauses.add("buffer gets가 높아 비효율적인 조인 순서, 낮은 선택도 조건, 인덱스 부재 가능성이 큽니다.");
-            likelyCauses.add("통계정보가 오래되었거나 예상 row와 실제 row 차이가 클 수 있습니다.");
-        }
-        if (metric.diskReads() != null && metric.diskReads() > 100_000) {
-            likelyCauses.add("physical reads가 높아 full scan, partition pruning 실패, I/O wait 병목 가능성이 있습니다.");
-        }
-        if (metric.cpuTimeSec() != null && metric.elapsedTimeSec() != null && metric.cpuTimeSec() > metric.elapsedTimeSec() * 0.65) {
-            likelyCauses.add("elapsed time 중 CPU 비중이 높아 sort/hash join/filter 함수 비용을 확인해야 합니다.");
-        }
-        if (metric.executions() != null && metric.executions() > 10_000) {
-            likelyCauses.add("실행 횟수가 많아 애플리케이션 반복 호출, bind 변수 사용, parse call 증가를 점검해야 합니다.");
-        }
-        if (likelyCauses.isEmpty()) {
-            likelyCauses.add("AWR 상위 SQL에 포함되어 있어 execution plan, row estimate, wait profile 검증이 필요합니다.");
-        }
-
-        List<String> recommendedActions = List.of(
-                "DBMS_XPLAN.DISPLAY_CURSOR로 actual plan과 predicate/access path를 확인합니다.",
-                "AWR의 동일 SQL_ID 과거 plan hash value와 elapsed/CPU/buffer gets 변화를 비교합니다.",
-                "조건절 컬럼의 인덱스 선택도와 table/index statistics 최신성을 확인합니다.",
-                "SQL Monitor 또는 ASH로 CPU, I/O, concurrency wait 중 실제 지배 병목을 확인합니다.",
-                "필요 시 SQL Plan Baseline, 통계 갱신, 인덱스 추가를 검증 환경에서 먼저 실험합니다."
-        );
-        List<String> validationSteps = List.of(
-                "SELECT * FROM TABLE(DBMS_XPLAN.DISPLAY_CURSOR('" + metric.sqlId() + "', NULL, 'ALLSTATS LAST +PEEKED_BINDS'));",
-                "DBA_HIST_SQLSTAT에서 snapshot 구간별 elapsed_delta, cpu_delta, buffer_gets_delta를 비교합니다.",
-                "DBA_TAB_STATISTICS와 DBA_IND_STATISTICS의 last_analyzed, stale_stats를 확인합니다."
-        );
-
-        return new AwrDtos.FindingResponse(
-                priority,
-                metric.sqlId(),
-                metric.sectionName() + " 상위 SQL",
+        findings.add(new AwrDtos.FindingResponse(
+                findings.size() + 1,
+                null,
+                "주요 대기 이벤트: " + wait.eventName(),
                 evidence,
-                likelyCauses,
-                recommendedActions,
-                validationSteps,
-                "인덱스 추가나 plan 고정은 DML 부하, 저장공간, plan regression을 유발할 수 있으므로 검증 후 적용해야 합니다.",
-                confidence(metric)
-        );
+                List.of(waitDiagnosis(wait)),
+                List.of(),
+                List.of(
+                        "동일 시간대 DB CPU와 DB Time을 비교합니다.",
+                        "해당 대기가 특정 SQL 또는 전체 세션에 분산되었는지 확인합니다.",
+                        "이전 AWR 구간에도 같은 대기 이벤트가 반복되는지 비교합니다."
+                ),
+                "Top Wait Event만으로 개별 세션이나 특정 SQL을 원인으로 확정할 수는 없습니다.",
+                wait.dbTimePercent() == null ? "medium" : "high"
+        ));
     }
 
-    private String buildSummary(List<AwrDtos.SqlMetricResponse> sqlMetrics, List<AwrDtos.WaitEventResponse> waitEvents) {
-        if (sqlMetrics.isEmpty() && waitEvents.isEmpty()) {
-            return "구조화된 SQL metric 또는 wait event가 충분히 추출되지 않았습니다. AWR HTML/TXT 원본의 주요 섹션을 확인하거나 parser rule을 보강해야 합니다.";
+    private void addElapsedSqlFinding(
+            List<AwrDtos.FindingResponse> findings,
+            List<AwrDtos.SqlMetricResponse> sqlMetrics
+    ) {
+        Optional<AwrDtos.SqlMetricResponse> candidate = sqlMetrics.stream()
+                .filter(metric -> metric.elapsedTimeSec() != null)
+                .max(Comparator.comparingDouble(AwrDtos.SqlMetricResponse::elapsedTimeSec));
+        if (candidate.isEmpty()) {
+            return;
         }
 
-        StringBuilder builder = new StringBuilder();
-        if (!sqlMetrics.isEmpty()) {
-            AwrDtos.SqlMetricResponse top = sqlMetrics.get(0);
-            builder.append("우선순위 1순위는 SQL_ID ")
-                    .append(top.sqlId())
-                    .append("입니다. ")
-                    .append(top.sectionName())
-                    .append("에서 상위에 위치하고");
-            if (top.elapsedTimeSec() != null) {
-                builder.append(", elapsed_time_sec=").append(top.elapsedTimeSec());
-            }
-            if (top.cpuTimeSec() != null) {
-                builder.append(", cpu_time_sec=").append(top.cpuTimeSec());
-            }
-            if (top.bufferGets() != null) {
-                builder.append(", buffer_gets=").append(top.bufferGets());
-            }
-            builder.append(" 지표가 확인됩니다. ");
+        AwrDtos.SqlMetricResponse metric = candidate.get();
+        Double averageElapsed = average(metric.elapsedTimeSec(), metric.executions());
+        List<String> evidence = new ArrayList<>();
+        addIfPresent(evidence, "section=" + metric.sectionName());
+        addIfPresent(evidence, "elapsed_time_sec=" + metric.elapsedTimeSec());
+        addIfPresent(evidence, "executions=" + metric.executions());
+        if (averageElapsed != null) {
+            evidence.add("avg_elapsed_sec=" + formatDecimal(averageElapsed));
         }
-        if (!waitEvents.isEmpty()) {
-            AwrDtos.WaitEventResponse wait = waitEvents.get(0);
-            builder.append("대기 관점에서는 ")
-                    .append(wait.eventName())
-                    .append(" (")
-                    .append(wait.waitClass())
-                    .append(") 확인이 우선입니다.");
+
+        findings.add(new AwrDtos.FindingResponse(
+                findings.size() + 1,
+                metric.sqlId(),
+                "누적 수행시간이 높은 SQL",
+                evidence,
+                List.of(elapsedDiagnosis(metric, averageElapsed)),
+                List.of(),
+                List.of(
+                        "업무 SLA 또는 정상 시간대의 평균 수행시간과 비교합니다.",
+                        "동일 SQL_ID의 이전 AWR 구간에서 elapsed와 executions 변화를 비교합니다.",
+                        "총 수행시간 증가가 개별 지연인지 반복 호출 증가인지 구분합니다."
+                ),
+                "AWR elapsed 값은 스냅샷 구간의 누적값이므로 단일 실행시간과 동일하지 않습니다.",
+                averageElapsed == null ? "medium" : "high"
+        ));
+    }
+
+    private void addCpuSqlFinding(
+            List<AwrDtos.FindingResponse> findings,
+            List<AwrDtos.SqlMetricResponse> sqlMetrics
+    ) {
+        Optional<AwrDtos.SqlMetricResponse> candidate = sqlMetrics.stream()
+                .filter(metric -> metric.cpuTimeSec() != null)
+                .max(Comparator.comparingDouble(AwrDtos.SqlMetricResponse::cpuTimeSec));
+        if (candidate.isEmpty()) {
+            return;
         }
+
+        AwrDtos.SqlMetricResponse metric = candidate.get();
+        Double cpuRatio = ratio(metric.cpuTimeSec(), metric.elapsedTimeSec());
+        List<String> evidence = new ArrayList<>();
+        addIfPresent(evidence, "section=" + metric.sectionName());
+        addIfPresent(evidence, "cpu_time_sec=" + metric.cpuTimeSec());
+        addIfPresent(evidence, "elapsed_time_sec=" + metric.elapsedTimeSec());
+        if (cpuRatio != null) {
+            evidence.add("cpu_to_elapsed_percent=" + formatDecimal(cpuRatio * 100.0));
+        }
+
+        findings.add(new AwrDtos.FindingResponse(
+                findings.size() + 1,
+                metric.sqlId(),
+                "CPU 사용 비중이 높은 SQL",
+                evidence,
+                List.of(cpuDiagnosis(cpuRatio)),
+                List.of(),
+                List.of(
+                        "AWR Time Model의 DB CPU 비중과 함께 확인합니다.",
+                        "Host CPU 사용률과 run queue가 같은 시간대에 높았는지 비교합니다.",
+                        "병렬 실행 여부와 실행 횟수 증가 여부를 함께 확인합니다."
+                ),
+                "SQL CPU 누적값만으로 시스템 전체가 CPU 병목이었다고 단정할 수는 없습니다.",
+                cpuRatio == null ? "medium" : "high"
+        ));
+    }
+
+    private void addIoSqlFinding(
+            List<AwrDtos.FindingResponse> findings,
+            List<AwrDtos.SqlMetricResponse> sqlMetrics
+    ) {
+        Optional<AwrDtos.SqlMetricResponse> physicalReadCandidate = sqlMetrics.stream()
+                .filter(metric -> metric.diskReads() != null)
+                .max(Comparator.comparingLong(AwrDtos.SqlMetricResponse::diskReads));
+        Optional<AwrDtos.SqlMetricResponse> logicalReadCandidate = sqlMetrics.stream()
+                .filter(metric -> metric.bufferGets() != null)
+                .max(Comparator.comparingLong(AwrDtos.SqlMetricResponse::bufferGets));
+
+        AwrDtos.SqlMetricResponse metric = physicalReadCandidate.orElseGet(() -> logicalReadCandidate.orElse(null));
+        if (metric == null) {
+            return;
+        }
+
+        List<String> evidence = new ArrayList<>();
+        addIfPresent(evidence, "section=" + metric.sectionName());
+        addIfPresent(evidence, "disk_reads=" + metric.diskReads());
+        addIfPresent(evidence, "buffer_gets=" + metric.bufferGets());
+        addIfPresent(evidence, "executions=" + metric.executions());
+
+        findings.add(new AwrDtos.FindingResponse(
+                findings.size() + 1,
+                metric.sqlId(),
+                "I/O 부하가 상대적으로 높은 SQL",
+                evidence,
+                List.of(ioDiagnosis(metric)),
+                List.of(),
+                List.of(
+                        "User I/O 계열 wait event가 함께 높았는지 확인합니다.",
+                        "실행당 disk reads와 buffer gets를 계산해 반복 수행과 단일 수행 부하를 구분합니다.",
+                        "동일 SQL의 이전 AWR 구간과 읽기량 변화를 비교합니다."
+                ),
+                "읽기량이 높더라도 캐시 적중률, 데이터 처리량, 업무 특성에 따라 정상 부하일 수 있습니다.",
+                "medium"
+        ));
+    }
+
+    private String buildReviewSummary(
+            String elapsedTime,
+            String dbTime,
+            List<AwrDtos.SqlMetricResponse> sqlMetrics,
+            List<AwrDtos.WaitEventResponse> waitEvents
+    ) {
+        if (sqlMetrics.isEmpty() && waitEvents.isEmpty()) {
+            return "구조화된 Top SQL 또는 Wait Event가 충분히 추출되지 않아 AWR 전반을 판단하기 어렵습니다.";
+        }
+
+        StringBuilder builder = new StringBuilder("이 결과는 특정 SQL 튜닝안이 아니라 AWR 구간의 전반적인 부하 특성을 요약한 리뷰입니다. ");
+        if (elapsedTime != null && !elapsedTime.isBlank()) {
+            builder.append("스냅샷 경과시간은 ").append(elapsedTime).append("이고, ");
+        }
+        if (dbTime != null && !dbTime.isBlank()) {
+            builder.append("DB Time은 ").append(dbTime).append("입니다. ");
+        }
+
+        waitEvents.stream()
+                .max(Comparator.comparingDouble(this::waitImportance))
+                .ifPresent(wait -> builder.append("주요 대기 이벤트는 ")
+                        .append(wait.eventName())
+                        .append(" (")
+                        .append(wait.waitClass())
+                        .append(")입니다. "));
+
+        sqlMetrics.stream()
+                .filter(metric -> metric.elapsedTimeSec() != null)
+                .max(Comparator.comparingDouble(AwrDtos.SqlMetricResponse::elapsedTimeSec))
+                .ifPresent(metric -> {
+                    builder.append("누적 elapsed가 가장 큰 SQL_ID는 ")
+                            .append(metric.sqlId())
+                            .append("이며 총 ")
+                            .append(formatDecimal(metric.elapsedTimeSec()))
+                            .append("초입니다. ");
+                    Double averageElapsed = average(metric.elapsedTimeSec(), metric.executions());
+                    if (averageElapsed != null) {
+                        builder.append("단순 평균 수행시간은 약 ")
+                                .append(formatDecimal(averageElapsed))
+                                .append("초로 계산됩니다. ");
+                    } else {
+                        builder.append("실행 횟수 근거가 없어 개별 실행이 오래 걸렸는지는 확정할 수 없습니다. ");
+                    }
+                });
+
+        builder.append("최종 판단은 평상시 구간, Host 지표, ASH 또는 SQL Monitor와 비교해야 합니다.");
         return builder.toString();
+    }
+
+    private String waitDiagnosis(AwrDtos.WaitEventResponse wait) {
+        String waitClass = wait.waitClass() == null ? "" : wait.waitClass().toLowerCase(Locale.ROOT);
+        String eventName = wait.eventName() == null ? "" : wait.eventName().toLowerCase(Locale.ROOT);
+        if (eventName.contains("db cpu") || waitClass.contains("cpu")) {
+            return "DB CPU 비중이 높게 나타난다면 SQL 실행 또는 동시 처리량 증가에 따른 CPU 압박 가능성을 확인해야 합니다.";
+        }
+        if (waitClass.contains("user i/o") || waitClass.contains("system i/o")) {
+            return "스토리지 지연 또는 읽기량 증가가 응답시간에 영향을 주었을 가능성이 있습니다.";
+        }
+        if (waitClass.contains("commit")) {
+            return "커밋 빈도 증가나 redo 처리 지연이 응답시간에 영향을 주었을 가능성이 있습니다.";
+        }
+        if (waitClass.contains("concurrency") || waitClass.contains("application")) {
+            return "세션 간 경합 또는 공유 자원 대기가 발생했을 가능성이 있습니다.";
+        }
+        if (waitClass.contains("network")) {
+            return "DB와 클라이언트 사이의 전송량 또는 응답 대기 특성을 확인해야 합니다.";
+        }
+        return "이 대기 이벤트가 일시적인 현상인지 반복되는 병목인지 이전 구간과 비교가 필요합니다.";
+    }
+
+    private String elapsedDiagnosis(AwrDtos.SqlMetricResponse metric, Double averageElapsed) {
+        if (averageElapsed == null) {
+            return "누적 elapsed는 높지만 executions가 없어 개별 수행시간이 긴지, 반복 실행으로 누적된 것인지 구분할 수 없습니다.";
+        }
+        if (averageElapsed >= 10.0) {
+            return "단순 평균 기준으로 개별 실행도 오래 걸린 편으로 의심됩니다. 다만 업무 특성과 SLA 기준으로 재확인이 필요합니다.";
+        }
+        if (averageElapsed >= 1.0) {
+            return "개별 실행시간이 짧다고 보기는 어렵지만, 정상 여부는 업무 SLA와 평상시 수치 비교가 필요합니다.";
+        }
+        if (metric.executions() != null && metric.executions() >= 1_000) {
+            return "개별 실행은 비교적 짧지만 반복 호출이 누적 부하를 만든 유형으로 보입니다.";
+        }
+        return "누적 elapsed는 상위지만 단순 평균만 보면 개별 실행이 매우 오래 걸린 유형으로 단정하기는 어렵습니다.";
+    }
+
+    private String cpuDiagnosis(Double cpuRatio) {
+        if (cpuRatio == null) {
+            return "CPU 누적시간은 높지만 elapsed 대비 비중을 계산할 근거가 부족합니다.";
+        }
+        if (cpuRatio >= 0.65) {
+            return "elapsed 중 CPU 비중이 높아 해당 SQL이 CPU 사용에 직접 기여했을 가능성이 있습니다.";
+        }
+        return "CPU 사용량은 상위지만 전체 elapsed 중 대기시간의 영향도 함께 존재할 수 있습니다.";
+    }
+
+    private String ioDiagnosis(AwrDtos.SqlMetricResponse metric) {
+        if (metric.diskReads() != null && metric.diskReads() > 0) {
+            return "physical reads가 상대적으로 높아 스토리지 I/O 또는 대량 데이터 접근 부하 가능성이 있습니다.";
+        }
+        return "buffer gets가 상대적으로 높아 메모리 내 논리 읽기와 데이터 처리량이 큰 SQL로 보입니다.";
+    }
+
+    private double waitImportance(AwrDtos.WaitEventResponse wait) {
+        if (wait.dbTimePercent() != null) {
+            return wait.dbTimePercent();
+        }
+        return wait.totalWaitTimeSec() == null ? 0.0 : wait.totalWaitTimeSec();
+    }
+
+    private Double average(Double total, Long count) {
+        if (total == null || count == null || count <= 0) {
+            return null;
+        }
+        return total / count;
+    }
+
+    private Double ratio(Double numerator, Double denominator) {
+        if (numerator == null || denominator == null || denominator <= 0) {
+            return null;
+        }
+        return numerator / denominator;
+    }
+
+    private String formatDecimal(Double value) {
+        return String.format(Locale.ROOT, "%.2f", value);
     }
 
     private String answerForSql(String sqlId, List<AwrDtos.SqlMetricResponse> evidenceSql) {

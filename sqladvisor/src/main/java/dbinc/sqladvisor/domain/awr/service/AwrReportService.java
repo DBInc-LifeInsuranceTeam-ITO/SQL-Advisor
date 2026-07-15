@@ -197,13 +197,20 @@ public class AwrReportService {
     }
 
     public AwrDtos.AnalysisResponse analyze(Long reportId, AwrDtos.AnalyzeRequest request) {
-        getReportRecord(reportId);
+        AwrRepository.ReportRecord report = getReportRecord(reportId);
         String question = request == null ? null : request.question();
         List<AwrDtos.SqlMetricResponse> sqlMetrics = repository.findSqlMetrics(reportId);
         List<AwrDtos.WaitEventResponse> waitEvents = repository.findWaitEvents(reportId);
         List<AwrRagChunk> ragChunks = ragService.retrieve(reportId, question);
 
-        AwrDtos.AnalysisResponse local = localAdvisor.analyze(reportId, question, sqlMetrics, waitEvents);
+        AwrDtos.AnalysisResponse local = localAdvisor.analyze(
+                reportId,
+                question,
+                report.elapsedTime(),
+                report.dbTime(),
+                sqlMetrics,
+                waitEvents
+        );
         AwrDtos.AnalysisResponse selected = llmAdvisor.analyze(reportId, question, local, ragChunks).orElse(local);
 
         long analysisId = repository.saveAnalysisResult(

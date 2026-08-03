@@ -4,6 +4,7 @@ export interface DirectSqlMetricResponse {
   childNumber?: number | null
   parsingSchemaName?: string | null
   module?: string | null
+  action?: string | null
   serviceName?: string | null
   executions?: number | null
   totalElapsedTimeSec?: number | null
@@ -15,6 +16,7 @@ export interface DirectSqlMetricResponse {
   diskReads?: number | null
   averageDiskReads?: number | null
   rowsProcessed?: number | null
+  firstLoadTime?: string | null
   lastActiveTime?: string | null
   sqlText?: string | null
 }
@@ -39,9 +41,14 @@ export interface ExecutionPlanNodeResponse {
   bytes?: number | null
   accessPredicate?: string | null
   filterPredicate?: string | null
+  starts?: number | null
   actualRows?: number | null
   bufferGets?: number | null
   diskReads?: number | null
+  lastStarts?: number | null
+  lastActualRows?: number | null
+  lastBufferGets?: number | null
+  lastDiskReads?: number | null
 }
 
 export interface StructuredExecutionPlanResponse {

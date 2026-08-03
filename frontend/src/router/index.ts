@@ -69,6 +69,12 @@ const router = createRouter({
       component: () => import('@/views/sql-tuning/SqlTuningWorkbench.vue')
     },
     {
+      path: '/sql-diagnosis',
+      name: 'sql-diagnosis',
+      meta: { requiresAuth: true, roles: ['ADMIN', 'USER', 'MONITOR'] },
+      component: () => import('@/views/sql-tuning/SqlDiagnosisView.vue')
+    },
+    {
       path: '/settings/ai',
       name: 'awr-ai-settings',
       meta: { requiresAuth: true, roles: ['ADMIN'] },

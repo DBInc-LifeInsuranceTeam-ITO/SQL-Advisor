@@ -26,6 +26,7 @@ public final class SqlDiagnosisDtos {
             String summary,
             DirectSqlMetricDtos.DirectSqlMetricResponse metric,
             ExecutionPlanDtos.StructuredExecutionPlanResponse executionPlan,
+            TableMetadataDtos.TableMetadataListResponse tableMetadata,
             List<FindingResponse> findings,
             List<String> warnings
     ) {

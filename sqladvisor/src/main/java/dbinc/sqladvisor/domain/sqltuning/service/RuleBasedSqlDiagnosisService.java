@@ -52,19 +52,17 @@ public class RuleBasedSqlDiagnosisService {
         TableMetadataDtos.TableMetadataListResponse tableMetadata = tableMetadataService.collect(connectionId, plan);
 
         List<SqlDiagnosisDtos.FindingResponse> findings = new ArrayList<>();
-        int score = 0;
 
         List<ExecutionPlanDtos.ExecutionPlanNodeResponse> fullScanNodes = plan.nodes().stream()
                 .filter(this::isFullTableScan)
                 .toList();
         if (!fullScanNodes.isEmpty()) {
-            score += 40;
             Map<String, Object> evidence = new LinkedHashMap<>();
             evidence.put("tables", fullScanNodes.stream().map(this::qualifiedObjectName).distinct().toList());
             evidence.put("operations", fullScanNodes.stream().map(node -> node.operation() + " " + node.options()).toList());
             evidence.put("estimatedRows", maximumEstimatedRows(fullScanNodes));
             findings.add(new SqlDiagnosisDtos.FindingResponse(
-                    "FULL_TABLE_SCAN", "HIGH", "대용량 테이블 전체 스캔",
+                    "FULL_TABLE_SCAN", "테이블 전체 스캔",
                     "실행계획에서 TABLE ACCESS FULL이 확인되었습니다.", evidence,
                     List.of(
                             "조회 범위를 줄일 수 있는 WHERE 조건이 있는지 확인합니다.",
@@ -75,18 +73,16 @@ public class RuleBasedSqlDiagnosisService {
         }
 
         if (value(metric.bufferGets()) >= HIGH_BUFFER_GETS_THRESHOLD) {
-            score += 20;
-            findings.add(finding("HIGH_BUFFER_GETS", "HIGH", "논리 읽기량 과다",
-                    "SQL 실행 과정에서 많은 데이터 블록을 메모리에서 읽었습니다.",
+            findings.add(finding("HIGH_BUFFER_GETS", "논리 읽기량 기준 초과",
+                    "SQL 실행 과정의 Buffer Gets가 현재 점검 기준값 이상입니다.",
                     evidence("bufferGets", metric.bufferGets(), "averageBufferGets", metric.averageBufferGets(),
                             "threshold", HIGH_BUFFER_GETS_THRESHOLD),
                     List.of("불필요한 컬럼 조회를 제거하고 SELECT * 사용을 피합니다.", "접근 경로와 조인 순서를 실행계획에서 확인합니다.")));
         }
 
         if (value(metric.diskReads()) >= HIGH_DISK_READS_THRESHOLD) {
-            score += 20;
-            findings.add(finding("HIGH_DISK_READS", "HIGH", "물리 읽기량 과다",
-                    "디스크에서 직접 읽은 블록 수가 기준값보다 높습니다.",
+            findings.add(finding("HIGH_DISK_READS", "물리 읽기량 기준 초과",
+                    "Disk Reads가 현재 점검 기준값 이상입니다.",
                     evidence("diskReads", metric.diskReads(), "averageDiskReads", metric.averageDiskReads(),
                             "threshold", HIGH_DISK_READS_THRESHOLD),
                     List.of("Full Scan 발생 원인을 확인하고 선택도가 높은 조건에 인덱스를 검토합니다.",
@@ -94,9 +90,8 @@ public class RuleBasedSqlDiagnosisService {
         }
 
         if (value(metric.rowsProcessed()) >= LARGE_ROW_THRESHOLD) {
-            score += 20;
-            findings.add(finding("LARGE_ROW_PROCESSING", "HIGH", "대량 행 처리",
-                    "한 번의 SQL이 매우 많은 행을 처리했습니다.",
+            findings.add(finding("LARGE_ROW_PROCESSING", "대량 행 처리 기준 초과",
+                    "처리 행 수가 현재 점검 기준값 이상입니다.",
                     evidence("rowsProcessed", metric.rowsProcessed(), "threshold", LARGE_ROW_THRESHOLD),
                     List.of("필요한 데이터 범위만 조회하도록 조건을 추가합니다.",
                             "화면 조회라면 FETCH FIRST, OFFSET 또는 키셋 페이징을 적용합니다.")));
@@ -106,7 +101,6 @@ public class RuleBasedSqlDiagnosisService {
                 .filter(this::isStatisticsStale)
                 .toList();
         if (!staleTables.isEmpty()) {
-            score += 15;
             Map<String, Object> staleEvidence = new LinkedHashMap<>();
             staleEvidence.put("thresholdDays", STALE_STATISTICS_DAYS);
             staleEvidence.put("tables", staleTables.stream().map(table -> Map.of(
@@ -114,8 +108,8 @@ public class RuleBasedSqlDiagnosisService {
                     "lastAnalyzed", table.lastAnalyzed() == null ? "NOT_ANALYZED" : table.lastAnalyzed().toString(),
                     "numRows", table.numRows() == null ? 0L : table.numRows()
             )).toList());
-            findings.add(finding("STALE_STATISTICS", "MEDIUM", "통계정보 미수집 또는 노후",
-                    "실행계획 대상 테이블의 통계정보가 없거나 기준 기간보다 오래되었습니다.", staleEvidence,
+            findings.add(finding("STALE_STATISTICS", "통계정보 확인 필요",
+                    "실행계획 대상 테이블의 통계정보가 없거나 현재 점검 기준 기간보다 오래되었습니다.", staleEvidence,
                     List.of("DBMS_STATS로 테이블 및 인덱스 통계를 갱신한 뒤 실행계획을 다시 확인합니다.",
                             "운영 반영 전 통계 수집 시간과 샘플 비율을 검토합니다.")));
         }
@@ -124,8 +118,7 @@ public class RuleBasedSqlDiagnosisService {
                 .filter(table -> table.indexes().stream().noneMatch(this::isUsableIndex))
                 .toList();
         if (!fullScanNodes.isEmpty() && !noUsableIndexTables.isEmpty()) {
-            score += 15;
-            findings.add(finding("NO_USABLE_INDEX", "MEDIUM", "사용 가능한 인덱스 없음",
+            findings.add(finding("NO_USABLE_INDEX", "사용 가능한 인덱스 미확인",
                     "Full Scan 대상 테이블에서 VALID 및 VISIBLE 상태의 인덱스를 확인하지 못했습니다.",
                     evidence("tables", noUsableIndexTables.stream()
                             .map(table -> table.owner() + "." + table.tableName()).toList()),
@@ -141,9 +134,8 @@ public class RuleBasedSqlDiagnosisService {
                     metric.rowsProcessed().doubleValue() / estimatedRows.doubleValue()
             );
             if (ratio >= CARDINALITY_MISMATCH_RATIO) {
-                score += 15;
-                findings.add(finding("CARDINALITY_MISMATCH", "MEDIUM", "예상 행 수와 처리 행 수 불일치",
-                        "옵티마이저 예상 행 수와 SQL 누적 처리 행 수 차이가 큽니다.",
+                findings.add(finding("CARDINALITY_MISMATCH", "예상 행 수와 처리 행 수 차이 확인",
+                        "옵티마이저 예상 행 수와 SQL 누적 처리 행 수 차이가 현재 점검 기준 이상입니다.",
                         evidence("estimatedRows", estimatedRows, "rowsProcessed", metric.rowsProcessed(),
                                 "ratio", ratio, "thresholdRatio", CARDINALITY_MISMATCH_RATIO),
                         List.of("컬럼 통계와 히스토그램 상태를 확인합니다.",
@@ -151,26 +143,24 @@ public class RuleBasedSqlDiagnosisService {
             }
         }
 
-        score = Math.min(score, 100);
-        String severity = severity(score);
         List<String> warnings = new ArrayList<>();
         warnings.addAll(metricList.warnings());
         warnings.addAll(plan.warnings());
         warnings.addAll(tableMetadata.warnings());
         if (plan.nodes().stream().allMatch(node -> node.actualRows() == null && node.lastActualRows() == null)) {
-            warnings.add("실행계획 실제 행 통계가 없어 누적 SQL 지표와 예상 실행계획을 기준으로 진단했습니다.");
+            warnings.add("실행계획 실제 행 통계가 없어 누적 SQL 지표와 예상 실행계획을 기준으로 점검했습니다.");
         }
 
         return new SqlDiagnosisDtos.SqlDiagnosisResponse(
-                connectionId, sqlId, severity, score, summary(severity, findings),
+                connectionId, sqlId, summary(findings),
                 metric, plan, tableMetadata, List.copyOf(findings), List.copyOf(warnings)
         );
     }
 
-    private SqlDiagnosisDtos.FindingResponse finding(String code, String severity, String title,
+    private SqlDiagnosisDtos.FindingResponse finding(String code, String title,
                                                      String description, Map<String, Object> evidence,
                                                      List<String> recommendations) {
-        return new SqlDiagnosisDtos.FindingResponse(code, severity, title, description, evidence, recommendations);
+        return new SqlDiagnosisDtos.FindingResponse(code, title, description, evidence, recommendations);
     }
 
     private Map<String, Object> evidence(Object... values) {
@@ -207,16 +197,9 @@ public class RuleBasedSqlDiagnosisService {
                 ? node.objectName() : node.objectOwner() + "." + node.objectName();
     }
 
-    private String severity(int score) {
-        if (score >= 70) return "HIGH";
-        if (score >= 40) return "MEDIUM";
-        return "LOW";
-    }
-
-    private String summary(String severity, List<SqlDiagnosisDtos.FindingResponse> findings) {
-        if (findings.isEmpty()) return "현재 기준에서 명확한 고위험 패턴이 발견되지 않았습니다.";
-        return String.format(Locale.ROOT, "%s 위험도이며 %d개의 성능 이슈가 발견되었습니다. 우선순위는 %s입니다.",
-                severity, findings.size(), findings.get(0).title());
+    private String summary(List<SqlDiagnosisDtos.FindingResponse> findings) {
+        if (findings.isEmpty()) return "현재 점검 기준에 해당하는 성능 특성이 발견되지 않았습니다.";
+        return String.format(Locale.ROOT, "%d개의 성능 점검 항목이 확인되었습니다.", findings.size());
     }
 
     private String normalizeSqlId(String value) {

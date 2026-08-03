@@ -66,13 +66,11 @@ const router = createRouter({
       path: '/sql-tuning',
       name: 'sql-tuning',
       meta: { requiresAuth: true, roles: ['ADMIN', 'USER', 'MONITOR'] },
-      component: () => import('@/views/sql-tuning/SqlDiagnosisView.vue')
+      component: () => import('@/views/sql-tuning/SqlTuningWorkbench.vue')
     },
     {
       path: '/sql-tuning/manual',
-      name: 'sql-tuning-manual',
-      meta: { requiresAuth: true, roles: ['ADMIN', 'USER', 'MONITOR'] },
-      component: () => import('@/views/sql-tuning/SqlTuningWorkbench.vue')
+      redirect: '/sql-tuning'
     },
     {
       path: '/sql-diagnosis',

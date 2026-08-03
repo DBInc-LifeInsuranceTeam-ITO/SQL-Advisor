@@ -4,6 +4,7 @@ import dbinc.sqladvisor.domain.sqltuning.dto.DirectSqlMetricDtos;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 
+import java.sql.CallableStatement;
 import java.sql.Connection;
 import java.sql.PreparedStatement;
 import java.sql.ResultSet;
@@ -34,6 +35,7 @@ public class DirectSqlMetricService {
         List<String> warnings = new ArrayList<>();
 
         try (Connection connection = connectionService.openConnection(target)) {
+            markAdvisorSession(connection, warnings);
             try {
                 return query(connection, "gv$sql", limit, orderColumn, includeSystemSql, warnings);
             } catch (SQLException gvException) {
@@ -42,6 +44,16 @@ public class DirectSqlMetricService {
             }
         } catch (SQLException exception) {
             throw new IllegalArgumentException("상세 SQL 성능 지표 조회에 실패했습니다: " + exception.getMessage(), exception);
+        }
+    }
+
+    private void markAdvisorSession(Connection connection, List<String> warnings) {
+        try (CallableStatement statement = connection.prepareCall("BEGIN DBMS_APPLICATION_INFO.SET_MODULE(?, ?); END;")) {
+            statement.setString(1, "SQL_ADVISOR");
+            statement.setString(2, "TOP_SQL_METRICS");
+            statement.execute();
+        } catch (SQLException exception) {
+            warnings.add("SQL Advisor 세션 태깅에 실패했습니다: " + exception.getMessage());
         }
     }
 

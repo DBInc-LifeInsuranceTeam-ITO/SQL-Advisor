@@ -7,9 +7,13 @@ export async function getDiagnosisConnections() {
   return response.data
 }
 
-export async function getDetailedTopSql(connectionId: number, limit: 20 | 50 | 100 = 20) {
+export async function getDetailedTopSql(
+  connectionId: number,
+  limit: 20 | 50 | 100 = 20,
+  sortBy = 'TOTAL_ELAPSED_TIME'
+) {
   const response = await api.get<DirectSqlMetricListResponse>('/sql-tuning/direct/top-sql/metrics', {
-    params: { connectionId, limit, sortBy: 'TOTAL_ELAPSED_TIME' }
+    params: { connectionId, limit, sortBy }
   })
   return response.data
 }

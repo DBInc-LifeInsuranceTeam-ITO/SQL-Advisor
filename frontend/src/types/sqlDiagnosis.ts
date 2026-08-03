@@ -93,6 +93,7 @@ export interface TableMetadataResponse {
 
 export interface FindingResponse {
   code: string
+  severity?: string
   title: string
   description: string
   evidence: Record<string, unknown>
@@ -102,6 +103,8 @@ export interface FindingResponse {
 export interface SqlDiagnosisResponse {
   connectionId: number
   sqlId: string
+  severity?: string
+  score?: number
   summary: string
   metric: DirectSqlMetricResponse
   executionPlan: StructuredExecutionPlanResponse

@@ -2,7 +2,7 @@
   <div class="awr-page sql-tuning-page">
     <div class="awr-upload-hero sql-tuning-hero">
       <div>
-        <p class="awr-upload-eyebrow">SQL Performance Tuning</p>
+        <p class="awr-upload-eyebrow">SQL 성능 분석</p>
         <h1 class="awr-main-title">SQL 튜닝</h1>
         <p>
           SQL 실행 정보와 데이터베이스 오브젝트 정보를 분석하여
@@ -16,9 +16,9 @@
     <div class="awr-split">
       <section class="awr-panel">
         <div class="awr-panel-header">
-          <h2 class="awr-panel-title">Input</h2>
+          <h2 class="awr-panel-title">분석 대상 입력</h2>
           <button class="awr-btn primary" type="button" :disabled="!canTune || isTuning" @click="runTuning">
-            {{ isTuning ? 'Tuning...' : runButtonLabel }}
+            {{ isTuning ? '분석 중...' : runButtonLabel }}
           </button>
         </div>
 
@@ -28,36 +28,36 @@
             type="button"
             @click="setSourceMode('DIRECT')"
           >
-            Direct DB
+            DB에서 SQL 조회
           </button>
           <button
             :class="['sql-tuning-mode-option', sourceMode === 'MANUAL' ? 'active' : '']"
             type="button"
             @click="setSourceMode('MANUAL')"
           >
-            Manual Input
+            SQL 직접 입력
           </button>
         </div>
 
         <div class="awr-form">
           <div v-if="sourceMode === 'DIRECT'" class="sql-tuning-direct-box">
             <div class="awr-panel-header compact">
-              <h3 class="awr-panel-title">Target DB</h3>
+              <h3 class="awr-panel-title">분석 대상 DB</h3>
               <div class="awr-actions compact">
                 <button class="awr-btn compact" type="button" :disabled="isLoadingConnections" @click="loadConnections()">
-                  Refresh
+                  새로고침
                 </button>
                 <button class="awr-btn compact" type="button" @click="toggleConnectionForm">
-                  {{ showConnectionForm ? 'Hide Form' : 'New Connection' }}
+                  {{ showConnectionForm ? '연결 등록 닫기' : 'DB 연결 등록' }}
                 </button>
               </div>
             </div>
 
             <div class="awr-form-grid">
               <label class="awr-field">
-                Saved Connection
+                등록된 DB 연결
                 <select v-model.number="selectedConnectionId" class="awr-input" @change="handleConnectionChange">
-                  <option :value="null">Select connection</option>
+                  <option :value="null">DB 연결을 선택하세요</option>
                   <option v-for="connection in connections" :key="connection.id" :value="connection.id">
                     {{ connection.name }} · {{ connection.username }}
                   </option>
@@ -81,51 +81,51 @@
 
             <div v-if="showConnectionForm" class="awr-form-grid">
               <label class="awr-field">
-                Connection Name
-                <input v-model="connectionForm.name" class="awr-input" placeholder="예) PROD readonly" />
+                연결 이름
+                <input v-model="connectionForm.name" class="awr-input" placeholder="예) 운영 DB 조회용" />
               </label>
               <label class="awr-field">
                 JDBC URL
                 <input v-model="connectionForm.jdbcUrl" class="awr-input" placeholder="예) jdbc:oracle:thin:@//host:1521/service" />
               </label>
               <label class="awr-field">
-                Username
+                사용자 계정
                 <input v-model="connectionForm.username" class="awr-input" placeholder="예) SQLADVISOR_RO" />
               </label>
               <label class="awr-field">
-                Password
-                <input v-model="connectionForm.password" class="awr-input" type="password" placeholder="Password" />
+                비밀번호
+                <input v-model="connectionForm.password" class="awr-input" type="password" placeholder="DB 계정 비밀번호" />
               </label>
             </div>
 
             <div class="awr-actions sql-tuning-action-bar">
               <div class="sql-tuning-action-left">
                 <button v-if="showConnectionForm" class="awr-btn compact" type="button" :disabled="!canTestConnection || isTestingConnection" @click="testConnection">
-                  {{ isTestingConnection ? 'Testing...' : 'Test Connection' }}
+                  {{ isTestingConnection ? '연결 확인 중...' : '연결 확인' }}
                 </button>
                 <button v-if="showConnectionForm" class="awr-btn compact" type="button" :disabled="!canSaveConnection || isSavingConnection" @click="saveConnection">
-                  {{ isSavingConnection ? 'Saving...' : 'Save Connection' }}
+                  {{ isSavingConnection ? '저장 중...' : '연결 저장' }}
                 </button>
                 <button class="awr-btn compact" type="button" :disabled="!selectedConnectionId || isTestingConnection" @click="testSelectedConnection">
-                  {{ isTestingConnection ? 'Testing...' : 'Test Connection' }}
+                  {{ isTestingConnection ? '연결 확인 중...' : '선택한 DB 연결 확인' }}
                 </button>
                 <button class="awr-btn compact" type="button" @click="directManualFallback = !directManualFallback">
-                  {{ directManualFallback ? 'Hide SQL Text' : 'SQL Text fallback' }}
+                  {{ directManualFallback ? 'SQL 직접 입력 닫기' : 'SQL 직접 입력으로 전환' }}
                 </button>
               </div>
               <button class="awr-btn compact danger sql-tuning-delete-action" type="button" :disabled="!selectedConnectionId || isDeletingConnection" @click="deleteSelectedConnection">
-                {{ isDeletingConnection ? 'Deleting...' : 'Delete Connection' }}
+                {{ isDeletingConnection ? '삭제 중...' : '연결 삭제' }}
               </button>
             </div>
 
             <div class="sql-tuning-top-sql-controls">
               <div class="sql-tuning-control-row">
                 <label class="awr-field compact">
-                  SQL Count
+                  조회 건수
                   <select v-model.number="topSqlLimit" class="awr-input compact" :disabled="isLoadingTopSql" @change="loadDirectTopSql">
-                    <option :value="20">Top 20</option>
-                    <option :value="50">Top 50</option>
-                    <option :value="100">Top 100</option>
+                    <option :value="20">상위 20건</option>
+                    <option :value="50">상위 50건</option>
+                    <option :value="100">상위 100건</option>
                   </select>
                 </label>
               </div>
@@ -138,7 +138,7 @@
                     @click="excludeTunedTopSql = !excludeTunedTopSql"
                   >
                     <span class="sql-tuning-toggle-dot"></span>
-                    <span>Hide tuned SQL_ID</span>
+                    <span>분석 완료 SQL 숨기기</span>
                     <span v-if="excludeTunedTopSql && hiddenTopSqlCount" class="sql-tuning-toggle-count">
                       {{ hiddenTopSqlCount }}
                     </span>
@@ -146,7 +146,7 @@
                   <span v-if="topSqlLoaded" class="sql-tuning-load-status">{{ topSqlStatusMessage }}</span>
                 </div>
                 <button class="awr-btn compact primary" type="button" :disabled="!selectedConnectionId || isLoadingTopSql" @click="loadDirectTopSql">
-                  {{ isLoadingTopSql ? 'Loading...' : 'Load SQL' }}
+                  {{ isLoadingTopSql ? '조회 중...' : '부하 SQL 조회' }}
                 </button>
               </div>
             </div>
@@ -184,7 +184,7 @@
                       @keydown.space.prevent="setTopSqlSort('ELAPSED')"
                     >
                       <span class="sql-tuning-sort-label">
-                        Elapsed
+                        총 수행시간(초)
                         <span v-if="topSqlSortColumn === 'ELAPSED'" class="sql-tuning-sort-indicator">{{ topSqlSortDirection === 'DESC' ? '↓' : '↑' }}</span>
                       </span>
                     </th>
@@ -198,7 +198,7 @@
                       @keydown.space.prevent="setTopSqlSort('BUFFER_GETS')"
                     >
                       <span class="sql-tuning-sort-label">
-                        Buffer Gets
+                        버퍼 조회량
                         <span v-if="topSqlSortColumn === 'BUFFER_GETS'" class="sql-tuning-sort-indicator">{{ topSqlSortDirection === 'DESC' ? '↓' : '↑' }}</span>
                       </span>
                     </th>
@@ -212,7 +212,7 @@
                       @keydown.space.prevent="setTopSqlSort('DISK_READS')"
                     >
                       <span class="sql-tuning-sort-label">
-                        Disk Reads
+                        디스크 읽기량
                         <span v-if="topSqlSortColumn === 'DISK_READS'" class="sql-tuning-sort-indicator">{{ topSqlSortDirection === 'DESC' ? '↓' : '↑' }}</span>
                       </span>
                     </th>
@@ -226,7 +226,7 @@
                       @keydown.space.prevent="setTopSqlSort('EXECUTIONS')"
                     >
                       <span class="sql-tuning-sort-label">
-                        Executions
+                        실행 횟수
                         <span v-if="topSqlSortColumn === 'EXECUTIONS'" class="sql-tuning-sort-indicator">{{ topSqlSortDirection === 'DESC' ? '↓' : '↑' }}</span>
                       </span>
                     </th>
@@ -250,7 +250,7 @@
                       >
                         {{ metric.sqlId }}
                       </button>
-                      <span v-if="tunedSqlIds.has(metric.sqlId)" class="awr-badge small">Tuned</span>
+                      <span v-if="tunedSqlIds.has(metric.sqlId)" class="awr-badge small">분석 완료</span>
                     </td>
                     <td>{{ formatNumber(metric.elapsedTimeSec) }}</td>
                     <td>{{ formatNumber(metric.bufferGets) }}</td>
@@ -280,19 +280,19 @@ ORDER BY o.created_at DESC"
 
           <div v-if="showContextInputs" class="awr-form-grid">
             <label class="awr-field sql-tuning-context-wide">
-              Existing Indexes
+              관련 테이블의 기존 인덱스
               <div v-if="sourceMode === 'DIRECT' && relatedIndexRows.length" class="sql-tuning-index-table-wrap">
                 <table class="sql-tuning-index-table">
                   <thead>
                     <tr>
-                      <th>Table</th>
-                      <th>Index</th>
-                      <th>Columns</th>
-                      <th>Uniqueness</th>
-                      <th>Status</th>
-                      <th>Visibility</th>
-                      <th>Logging</th>
-                      <th>Stats</th>
+                      <th>테이블</th>
+                      <th>인덱스</th>
+                      <th>컬럼</th>
+                      <th>고유 여부</th>
+                      <th>상태</th>
+                      <th>사용 가능 여부</th>
+                      <th>로깅</th>
+                      <th>통계정보</th>
                     </tr>
                   </thead>
                   <tbody>
@@ -310,27 +310,27 @@ ORDER BY o.created_at DESC"
                 </table>
               </div>
               <pre v-else-if="sourceMode === 'DIRECT' && legacyExistingIndexes" class="sql-tuning-context-viewer sql-tuning-index-viewer">{{ legacyExistingIndexes }}</pre>
-              <div v-else-if="sourceMode === 'DIRECT'" class="awr-empty compact">No existing indexes collected for the referenced tables.</div>
+              <div v-else-if="sourceMode === 'DIRECT'" class="awr-empty compact">관련 테이블의 기존 인덱스 정보를 수집하지 못했습니다.</div>
               <textarea
                 v-else
                 v-model="existingIndexes"
                 class="awr-textarea sql-tuning-resizable-textarea"
-                placeholder="?? CREATE INDEX idx_orders_status ON orders(status);
+                placeholder="예) CREATE INDEX idx_orders_status ON orders(status);
 CREATE INDEX idx_orders_created ON orders(created_at);"
               ></textarea>
             </label>
             <label v-if="sourceMode === 'DIRECT'" class="awr-field sql-tuning-context-wide">
-              Used Indexes
+              실행계획에서 사용된 인덱스
               <div v-if="usedIndexRows.length" class="sql-tuning-index-table-wrap">
                 <table class="sql-tuning-index-table">
                   <thead>
                     <tr>
-                      <th>Table</th>
-                      <th>Index</th>
-                      <th>Access</th>
-                      <th>Uniqueness</th>
-                      <th>Status</th>
-                      <th>Visibility</th>
+                      <th>테이블</th>
+                      <th>인덱스</th>
+                      <th>접근 방식</th>
+                      <th>고유 여부</th>
+                      <th>상태</th>
+                      <th>사용 가능 여부</th>
                     </tr>
                   </thead>
                   <tbody>
@@ -345,27 +345,27 @@ CREATE INDEX idx_orders_created ON orders(created_at);"
                   </tbody>
                 </table>
               </div>
-              <div v-else class="awr-empty compact">No used indexes found in the collected execution plan.</div>
+              <div v-else class="awr-empty compact">수집된 실행계획에서 사용된 인덱스를 찾지 못했습니다.</div>
             </label>
             <label v-if="sourceMode === 'DIRECT' && !directManualFallback" class="awr-field sql-tuning-context-wide">
-              Collected SQL Text
+              수집된 SQL
               <pre v-if="sqlText" class="sql-tuning-context-viewer sql-tuning-sql-text-viewer">{{ sqlText }}</pre>
-              <div v-else class="awr-empty compact">No SQL text collected.</div>
+              <div v-else class="awr-empty compact">SQL 문장을 수집하지 못했습니다.</div>
             </label>
             <label class="awr-field sql-tuning-context-wide">
-              Bind Samples
+              바인드 변수 예시
               <pre v-if="sourceMode === 'DIRECT' && bindSamples" class="sql-tuning-context-viewer sql-tuning-bind-viewer">{{ bindSamples }}</pre>
-              <div v-else-if="sourceMode === 'DIRECT'" class="awr-empty compact">No bind samples collected.</div>
+              <div v-else-if="sourceMode === 'DIRECT'" class="awr-empty compact">바인드 변수 값을 수집하지 못했습니다.</div>
               <textarea
                 v-else
                 v-model="bindSamples"
                 class="awr-textarea sql-tuning-resizable-textarea"
-                placeholder="?? :customer_id = 100284
+                placeholder="예) :customer_id = 100284
 :status = 'READY'"
               ></textarea>
             </label>
             <label class="awr-field sql-tuning-context-wide">
-              Execution Plan
+              실행계획
               <div v-if="sourceMode === 'DIRECT'" class="sql-tuning-plan-viewer">
                 <template v-if="executionPlanBlocks.length">
                   <template v-for="(block, blockIndex) in executionPlanBlocks" :key="blockIndex">
@@ -392,7 +392,7 @@ CREATE INDEX idx_orders_created ON orders(created_at);"
                     </div>
                   </template>
                 </template>
-                <div v-else class="awr-empty compact">No execution plan collected.</div>
+                <div v-else class="awr-empty compact">실행계획을 수집하지 못했습니다.</div>
               </div>
               <textarea
                 v-else
@@ -411,8 +411,8 @@ filter(&quot;O&quot;.&quot;CUSTOMER_ID&quot;=:CUSTOMER_ID)"
       <section class="awr-panel awr-side-panel">
         <div class="awr-panel-header">
           <div>
-            <h2 class="awr-panel-title">{{ selectedResult ? `SQL Tuning - ${selectedResult.sqlId}` : 'Tuning Result' }}</h2>
-            <p v-if="selectedResult" class="awr-muted" style="margin: 0.25rem 0 0;">confidence {{ selectedResult.confidence }}</p>
+            <h2 class="awr-panel-title">{{ selectedResult ? `SQL 분석 결과 - ${selectedResult.sqlId}` : 'SQL 분석 결과' }}</h2>
+            <p v-if="selectedResult" class="awr-muted" style="margin: 0.25rem 0 0;">분석 신뢰도 {{ selectedResult.confidence }}</p>
           </div>
           <span v-if="selectedResult" class="awr-badge">{{ selectedResult.model }}</span>
         </div>
@@ -420,15 +420,15 @@ filter(&quot;O&quot;.&quot;CUSTOMER_ID&quot;=:CUSTOMER_ID)"
         <template v-if="selectedResult">
           <div class="sql-tuning-summary-strip">
             <div>
-              <span>Confidence</span>
+              <span>분석 신뢰도</span>
               <strong>{{ selectedResult.confidence }}</strong>
             </div>
             <div>
-              <span>Index Candidates</span>
+              <span>인덱스 검토안</span>
               <strong>{{ selectedIndexRecommendations.length }}</strong>
             </div>
             <div>
-              <span>Missing Inputs</span>
+              <span>추가 필요 정보</span>
               <strong>{{ selectedResult.missingInputs.length }}</strong>
             </div>
           </div>
@@ -436,25 +436,25 @@ filter(&quot;O&quot;.&quot;CUSTOMER_ID&quot;=:CUSTOMER_ID)"
 
           <div class="awr-finding-grid compact" style="margin-top: 1rem;">
             <div>
-              <strong>Symptoms</strong>
+              <strong>확인된 성능 문제</strong>
               <ul>
                 <li v-for="item in selectedResult.symptoms" :key="item">{{ item }}</li>
               </ul>
             </div>
             <div>
-              <strong>Rewrite Checks</strong>
+              <strong>SQL 개선 검토사항</strong>
               <ul>
                 <li v-for="item in selectedResult.rewriteRecommendations" :key="item">{{ item }}</li>
               </ul>
             </div>
             <div>
-              <strong>Validation</strong>
+              <strong>적용 전 확인사항</strong>
               <ul>
                 <li v-for="item in selectedResult.validationSteps" :key="item">{{ item }}</li>
               </ul>
             </div>
             <div>
-              <strong>Missing Inputs</strong>
+              <strong>추가 필요 정보</strong>
               <ul>
                 <li v-for="item in selectedResult.missingInputs" :key="item">{{ item }}</li>
               </ul>
@@ -463,63 +463,63 @@ filter(&quot;O&quot;.&quot;CUSTOMER_ID&quot;=:CUSTOMER_ID)"
 
           <div class="awr-stack" style="margin-top: 1rem;">
             <article v-for="item in selectedIndexRecommendations" :key="`${item.tableName}-${item.columns.join('-')}`" class="awr-finding">
-              <h3>{{ item.tableName || 'Index candidate' }}</h3>
+              <h3>{{ item.tableName || '인덱스 검토안' }}</h3>
               <p class="awr-muted">{{ item.reason }}</p>
-              <p><strong>Columns:</strong> {{ formatColumns(item.columns) }}</p>
+              <p><strong>대상 컬럼:</strong> {{ formatColumns(item.columns) }}</p>
               <div v-if="item.ddlCandidate" class="sql-tuning-ddl-header">
-                <strong>DDL Candidate</strong>
+                <strong>인덱스 생성문 예시</strong>
                 <button class="awr-btn compact" type="button" @click="copyDdl(item.ddlCandidate || '')">
-                  {{ copiedDdl === item.ddlCandidate ? 'Copied' : 'Copy' }}
+                  {{ copiedDdl === item.ddlCandidate ? '복사 완료' : '복사' }}
                 </button>
               </div>
               <pre v-if="item.ddlCandidate" class="awr-code">{{ item.ddlCandidate }}</pre>
               <template v-if="item.buildSteps?.length">
                 <div class="sql-tuning-ddl-header">
-                  <strong>Large-table build option</strong>
+                  <strong>대용량 테이블 생성 옵션</strong>
                 </div>
                 <pre class="awr-code">{{ item.buildSteps.join('\n') }}</pre>
               </template>
               <ul v-if="item.postCreateSteps?.length" class="sql-tuning-compact-list">
                 <li v-for="step in item.postCreateSteps" :key="step">{{ step }}</li>
               </ul>
-              <p><strong>Expected benefit:</strong> {{ item.expectedBenefit }}</p>
+              <p><strong>예상 효과:</strong> {{ item.expectedBenefit }}</p>
               <p class="awr-muted">{{ item.risk }}</p>
             </article>
             <div v-if="selectedIndexRecommendations.length === 0" class="awr-empty compact">
-              No concrete index DDL candidate was generated.
+              현재 수집된 정보만으로는 구체적인 인덱스 생성안을 만들 수 없습니다.
             </div>
           </div>
 
           <div class="sql-tuning-question-box">
             <div class="awr-panel-header compact">
-              <h3 class="awr-panel-title">Ask About This Tuning</h3>
+              <h3 class="awr-panel-title">분석 결과 추가 질문</h3>
               <span v-if="tuningQuestions.length" class="awr-badge">{{ tuningQuestions.length }}</span>
             </div>
             <form class="sql-tuning-question-form" @submit.prevent="askQuestion">
               <textarea
                 v-model="tuningQuestion"
                 class="awr-textarea"
-                placeholder="Ask about index risk, execution plan, or validation steps."
+                placeholder="인덱스 적용 위험, 실행계획 또는 검증 방법 등을 질문하세요."
               ></textarea>
               <button class="awr-btn compact primary" type="submit" :disabled="!canAskTuningQuestion || isAskingQuestion">
-                {{ isAskingQuestion ? 'Asking...' : 'Ask' }}
+                {{ isAskingQuestion ? '답변 생성 중...' : '질문하기' }}
               </button>
             </form>
-            <div v-if="isLoadingQuestions" class="awr-muted">Loading questions...</div>
+            <div v-if="isLoadingQuestions" class="awr-muted">이전 질문을 불러오는 중...</div>
             <div v-else-if="tuningQuestions.length" class="sql-tuning-question-list">
               <article v-for="item in tuningQuestions" :key="item.questionId" class="sql-tuning-question-item">
                 <strong>{{ item.question }}</strong>
                 <div class="sql-tuning-markdown" v-html="renderMarkdown(item.answer)"></div>
-                <span>{{ item.model }} · confidence {{ item.confidence }} · {{ formatDate(item.createdAt) }}</span>
+                <span>{{ item.model }} · 분석 신뢰도 {{ item.confidence }} · {{ formatDate(item.createdAt) }}</span>
               </article>
             </div>
           </div>
         </template>
-        <div v-else class="awr-empty compact">No tuning result selected.</div>
+        <div v-else class="awr-empty compact">왼쪽에서 분석할 SQL을 선택하거나 직접 입력한 뒤 분석 실행 버튼을 눌러주세요.</div>
 
         <div v-if="history.length" class="awr-side-history">
           <div class="awr-panel-header compact">
-            <h3 class="awr-panel-title">Tuning History</h3>
+            <h3 class="awr-panel-title">SQL 분석 이력</h3>
             <span class="awr-badge">{{ history.length }}</span>
           </div>
           <ul class="awr-history-list compact">
@@ -530,7 +530,7 @@ filter(&quot;O&quot;.&quot;CUSTOMER_ID&quot;=:CUSTOMER_ID)"
                 @click="selectResult(item)"
               >
                 <span class="awr-history-question">{{ item.sqlId }} · {{ item.summary }}</span>
-                <span class="awr-history-meta">{{ item.model }} · confidence {{ item.confidence }} · {{ formatDate(item.createdAt) }}</span>
+                <span class="awr-history-meta">{{ item.model }} · 분석 신뢰도 {{ item.confidence }} · {{ formatDate(item.createdAt) }}</span>
               </button>
             </li>
           </ul>
@@ -667,13 +667,13 @@ const canTestConnection = computed(() =>
     && connectionForm.value.username?.trim()
     && connectionForm.value.password?.trim())
 )
-const runButtonLabel = computed(() => sourceMode.value === 'DIRECT' ? 'Tune Direct DB' : 'Tune SQL')
+const runButtonLabel = computed(() => sourceMode.value === 'DIRECT' ? '선택한 SQL 분석' : '입력한 SQL 분석')
 const showContextInputs = computed(() => sourceMode.value === 'MANUAL' || Boolean(directContext.value))
 const canAskTuningQuestion = computed(() => Boolean(selectedResult.value?.tuningId && tuningQuestion.value.trim()))
 const directSqlTextLabel = computed(() =>
   sourceMode.value === 'DIRECT'
-    ? (directManualFallback.value ? 'SQL Text fallback' : 'Collected SQL Text')
-    : 'SQL Text'
+    ? (directManualFallback.value ? '직접 입력할 SQL' : '수집된 SQL')
+    : '분석할 SQL'
 )
 const selectedConnection = computed(() =>
   connections.value.find((connection) => connection.id === selectedConnectionId.value) || null
@@ -701,20 +701,20 @@ const displayedTopSql = computed(() => {
 const hiddenTopSqlCount = computed(() => Math.max(directTopSql.value.length - displayedTopSql.value.length, 0))
 const topSqlStatusMessage = computed(() => {
   if (!topSqlLoaded.value) return ''
-  if (!directTopSql.value.length) return '0 SQL_ID loaded'
+  if (!directTopSql.value.length) return '조회된 SQL_ID가 없습니다.'
   if (excludeTunedTopSql.value && hiddenTopSqlCount.value) {
-    return `${displayedTopSql.value.length}/${directTopSql.value.length} SQL_ID shown`
+    return `전체 ${directTopSql.value.length}건 중 ${displayedTopSql.value.length}건 표시`
   }
-  return `${directTopSql.value.length} SQL_ID loaded`
+  return `SQL_ID ${directTopSql.value.length}건 조회 완료`
 })
 const ariaSortDirection = computed(() =>
   topSqlSortDirection.value === 'DESC' ? 'descending' : 'ascending'
 )
 const topSqlEmptyMessage = computed(() => {
   if (directTopSql.value.length && excludeTunedTopSql.value) {
-    return 'All loaded SQL_IDs are hidden. Turn off Hide tuned SQL_ID to show them.'
+    return '조회된 SQL이 모두 숨김 처리되었습니다. 분석 완료 SQL 숨기기를 해제해주세요.'
   }
-  return 'No SQL was found in the target database current SQL views.'
+  return '현재 DB에서 조회된 SQL이 없습니다.'
 })
 const relatedTableIndexes = computed(() => contextSection(existingIndexes.value, 'Related Table Indexes'))
 const planUsedIndexes = computed(() => contextSection(existingIndexes.value, 'Plan Used Indexes'))
@@ -767,7 +767,7 @@ async function loadConnections(loadTopSql = true) {
       await loadDirectTopSql()
     }
   } catch (error) {
-    connectionMessage.value = error instanceof Error ? error.message : 'Target DB connections failed to load.'
+    connectionMessage.value = error instanceof Error ? error.message : 'DB 연결 목록을 불러오지 못했습니다.'
   } finally {
     isLoadingConnections.value = false
   }
@@ -822,7 +822,7 @@ async function runTuning() {
     await loadQuestionsForSelected()
     history.value = await getSqlTuningHistory()
   } catch (error) {
-    errorMessage.value = error instanceof Error ? error.message : 'SQL tuning failed.'
+    errorMessage.value = error instanceof Error ? error.message : 'SQL 분석 중 오류가 발생했습니다.'
   } finally {
     isTuning.value = false
   }
@@ -841,7 +841,7 @@ async function runDirectTuning() {
     await loadQuestionsForSelected()
     history.value = await getSqlTuningHistory()
   } catch (error) {
-    errorMessage.value = error instanceof Error ? error.message : 'Direct DB tuning failed.'
+    errorMessage.value = error instanceof Error ? error.message : 'DB 연계 SQL 분석 중 오류가 발생했습니다.'
   } finally {
     isTuning.value = false
   }
@@ -858,7 +858,7 @@ async function saveConnection() {
     connectionCapabilities.value = testResult.capabilities || []
     connectionWarnings.value = testResult.warnings || []
     if (!testResult.success) {
-      connectionMessage.value = testResult.message || 'Connection test failed.'
+      connectionMessage.value = testResult.message || 'DB 연결 확인에 실패했습니다.'
       return
     }
     const saved = await createTargetDbConnection(connectionForm.value)
@@ -867,9 +867,9 @@ async function saveConnection() {
     await loadConnections(false)
     await handleConnectionChange()
     showConnectionForm.value = false
-    connectionMessage.value = 'Connection saved. Top SQL loaded.'
+    connectionMessage.value = 'DB 연결을 저장하고 부하 SQL을 조회했습니다.'
   } catch (error) {
-    connectionMessage.value = error instanceof Error ? error.message : 'Connection save failed.'
+    connectionMessage.value = error instanceof Error ? error.message : 'DB 연결 저장에 실패했습니다.'
   } finally {
     isSavingConnection.value = false
   }
@@ -886,10 +886,10 @@ async function testConnection() {
     connectionCapabilities.value = result.capabilities || []
     connectionWarnings.value = result.warnings || []
     connectionMessage.value = result.success
-      ? `${result.databaseProductName || 'DB'} connection succeeded. Save connection to load Top SQL.`
+      ? `${result.databaseProductName || 'DB'} 연결에 성공했습니다. 저장하면 부하 SQL을 조회할 수 있습니다.`
       : result.message
   } catch (error) {
-    connectionMessage.value = error instanceof Error ? error.message : 'Connection test failed.'
+    connectionMessage.value = error instanceof Error ? error.message : 'DB 연결 확인에 실패했습니다.'
   } finally {
     isTestingConnection.value = false
   }
@@ -906,10 +906,10 @@ async function testSelectedConnection() {
     connectionCapabilities.value = result.capabilities || []
     connectionWarnings.value = result.warnings || []
     connectionMessage.value = result.success
-      ? `${selectedConnection.value?.name || 'Saved connection'} test succeeded.`
+      ? `${selectedConnection.value?.name || '선택한 DB 연결'} 연결 확인에 성공했습니다.`
       : result.message
   } catch (error) {
-    connectionMessage.value = error instanceof Error ? error.message : 'Saved connection test failed.'
+    connectionMessage.value = error instanceof Error ? error.message : '저장된 DB 연결 확인에 실패했습니다.'
   } finally {
     isTestingConnection.value = false
   }
@@ -917,8 +917,8 @@ async function testSelectedConnection() {
 
 async function deleteSelectedConnection() {
   if (!selectedConnectionId.value || isDeletingConnection.value) return
-  const connectionName = selectedConnection.value?.name || 'selected connection'
-  if (!window.confirm(`Delete ${connectionName}?`)) return
+  const connectionName = selectedConnection.value?.name || '선택한 DB 연결'
+  if (!window.confirm(`${connectionName}을(를) 삭제하시겠습니까?`)) return
   isDeletingConnection.value = true
   connectionMessage.value = ''
   connectionCapabilities.value = []
@@ -933,12 +933,12 @@ async function deleteSelectedConnection() {
     topSqlLoaded.value = false
     clearDirectCollectedInput()
     await loadConnections(false)
-    connectionMessage.value = 'Connection deleted.'
+    connectionMessage.value = 'DB 연결을 삭제했습니다.'
     if (selectedConnectionId.value) {
       await loadDirectTopSql()
     }
   } catch (error) {
-    connectionMessage.value = error instanceof Error ? error.message : 'Connection delete failed.'
+    connectionMessage.value = error instanceof Error ? error.message : 'DB 연결 삭제에 실패했습니다.'
   } finally {
     isDeletingConnection.value = false
   }
@@ -957,7 +957,7 @@ async function fetchDirectContext() {
     directSqlId.value = directContext.value.metric?.sqlId || directSqlId.value
     restoreInput(directContext.value.input, directContext.value.metric?.sqlText)
   } catch (error) {
-    errorMessage.value = error instanceof Error ? error.message : 'Direct DB context fetch failed.'
+    errorMessage.value = error instanceof Error ? error.message : 'DB에서 SQL 분석 정보를 수집하지 못했습니다.'
   } finally {
     isCollectingContext.value = false
   }
@@ -972,7 +972,7 @@ async function loadDirectTopSql() {
     directTopSql.value = await getDirectTopSql(selectedConnectionId.value, topSqlOptions())
     topSqlLoaded.value = true
   } catch (error) {
-    errorMessage.value = error instanceof Error ? error.message : 'Direct DB Top SQL failed.'
+    errorMessage.value = error instanceof Error ? error.message : 'DB에서 부하 SQL을 조회하지 못했습니다.'
   } finally {
     isLoadingTopSql.value = false
   }
@@ -1217,7 +1217,7 @@ async function loadQuestionsForSelected() {
   try {
     tuningQuestions.value = await getSqlTuningQuestions(selectedResult.value.tuningId)
   } catch (error) {
-    errorMessage.value = error instanceof Error ? error.message : 'Tuning questions failed to load.'
+    errorMessage.value = error instanceof Error ? error.message : '이전 질문을 불러오지 못했습니다.'
   } finally {
     isLoadingQuestions.value = false
   }
@@ -1234,7 +1234,7 @@ async function askQuestion() {
     tuningQuestions.value = [...tuningQuestions.value, answer]
     tuningQuestion.value = ''
   } catch (error) {
-    errorMessage.value = error instanceof Error ? error.message : 'Tuning question failed.'
+    errorMessage.value = error instanceof Error ? error.message : '추가 질문에 대한 답변을 생성하지 못했습니다.'
   } finally {
     isAskingQuestion.value = false
   }
@@ -1345,7 +1345,7 @@ async function copyDdl(ddl: string) {
       if (copiedDdl.value === ddl) copiedDdl.value = ''
     }, 1200)
   } catch (error) {
-    errorMessage.value = error instanceof Error ? error.message : 'DDL copy failed.'
+    errorMessage.value = error instanceof Error ? error.message : 'DDL 복사에 실패했습니다.'
   }
 }
 

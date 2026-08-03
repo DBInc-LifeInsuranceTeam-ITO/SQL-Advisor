@@ -193,7 +193,7 @@ public class RuleBasedSqlDiagnosisService {
                 "%s 위험도이며 %d개의 성능 이슈가 발견되었습니다. 우선순위는 %s입니다.",
                 severity,
                 findings.size(),
-                findings.getFirst().title()
+                findings.get(0).title()
         );
     }
 

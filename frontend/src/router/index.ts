@@ -66,7 +66,7 @@ const router = createRouter({
       path: '/sql-tuning',
       name: 'sql-tuning',
       meta: { requiresAuth: true, roles: ['ADMIN', 'USER', 'MONITOR'] },
-      component: () => import('@/views/sql-tuning/SqlTuningWorkbench.vue')
+      component: () => import('@/views/sql-tuning/SqlTuningWorkbenchV2.vue')
     },
     {
       path: '/settings/ai',

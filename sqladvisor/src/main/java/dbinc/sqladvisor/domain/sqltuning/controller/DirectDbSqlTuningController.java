@@ -2,8 +2,10 @@ package dbinc.sqladvisor.domain.sqltuning.controller;
 
 import dbinc.sqladvisor.common.response.ApiResponse;
 import dbinc.sqladvisor.domain.awr.dto.AwrDtos;
+import dbinc.sqladvisor.domain.sqltuning.dto.DirectSqlMetricDtos;
 import dbinc.sqladvisor.domain.sqltuning.dto.SqlTuningDtos;
 import dbinc.sqladvisor.domain.sqltuning.service.DirectDbSqlTuningService;
+import dbinc.sqladvisor.domain.sqltuning.service.DirectSqlMetricService;
 import lombok.RequiredArgsConstructor;
 import org.springframework.format.annotation.DateTimeFormat;
 import org.springframework.http.ResponseEntity;
@@ -24,6 +26,7 @@ import java.util.List;
 public class DirectDbSqlTuningController {
 
     private final DirectDbSqlTuningService directDbSqlTuningService;
+    private final DirectSqlMetricService directSqlMetricService;
 
     @PostMapping("/context")
     public ResponseEntity<ApiResponse<SqlTuningDtos.DirectDbContextResponse>> collectContext(
@@ -62,6 +65,21 @@ public class DirectDbSqlTuningController {
                 module,
                 program
         ))));
+    }
+
+    @GetMapping("/top-sql/metrics")
+    public ResponseEntity<ApiResponse<DirectSqlMetricDtos.DirectSqlMetricListResponse>> detailedTopSqlMetrics(
+            @RequestParam Long connectionId,
+            @RequestParam(required = false) Integer limit,
+            @RequestParam(required = false) String sortBy,
+            @RequestParam(defaultValue = "false") boolean includeSystemSql
+    ) {
+        return ResponseEntity.ok(ApiResponse.success(directSqlMetricService.topSql(
+                connectionId,
+                limit,
+                sortBy,
+                includeSystemSql
+        )));
     }
 
     @ExceptionHandler(IllegalArgumentException.class)

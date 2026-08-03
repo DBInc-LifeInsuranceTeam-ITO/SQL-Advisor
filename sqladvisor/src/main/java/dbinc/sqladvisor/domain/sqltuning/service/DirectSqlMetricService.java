@@ -18,7 +18,7 @@ import java.util.Locale;
 public class DirectSqlMetricService {
 
     private static final List<String> SYSTEM_SCHEMAS = List.of(
-            "SYS", "SYSTEM", "DBSNMP", "SYSMAN", "OUTLN"
+            "SYS", "SYSTEM", "DBSNMP", "SYSMAN", "OUTLN", "ORACLE_OCM"
     );
 
     private final TargetDbConnectionService connectionService;
@@ -107,9 +107,15 @@ public class DirectSqlMetricService {
                            AND command_type IN (2, 3, 6, 7, 189)
                            %s
                            AND NVL(module, '-') NOT LIKE 'SQL_ADVISOR%%'
-                           AND NVL(module, '-') NOT LIKE 'DBeaver%%Metadata%%'
-                           AND LOWER(sql_text) NOT LIKE '%%from gv$sql%%'
-                           AND LOWER(sql_text) NOT LIKE '%%from v$sql%%'
+                           AND NVL(module, '-') NOT LIKE 'DBMS_SCHEDULER%%'
+                           AND NOT (
+                               NVL(module, '-') LIKE 'DBeaver%%'
+                               AND NVL(module, '-') NOT LIKE 'DBeaver%%SQLEditor%%'
+                           )
+                           AND LOWER(sql_text) NOT LIKE '%% from gv$%%'
+                           AND LOWER(sql_text) NOT LIKE '%% from v$%%'
+                           AND LOWER(sql_text) NOT LIKE '%% join gv$%%'
+                           AND LOWER(sql_text) NOT LIKE '%% join v$%%'
                            AND NOT (
                                LOWER(sql_text) LIKE '%%average_elapsed_time_sec%%'
                                AND LOWER(sql_text) LIKE '%%average_buffer_gets%%'
@@ -126,6 +132,10 @@ public class DirectSqlMetricService {
                            AND NOT (
                                LOWER(sql_text) LIKE '%%extract(xmlval%%'
                                AND LOWER(sql_text) LIKE '%%from sys.dual%%'
+                           )
+                           AND NOT (
+                               LOWER(sql_text) LIKE '%%sys_context%%'
+                               AND LOWER(sql_text) LIKE '%%userenv%%'
                            )
                          ORDER BY %s DESC, last_active_time DESC NULLS LAST
                        )

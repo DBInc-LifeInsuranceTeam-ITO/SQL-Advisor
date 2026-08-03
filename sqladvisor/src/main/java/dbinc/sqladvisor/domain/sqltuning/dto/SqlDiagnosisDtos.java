@@ -10,7 +10,6 @@ public final class SqlDiagnosisDtos {
 
     public record FindingResponse(
             String code,
-            String severity,
             String title,
             String description,
             Map<String, Object> evidence,
@@ -21,8 +20,6 @@ public final class SqlDiagnosisDtos {
     public record SqlDiagnosisResponse(
             Long connectionId,
             String sqlId,
-            String severity,
-            int score,
             String summary,
             DirectSqlMetricDtos.DirectSqlMetricResponse metric,
             ExecutionPlanDtos.StructuredExecutionPlanResponse executionPlan,

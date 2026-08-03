@@ -50,11 +50,16 @@
           </label>
 
           <div v-if="selectedConnection" class="selected-connection">
-            <div><strong>{{ selectedConnection.name }}</strong><span>{{ selectedConnection.username }}</span></div>
-            <code>{{ selectedConnection.jdbcUrl }}</code>
-            <div class="awr-actions compact">
-              <button class="awr-btn compact" type="button" :disabled="busyConnection" @click="testSavedConnection">선택한 DB 연결 확인</button>
-              <button class="awr-btn compact danger" type="button" :disabled="busyConnection" @click="removeConnection">연결 삭제</button>
+            <div class="connection-main">
+              <div class="connection-identity">
+                <strong>{{ selectedConnection.name }}</strong>
+                <span>{{ selectedConnection.username }}</span>
+              </div>
+              <code>{{ selectedConnection.jdbcUrl }}</code>
+            </div>
+            <div class="connection-actions">
+              <button class="awr-btn compact" type="button" :disabled="busyConnection" @click="testSavedConnection">연결 테스트</button>
+              <button class="awr-btn compact danger" type="button" :disabled="busyConnection" @click="removeConnection">삭제</button>
             </div>
           </div>
 
@@ -72,8 +77,8 @@
                 <option value="EXECUTIONS">실행 횟수</option>
               </select>
             </label>
-            <button class="awr-btn compact primary" type="button" :disabled="!connectionId || loadingTopSql" @click="loadTopSql">
-              {{ loadingTopSql ? '조회 중...' : '부하 SQL 조회' }}
+            <button class="awr-btn compact primary query-button" type="button" :disabled="!connectionId || loadingTopSql" @click="loadTopSql">
+              {{ loadingTopSql ? '조회 중...' : '조회' }}
             </button>
           </div>
 
@@ -92,7 +97,7 @@
             </table>
           </div>
           <div v-else class="awr-empty compact">
-            {{ topSqlLoaded ? '조건에 맞는 업무 SQL이 없습니다.' : 'DB 연결을 선택하고 부하 SQL 조회를 실행하세요.' }}
+            {{ topSqlLoaded ? '조건에 맞는 업무 SQL이 없습니다.' : 'DB 연결을 선택하고 조회를 실행하세요.' }}
           </div>
         </template>
 
@@ -118,11 +123,16 @@
           <div v-if="loadingDiagnosis" class="awr-empty">선택한 SQL을 진단하는 중입니다.</div>
           <div v-else-if="!diagnosis" class="awr-empty">왼쪽 부하 SQL 목록에서 SQL_ID를 선택하세요.</div>
           <template v-else>
-            <div class="diagnosis-title">
-              <div><p>{{ diagnosis.sqlId }}</p><h3>{{ diagnosis.summary }}</h3></div>
+            <div class="diagnosis-overview">
+              <div class="diagnosis-copy">
+                <p class="diagnosis-sql-id">{{ diagnosis.sqlId }}</p>
+                <h3>{{ diagnosis.summary }}</h3>
+              </div>
               <div :class="['score', severityClass(diagnosis.severity)]"><strong>{{ diagnosis.score }}</strong><span>{{ diagnosis.severity }}</span></div>
             </div>
+
             <pre class="sql-box">{{ diagnosis.metric.sqlText }}</pre>
+
             <div class="metric-grid">
               <div><span>평균 수행시간</span><strong>{{ number(diagnosis.metric.averageElapsedTimeSec) }}초</strong></div>
               <div><span>CPU</span><strong>{{ number(diagnosis.metric.totalCpuTimeSec) }}초</strong></div>
@@ -131,6 +141,26 @@
               <div><span>Rows</span><strong>{{ number(diagnosis.metric.rowsProcessed) }}</strong></div>
               <div><span>Plan Hash</span><strong>{{ number(diagnosis.metric.planHashValue) }}</strong></div>
             </div>
+
+            <details class="risk-policy">
+              <summary>위험도 산정 기준</summary>
+              <p>AI 판단이 아니라 서버의 고정 규칙 점수를 합산하며, 최대 점수는 100점입니다.</p>
+              <div class="risk-levels">
+                <span><strong>HIGH</strong> 70점 이상</span>
+                <span><strong>MEDIUM</strong> 40~69점</span>
+                <span><strong>LOW</strong> 39점 이하</span>
+              </div>
+              <ul>
+                <li>TABLE ACCESS FULL 발견: +40점</li>
+                <li>Buffer Gets 10,000 이상: +20점</li>
+                <li>Disk Reads 1,000 이상: +20점</li>
+                <li>처리 행 1,000,000건 이상: +20점</li>
+                <li>통계정보 미수집 또는 30일 초과: +15점</li>
+                <li>Full Scan 대상에 사용 가능한 인덱스 없음: +15점</li>
+                <li>예상 행과 처리 행 차이 10배 이상: +15점</li>
+              </ul>
+            </details>
+
             <div class="finding-list">
               <article v-for="finding in diagnosis.findings" :key="finding.code" class="finding-card">
                 <div><span :class="['badge', severityClass(finding.severity)]">{{ finding.severity }}</span><strong>{{ finding.title }}</strong><code>{{ finding.code }}</code></div>
@@ -288,5 +318,5 @@ function severityClass(value?: string | null) { return `severity-${(value || 'LO
 
 <style src="../awr/awr.css"></style>
 <style scoped>
-.sql-workbench{display:grid;gap:18px}.mode-switch{display:inline-flex;width:max-content;padding:5px;border:1px solid #d8e0e8;border-radius:13px;background:#fff}.mode-switch button{border:0;border-radius:9px;background:transparent;padding:12px 20px;font:inherit;font-weight:800;cursor:pointer}.mode-switch button.active{background:#078f4c;color:#fff}.workbench-grid{align-items:start;grid-template-columns:minmax(460px,.9fr) minmax(560px,1.1fr)}.input-panel,.result-panel{min-width:0}.connection-form{display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-bottom:16px;padding:14px;border:1px solid #dce5ec;border-radius:12px;background:#f8fafc}.connection-form .awr-actions{grid-column:1/-1}.selected-connection{display:grid;gap:6px;margin:12px 0;padding:12px;border-radius:10px;background:#f3f8f5}.selected-connection div:first-child{display:flex;justify-content:space-between}.selected-connection code{overflow:hidden;text-overflow:ellipsis}.top-controls{display:grid;grid-template-columns:140px 170px auto;align-items:end;gap:10px;margin:14px 0}.top-sql-table{max-height:420px}.top-sql-table tbody tr{cursor:pointer}.sql-link{border:0;background:transparent;color:#2563eb;font:inherit;font-weight:800;cursor:pointer}.main-sql{min-height:220px}.diagnosis-title{display:flex;justify-content:space-between;gap:16px;align-items:flex-start}.diagnosis-title p{margin:0;color:#078f4c;font-weight:800}.diagnosis-title h3{margin:5px 0}.score{min-width:84px;padding:12px;border-radius:14px;text-align:center}.score strong{display:block;font-size:30px}.score span{font-size:11px;font-weight:900}.severity-high{background:#fee2e2;color:#b91c1c}.severity-medium{background:#fef3c7;color:#92400e}.severity-low{background:#dcfce7;color:#166534}.sql-box{padding:12px;border-radius:10px;background:#111827;color:#f8fafc;white-space:pre-wrap}.metric-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:8px;margin:14px 0}.metric-grid>div{padding:12px;border-radius:10px;background:#f6f8fb}.metric-grid span{display:block;font-size:11px;color:#64748b}.metric-grid strong{display:block;margin-top:4px}.finding-list{display:grid;gap:10px}.finding-card{padding:13px;border:1px solid #dce5ec;border-radius:11px}.finding-card>div:first-child{display:flex;gap:8px;align-items:center;flex-wrap:wrap}.finding-card code{font-size:10px;color:#64748b}.badge{padding:3px 7px;border-radius:999px;font-size:10px;font-weight:900}.finding-card details pre{overflow:auto;max-height:180px;padding:10px;background:#111827;color:#fff;border-radius:8px}.result-block{margin-top:16px;padding-top:10px;border-top:1px solid #e2e8f0}.result-block>summary{font-size:16px;font-weight:900;cursor:pointer;margin-bottom:10px}.danger-row{background:#fff1f2}.table-card h4{display:flex;justify-content:space-between}.table-card small{font-weight:400;color:#64748b}@media(max-width:1200px){.workbench-grid{grid-template-columns:1fr}.metric-grid{grid-template-columns:repeat(2,1fr)}}@media(max-width:720px){.connection-form{grid-template-columns:1fr}.top-controls{grid-template-columns:1fr}.metric-grid{grid-template-columns:1fr}}
+.sql-workbench{display:grid;gap:18px}.mode-switch{display:inline-flex;width:max-content;padding:5px;border:1px solid #d8e0e8;border-radius:13px;background:#fff}.mode-switch button{border:0;border-radius:9px;background:transparent;padding:12px 20px;font:inherit;font-weight:800;cursor:pointer}.mode-switch button.active{background:#078f4c;color:#fff}.workbench-grid{align-items:start;grid-template-columns:minmax(460px,.9fr) minmax(560px,1.1fr)}.input-panel,.result-panel{min-width:0}.connection-form{display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-bottom:16px;padding:14px;border:1px solid #dce5ec;border-radius:12px;background:#f8fafc}.connection-form .awr-actions{grid-column:1/-1}.selected-connection{display:grid;grid-template-columns:minmax(0,1fr) auto;align-items:center;gap:18px;margin:14px 0 20px;padding:16px 18px;border:1px solid #cfe4d7;border-left:5px solid #0aa15b;border-radius:12px;background:#f7fbf8}.connection-main{min-width:0;display:grid;gap:8px}.connection-identity{display:flex;align-items:center;gap:10px}.connection-identity strong{font-size:17px}.connection-identity span{padding:4px 10px;border-radius:999px;background:#e5f7eb;color:#087744;font-size:12px;font-weight:800}.selected-connection code{display:block;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;color:#45586b}.connection-actions{display:flex;align-items:center;gap:8px}.top-controls{display:grid;grid-template-columns:165px 205px 92px;align-items:end;gap:12px;margin:18px 0 14px;padding-top:18px;border-top:1px solid #e2e8f0}.query-button{width:92px;min-width:92px;height:40px;padding:0 16px}.top-sql-table{max-height:420px}.top-sql-table tbody tr{cursor:pointer}.sql-link{border:0;background:transparent;color:#2563eb;font:inherit;font-weight:800;cursor:pointer}.main-sql{min-height:220px}.diagnosis-overview{display:grid;grid-template-columns:minmax(0,1fr) 90px;align-items:start;gap:24px;margin-bottom:16px}.diagnosis-copy{min-width:0;padding-top:2px}.diagnosis-sql-id{margin:0;color:#078f4c;font-weight:800}.diagnosis-copy h3{margin:8px 0 0;line-height:1.5;font-size:18px}.score{width:90px;min-height:96px;padding:14px 10px;border-radius:14px;text-align:center;display:flex;flex-direction:column;align-items:center;justify-content:center}.score strong{display:block;font-size:30px;line-height:1}.score span{margin-top:10px;font-size:11px;font-weight:900}.severity-high{background:#fee2e2;color:#b91c1c}.severity-medium{background:#fef3c7;color:#92400e}.severity-low{background:#dcfce7;color:#166534}.sql-box{margin:0 0 16px;padding:14px;border-radius:10px;background:#111827;color:#f8fafc;white-space:pre-wrap;line-height:1.5}.metric-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:10px;margin:0 0 16px}.metric-grid>div{padding:14px;border-radius:10px;background:#f6f8fb}.metric-grid span{display:block;font-size:11px;color:#64748b}.metric-grid strong{display:block;margin-top:6px}.risk-policy{margin:0 0 16px;padding:13px 15px;border:1px solid #dce5ec;border-radius:11px;background:#fbfcfd}.risk-policy summary{cursor:pointer;font-weight:900}.risk-policy p{margin:12px 0 8px;color:#526274}.risk-policy ul{margin:10px 0 0;padding-left:20px}.risk-levels{display:flex;gap:8px;flex-wrap:wrap}.risk-levels span{padding:6px 9px;border-radius:8px;background:#eef3f7;font-size:12px}.finding-list{display:grid;gap:10px}.finding-card{padding:13px;border:1px solid #dce5ec;border-radius:11px}.finding-card>div:first-child{display:flex;gap:8px;align-items:center;flex-wrap:wrap}.finding-card code{font-size:10px;color:#64748b}.badge{padding:3px 7px;border-radius:999px;font-size:10px;font-weight:900}.finding-card details pre{overflow:auto;max-height:180px;padding:10px;background:#111827;color:#fff;border-radius:8px}.result-block{margin-top:16px;padding-top:10px;border-top:1px solid #e2e8f0}.result-block>summary{font-size:16px;font-weight:900;cursor:pointer;margin-bottom:10px}.danger-row{background:#fff1f2}.table-card h4{display:flex;justify-content:space-between}.table-card small{font-weight:400;color:#64748b}@media(max-width:1200px){.workbench-grid{grid-template-columns:1fr}.metric-grid{grid-template-columns:repeat(2,1fr)}}@media(max-width:720px){.connection-form{grid-template-columns:1fr}.selected-connection{grid-template-columns:1fr}.connection-actions{justify-content:flex-start}.top-controls{grid-template-columns:1fr}.query-button{width:100%}.diagnosis-overview{grid-template-columns:1fr}.score{width:100%;min-height:74px}.metric-grid{grid-template-columns:1fr}}
 </style>

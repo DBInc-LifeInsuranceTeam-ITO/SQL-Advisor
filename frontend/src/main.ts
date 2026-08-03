@@ -1,4 +1,5 @@
 import './assets/main.css'
+import './assets/sql-tuning-polish.css'
 
 import { createApp } from 'vue'
 import { createPinia } from 'pinia'
@@ -12,4 +13,3 @@ app.use(createPinia())
 app.use(router)
 
 app.mount('#app')
-

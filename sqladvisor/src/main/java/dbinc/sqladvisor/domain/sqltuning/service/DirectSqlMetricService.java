@@ -95,8 +95,27 @@ public class DirectSqlMetricService {
                            AND command_type IN (2, 3, 6, 7, 189)
                            %s
                            AND NVL(module, '-') NOT LIKE 'SQL_ADVISOR%%'
+                           AND NVL(module, '-') NOT LIKE 'DBeaver%%Metadata%%'
                            AND LOWER(sql_text) NOT LIKE '%%from gv$sql%%'
                            AND LOWER(sql_text) NOT LIKE '%%from v$sql%%'
+                           AND LOWER(sql_text) NOT LIKE '%%dbms_xplan.display_cursor%%'
+                           AND LOWER(sql_text) NOT LIKE '%%dbms_xplan.i_display_cursor%%'
+                           AND LOWER(sql_text) NOT LIKE '%%dbms_xplan.prepare_records%%'
+                           AND LOWER(sql_text) NOT LIKE '%%sys.dbms_xplan_type_table%%'
+                           AND LOWER(sql_text) NOT LIKE '%%from dba_ind_columns%%'
+                           AND LOWER(sql_text) NOT LIKE '%%from dba_indexes%%'
+                           AND LOWER(sql_text) NOT LIKE '%%from dba_tab_modifications%%'
+                           AND LOWER(sql_text) NOT LIKE '%%from dba_tab_col_statistics%%'
+                           AND LOWER(sql_text) NOT LIKE '%%from dba_constraints%%'
+                           AND LOWER(sql_text) NOT LIKE '%%from dba_cons_columns%%'
+                           AND LOWER(sql_text) NOT LIKE '%%from dba_hist_sql_plan%%'
+                           AND LOWER(sql_text) NOT LIKE '%%from all_ind_columns%%'
+                           AND LOWER(sql_text) NOT LIKE '%%from all_indexes%%'
+                           AND LOWER(sql_text) NOT LIKE '%%from all_objects%%'
+                           AND LOWER(sql_text) NOT LIKE '%%from all_all_tables%%'
+                           AND LOWER(sql_text) NOT LIKE '%%from all_constraints%%'
+                           AND LOWER(sql_text) NOT LIKE '%%from all_cons_columns%%'
+                           AND LOWER(sql_text) NOT LIKE '%%xmlsequence%%'
                          ORDER BY %s DESC, last_active_time DESC NULLS LAST
                        )
                  WHERE ROWNUM <= ?

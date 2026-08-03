@@ -1,0 +1,220 @@
+.sql-tuning-v2-shell {
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
+}
+
+.sql-tuning-v2-flow {
+  display: grid;
+  grid-template-columns: minmax(280px, 0.9fr) minmax(560px, 1.8fr);
+  gap: 1.25rem;
+  align-items: center;
+  padding: 1.25rem 1.4rem;
+  border: 1px solid #dce9e2;
+  border-radius: 18px;
+  background:
+    radial-gradient(circle at top left, rgba(24, 141, 82, 0.12), transparent 38%),
+    linear-gradient(135deg, #ffffff 0%, #f7fbf8 100%);
+  box-shadow: 0 10px 30px rgba(30, 68, 48, 0.06);
+}
+
+.sql-tuning-v2-kicker {
+  margin: 0 0 0.35rem;
+  color: #13814f;
+  font-size: 0.72rem;
+  font-weight: 900;
+  letter-spacing: 0.08em;
+}
+
+.sql-tuning-v2-flow h2 {
+  margin: 0;
+  color: #102f24;
+  font-size: 1.15rem;
+  line-height: 1.35;
+}
+
+.sql-tuning-v2-flow-copy > p:last-child {
+  margin: 0.55rem 0 0;
+  color: #61736c;
+  font-size: 0.88rem;
+  line-height: 1.55;
+}
+
+.sql-tuning-v2-steps {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 0.7rem;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.sql-tuning-v2-steps li {
+  min-height: 92px;
+  padding: 0.85rem;
+  border: 1px solid #dce9e2;
+  border-radius: 14px;
+  background: rgba(255, 255, 255, 0.9);
+}
+
+.sql-tuning-v2-steps span {
+  display: inline-grid;
+  width: 26px;
+  height: 26px;
+  place-items: center;
+  margin-bottom: 0.45rem;
+  border-radius: 999px;
+  background: #e1f4e9;
+  color: #087a45;
+  font-size: 0.76rem;
+  font-weight: 900;
+}
+
+.sql-tuning-v2-steps strong,
+.sql-tuning-v2-steps small {
+  display: block;
+}
+
+.sql-tuning-v2-steps strong {
+  color: #183e30;
+  font-size: 0.86rem;
+}
+
+.sql-tuning-v2-steps small {
+  margin-top: 0.25rem;
+  color: #73827c;
+  font-size: 0.72rem;
+  line-height: 1.4;
+}
+
+/* 기존 기능은 유지하고 화면 정보 우선순위만 재정렬한다. */
+.sql-tuning-v2-shell .sql-tuning-page {
+  gap: 1rem;
+}
+
+.sql-tuning-v2-shell .sql-tuning-hero {
+  display: none;
+}
+
+.sql-tuning-v2-shell .awr-split {
+  grid-template-columns: minmax(680px, 1.35fr) minmax(420px, 0.85fr);
+  gap: 1rem;
+  align-items: start;
+}
+
+.sql-tuning-v2-shell .awr-split > .awr-panel {
+  border-radius: 16px;
+  box-shadow: 0 8px 24px rgba(25, 55, 41, 0.05);
+}
+
+.sql-tuning-v2-shell .awr-split > .awr-panel:last-child {
+  position: sticky;
+  top: 1rem;
+  max-height: calc(100vh - 2rem);
+  overflow: auto;
+}
+
+.sql-tuning-v2-shell .sql-tuning-direct-box {
+  border-color: #d7e7df;
+  background: #fbfdfc;
+}
+
+.sql-tuning-v2-shell .sql-tuning-selected-connection {
+  border-left: 4px solid #14905a;
+  background: #f3faf6;
+}
+
+.sql-tuning-v2-shell .sql-tuning-top-sql {
+  max-height: 430px;
+  border: 1px solid #dbe7e1;
+  border-radius: 12px;
+}
+
+.sql-tuning-v2-shell .sql-tuning-top-sql thead {
+  position: sticky;
+  top: 0;
+  z-index: 2;
+  background: #f3f8f5;
+}
+
+.sql-tuning-v2-shell .sql-tuning-top-sql tbody tr {
+  cursor: pointer;
+  transition: background-color 0.15s ease;
+}
+
+.sql-tuning-v2-shell .sql-tuning-top-sql tbody tr:hover {
+  background: #f2faf5;
+}
+
+.sql-tuning-v2-shell .sql-tuning-top-sql tbody tr.selected {
+  background: #e8f7ef;
+  box-shadow: inset 4px 0 0 #0f8b52;
+}
+
+.sql-tuning-v2-shell .sql-tuning-main-input,
+.sql-tuning-v2-shell .sql-tuning-context-viewer,
+.sql-tuning-v2-shell .sql-tuning-resizable-textarea {
+  font-family: "D2Coding", "Consolas", "Courier New", monospace;
+  line-height: 1.55;
+}
+
+.sql-tuning-v2-shell .sql-tuning-context-wide {
+  padding: 0.85rem;
+  border: 1px solid #e0e9e4;
+  border-radius: 12px;
+  background: #ffffff;
+}
+
+.sql-tuning-v2-shell .sql-tuning-index-table-wrap {
+  max-height: 300px;
+}
+
+.sql-tuning-v2-shell .sql-tuning-index-table th {
+  position: sticky;
+  top: 0;
+  z-index: 1;
+  background: #f4f8f6;
+}
+
+.sql-tuning-v2-shell .awr-panel-header {
+  align-items: center;
+}
+
+.sql-tuning-v2-shell .awr-panel-title {
+  color: #173d2f;
+}
+
+.sql-tuning-v2-shell .awr-btn.primary {
+  box-shadow: 0 5px 14px rgba(15, 139, 82, 0.18);
+}
+
+@media (max-width: 1280px) {
+  .sql-tuning-v2-flow {
+    grid-template-columns: 1fr;
+  }
+
+  .sql-tuning-v2-shell .awr-split {
+    grid-template-columns: 1fr;
+  }
+
+  .sql-tuning-v2-shell .awr-split > .awr-panel:last-child {
+    position: static;
+    max-height: none;
+  }
+}
+
+@media (max-width: 820px) {
+  .sql-tuning-v2-steps {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
+
+@media (max-width: 520px) {
+  .sql-tuning-v2-flow {
+    padding: 1rem;
+  }
+
+  .sql-tuning-v2-steps {
+    grid-template-columns: 1fr;
+  }
+}

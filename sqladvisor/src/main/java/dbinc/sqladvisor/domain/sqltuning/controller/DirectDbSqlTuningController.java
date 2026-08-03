@@ -4,9 +4,11 @@ import dbinc.sqladvisor.common.response.ApiResponse;
 import dbinc.sqladvisor.domain.awr.dto.AwrDtos;
 import dbinc.sqladvisor.domain.sqltuning.dto.DirectSqlMetricDtos;
 import dbinc.sqladvisor.domain.sqltuning.dto.ExecutionPlanDtos;
+import dbinc.sqladvisor.domain.sqltuning.dto.SqlDiagnosisDtos;
 import dbinc.sqladvisor.domain.sqltuning.dto.SqlTuningDtos;
 import dbinc.sqladvisor.domain.sqltuning.service.DirectDbSqlTuningService;
 import dbinc.sqladvisor.domain.sqltuning.service.DirectSqlMetricService;
+import dbinc.sqladvisor.domain.sqltuning.service.RuleBasedSqlDiagnosisService;
 import dbinc.sqladvisor.domain.sqltuning.service.StructuredExecutionPlanService;
 import lombok.RequiredArgsConstructor;
 import org.springframework.format.annotation.DateTimeFormat;
@@ -30,6 +32,7 @@ public class DirectDbSqlTuningController {
     private final DirectDbSqlTuningService directDbSqlTuningService;
     private final DirectSqlMetricService directSqlMetricService;
     private final StructuredExecutionPlanService structuredExecutionPlanService;
+    private final RuleBasedSqlDiagnosisService ruleBasedSqlDiagnosisService;
 
     @PostMapping("/context")
     public ResponseEntity<ApiResponse<SqlTuningDtos.DirectDbContextResponse>> collectContext(
@@ -92,6 +95,19 @@ public class DirectDbSqlTuningController {
             @RequestParam(required = false) Integer childNumber
     ) {
         return ResponseEntity.ok(ApiResponse.success(structuredExecutionPlanService.collect(
+                connectionId,
+                sqlId,
+                childNumber
+        )));
+    }
+
+    @GetMapping("/diagnosis")
+    public ResponseEntity<ApiResponse<SqlDiagnosisDtos.SqlDiagnosisResponse>> diagnose(
+            @RequestParam Long connectionId,
+            @RequestParam String sqlId,
+            @RequestParam(required = false) Integer childNumber
+    ) {
+        return ResponseEntity.ok(ApiResponse.success(ruleBasedSqlDiagnosisService.diagnose(
                 connectionId,
                 sqlId,
                 childNumber

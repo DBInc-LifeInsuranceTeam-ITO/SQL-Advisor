@@ -9,11 +9,11 @@ export async function getDiagnosisConnections() {
 
 export async function getDetailedTopSql(
   connectionId: number,
-  limit: 20 | 50 | 100 = 20,
+  _limit?: number,
   sortBy = 'TOTAL_ELAPSED_TIME'
 ) {
   const response = await api.get<DirectSqlMetricListResponse>('/sql-tuning/direct/top-sql/metrics', {
-    params: { connectionId, limit, sortBy }
+    params: { connectionId, sortBy }
   })
   return response.data
 }

@@ -1,0 +1,71 @@
+.sql-workbench .top-controls {
+  display: grid !important;
+  grid-template-columns: minmax(0, 1fr) 74px !important;
+  align-items: center !important;
+  gap: 10px !important;
+}
+
+.sql-workbench .top-controls > .awr-field {
+  display: none !important;
+}
+
+.sql-workbench .top-controls > input.awr-input {
+  grid-column: 1;
+  width: 100% !important;
+  height: 42px !important;
+  min-height: 42px !important;
+  margin: 0 !important;
+}
+
+.sql-workbench .top-controls > .query-button {
+  grid-column: 2;
+  justify-self: end;
+  width: 74px !important;
+  min-width: 74px !important;
+  height: 42px !important;
+  min-height: 42px !important;
+  margin: 0 !important;
+}
+
+.sql-workbench .top-sql-table thead th {
+  padding: 0 !important;
+  white-space: nowrap;
+}
+
+.sql-workbench .table-sort-button {
+  display: inline-flex;
+  width: 100%;
+  min-height: 44px;
+  align-items: center;
+  justify-content: flex-start;
+  gap: 6px;
+  padding: 0 12px;
+  border: 0;
+  background: transparent;
+  color: inherit;
+  font: inherit;
+  font-weight: 800;
+  cursor: pointer;
+}
+
+.sql-workbench .table-sort-button:hover {
+  background: #eef7f2;
+  color: #087843;
+}
+
+.sql-workbench .table-sort-button:focus-visible {
+  outline: 2px solid #078f4c;
+  outline-offset: -2px;
+}
+
+.sql-workbench .table-sort-indicator {
+  color: #078f4c;
+  font-size: 10px;
+  line-height: 1;
+}
+
+@media (max-width: 760px) {
+  .sql-workbench .top-controls {
+    grid-template-columns: minmax(0, 1fr) 74px !important;
+  }
+}

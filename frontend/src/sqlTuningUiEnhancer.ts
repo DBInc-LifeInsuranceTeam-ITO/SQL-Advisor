@@ -8,6 +8,29 @@ function enhanceSqlTuningControls(): void {
   }
 }
 
+function enhanceAutoLoadOnConnectionChange(): void {
+  const panel = document.querySelector<HTMLElement>('.sql-workbench .input-panel')
+  const connectionSelect = panel?.querySelector<HTMLSelectElement>(':scope > label.awr-field select')
+  if (!connectionSelect || connectionSelect.dataset.autoLoadBound === 'true') return
+
+  connectionSelect.dataset.autoLoadBound = 'true'
+  connectionSelect.addEventListener('change', () => {
+    if (!connectionSelect.value) return
+    window.setTimeout(() => {
+      const queryButton = panel?.querySelector<HTMLButtonElement>('.query-button')
+      if (queryButton && !queryButton.disabled) queryButton.click()
+    }, 0)
+  })
+
+  if (connectionSelect.value) {
+    window.setTimeout(() => {
+      const table = panel?.querySelector('.top-sql-table tbody tr')
+      const queryButton = panel?.querySelector<HTMLButtonElement>('.query-button')
+      if (!table && queryButton && !queryButton.disabled) queryButton.click()
+    }, 0)
+  }
+}
+
 function numericCellValue(value: string): number {
   const normalized = value.replace(/,/g, '').replace(/초/g, '').trim()
   const parsed = Number(normalized)
@@ -35,7 +58,17 @@ function enhanceSortableTopSqlTable(): void {
       button.type = 'button'
       button.className = 'table-sort-button'
       button.dataset.direction = ''
-      button.innerHTML = `<span>${label}</span><span class="table-sort-indicator">↕</span>`
+      button.setAttribute('aria-label', `${label} 정렬`)
+
+      const text = document.createElement('span')
+      text.className = 'table-sort-label'
+      text.textContent = label
+
+      const indicator = document.createElement('span')
+      indicator.className = 'table-sort-indicator'
+      indicator.setAttribute('aria-hidden', 'true')
+
+      button.append(text, indicator)
 
       button.addEventListener('click', () => {
         const tbody = table.tBodies.item(0)
@@ -44,15 +77,20 @@ function enhanceSortableTopSqlTable(): void {
         const nextDirection = button.dataset.direction === 'desc' ? 'asc' : 'desc'
         headers.forEach((otherHeader) => {
           const otherButton = otherHeader.querySelector<HTMLButtonElement>('.table-sort-button')
-          if (!otherButton || otherButton === button) return
-          otherButton.dataset.direction = ''
-          const indicator = otherButton.querySelector<HTMLElement>('.table-sort-indicator')
-          if (indicator) indicator.textContent = '↕'
+          if (!otherButton) return
+          const otherIndicator = otherButton.querySelector<HTMLElement>('.table-sort-indicator')
+          if (otherButton !== button) {
+            otherButton.dataset.direction = ''
+            otherButton.classList.remove('active')
+            if (otherIndicator) otherIndicator.textContent = ''
+            otherHeader.removeAttribute('aria-sort')
+          }
         })
 
         button.dataset.direction = nextDirection
-        const indicator = button.querySelector<HTMLElement>('.table-sort-indicator')
-        if (indicator) indicator.textContent = nextDirection === 'desc' ? '▼' : '▲'
+        button.classList.add('active')
+        indicator.textContent = nextDirection === 'desc' ? '▼' : '▲'
+        header.setAttribute('aria-sort', nextDirection === 'desc' ? 'descending' : 'ascending')
 
         const rows = Array.from(tbody.rows)
         rows.sort((left, right) => {
@@ -63,8 +101,7 @@ function enhanceSortableTopSqlTable(): void {
         rows.forEach((row) => tbody.appendChild(row))
       })
 
-      header.textContent = ''
-      header.appendChild(button)
+      header.replaceChildren(button)
     })
   })
 }
@@ -94,6 +131,7 @@ function enhanceSqlSource(): void {
 
 function enhanceSqlTuningUi(): void {
   enhanceSqlTuningControls()
+  enhanceAutoLoadOnConnectionChange()
   enhanceSortableTopSqlTable()
   enhanceSqlSource()
 }

@@ -1,5 +1,17 @@
 .sql-workbench .input-panel {
+  display: grid;
+  grid-template-columns: 180px minmax(0, 1fr) 74px;
+  column-gap: 10px;
   padding: 20px;
+}
+
+.sql-workbench .input-panel > .awr-panel-header,
+.sql-workbench .input-panel > .connection-form,
+.sql-workbench .input-panel > .awr-field,
+.sql-workbench .input-panel > .selected-connection,
+.sql-workbench .input-panel > .top-sql-table,
+.sql-workbench .input-panel > .awr-empty {
+  grid-column: 1 / -1;
 }
 
 .sql-workbench .input-panel > .awr-panel-header {
@@ -121,14 +133,7 @@
 }
 
 .sql-workbench .top-controls {
-  display: grid !important;
-  grid-template-columns: minmax(220px, 310px) 74px !important;
-  justify-content: start !important;
-  align-items: end !important;
-  gap: 10px !important;
-  margin: 18px 0 12px !important;
-  padding-top: 16px;
-  border-top: 1px solid #e7ece9;
+  display: contents !important;
 }
 
 .sql-workbench .top-controls > .awr-field:first-child {
@@ -136,81 +141,68 @@
 }
 
 .sql-workbench .top-controls > .awr-field:nth-child(2) {
-  position: relative;
-  display: grid !important;
-  gap: 7px !important;
+  grid-column: 1;
   min-width: 0;
-  margin: 0 !important;
-  color: #273a31;
-  font-size: 13px !important;
-  font-weight: 800;
-}
-
-.sql-workbench .top-controls > .awr-field:nth-child(2)::after {
-  content: '▼';
-  position: absolute;
-  right: 5px;
-  bottom: 4px;
-  display: grid;
-  place-items: center;
-  width: 34px;
-  height: 34px;
-  border-radius: 9px;
-  background: #f1f5f3;
-  color: #087843;
-  font-size: 10px;
-  pointer-events: none;
+  margin: 18px 0 12px;
+  padding-top: 16px;
+  border-top: 1px solid #e7ece9;
+  font-size: 0 !important;
 }
 
 .sql-workbench .top-controls > .awr-field:nth-child(2) select {
-  width: 100% !important;
+  width: 180px !important;
   height: 42px !important;
   min-height: 42px !important;
-  padding: 0 48px 0 14px !important;
-  border: 1px solid #cbd8d1 !important;
-  border-radius: 11px !important;
-  background: #ffffff !important;
-  color: #17251d !important;
+  padding: 0 42px 0 13px !important;
+  border: 1px solid #cbd7d0 !important;
+  border-radius: 9px !important;
+  background-color: #ffffff !important;
+  color: #163326 !important;
   font-size: 13px !important;
   font-weight: 800 !important;
   box-shadow: none !important;
-  appearance: none;
-  -webkit-appearance: none;
-  cursor: pointer;
 }
 
 .sql-workbench .top-controls > .awr-field:nth-child(2) select:focus {
-  border-color: #5eb789 !important;
-  box-shadow: 0 0 0 3px rgba(7, 143, 76, .10) !important;
-  outline: none !important;
+  border-color: #078f4c !important;
+  outline: 3px solid rgba(7, 143, 76, 0.10) !important;
+}
+
+.sql-workbench .input-panel > .awr-input {
+  grid-column: 2;
+  grid-row: auto;
+  align-self: end;
+  width: 100%;
+  height: 42px !important;
+  min-height: 42px !important;
+  margin: 18px 0 12px;
+  padding-top: 16px;
 }
 
 .sql-workbench .query-button {
+  grid-column: 3;
+  align-self: end;
+  justify-self: end;
   width: 74px !important;
   min-width: 74px !important;
   height: 42px !important;
   min-height: 42px !important;
+  margin: 18px 0 12px;
   padding: 0 12px !important;
-  border-radius: 10px !important;
-}
-
-.sql-workbench .input-panel > .awr-input {
-  height: 42px !important;
-  min-height: 42px !important;
+  border-radius: 9px !important;
 }
 
 .sql-workbench .input-panel > .awr-empty.compact {
   min-height: 0 !important;
-  margin: 4px 0 0 !important;
-  padding: 7px 2px 0 !important;
+  margin-top: 0 !important;
+  padding: 4px 2px !important;
   border: 0 !important;
   background: transparent !important;
-  color: #7a8a82 !important;
-  font-size: 13px;
+  color: #718078;
 }
 
 .sql-workbench .top-sql-table {
-  margin-top: 12px;
+  margin-top: 0;
   border: 1px solid #e3e8e5;
   border-radius: 10px;
 }
@@ -220,7 +212,21 @@
   box-shadow: inset 3px 0 0 #078f4c;
 }
 
+@media (max-width: 900px) {
+  .sql-workbench .input-panel {
+    grid-template-columns: 160px minmax(0, 1fr) 74px;
+  }
+
+  .sql-workbench .top-controls > .awr-field:nth-child(2) select {
+    width: 160px !important;
+  }
+}
+
 @media (max-width: 760px) {
+  .sql-workbench .input-panel {
+    display: block;
+  }
+
   .sql-workbench .selected-connection {
     grid-template-columns: 1fr !important;
   }
@@ -230,6 +236,30 @@
   }
 
   .sql-workbench .top-controls {
-    grid-template-columns: minmax(0, 1fr) 74px !important;
+    display: grid !important;
+    grid-template-columns: 1fr 74px;
+    gap: 10px;
+    margin-top: 16px;
+  }
+
+  .sql-workbench .top-controls > .awr-field:nth-child(2) {
+    grid-column: 1;
+    margin: 0;
+    padding-top: 0;
+    border-top: 0;
+  }
+
+  .sql-workbench .top-controls > .awr-field:nth-child(2) select {
+    width: 100% !important;
+  }
+
+  .sql-workbench .query-button {
+    grid-column: 2;
+    margin: 0;
+  }
+
+  .sql-workbench .input-panel > .awr-input {
+    margin: 10px 0 0;
+    padding-top: 0;
   }
 }

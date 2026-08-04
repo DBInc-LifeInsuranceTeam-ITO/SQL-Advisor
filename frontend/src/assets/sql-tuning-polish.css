@@ -1,6 +1,6 @@
 .sql-workbench .input-panel {
   display: grid;
-  grid-template-columns: 180px minmax(0, 1fr) 74px;
+  grid-template-columns: 140px minmax(0, 1fr) 74px;
   column-gap: 10px;
   padding: 20px;
 }
@@ -134,7 +134,7 @@
 
 .sql-workbench .top-controls {
   display: grid !important;
-  grid-template-columns: minmax(0, 1fr) 180px 74px !important;
+  grid-template-columns: minmax(0, 1fr) 140px 74px !important;
   align-items: end !important;
   gap: 10px !important;
   grid-column: 1 / -1;
@@ -163,17 +163,24 @@
 }
 
 .sql-workbench .top-controls > .awr-field:nth-of-type(2) select {
-  width: 180px !important;
+  appearance: none !important;
+  -webkit-appearance: none !important;
+  width: 140px !important;
   height: 42px !important;
   min-height: 42px !important;
-  padding: 0 42px 0 13px !important;
+  padding: 0 36px 0 12px !important;
   border: 1px solid #cbd7d0 !important;
   border-radius: 9px !important;
   background-color: #ffffff !important;
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='16' height='16' viewBox='0 0 16 16'%3E%3Cpath fill='%23078f4c' d='M4 6l4 4 4-4z'/%3E%3C/svg%3E") !important;
+  background-repeat: no-repeat !important;
+  background-position: right 10px center !important;
+  background-size: 16px 16px !important;
   color: #163326 !important;
   font-size: 13px !important;
   font-weight: 800 !important;
   box-shadow: none !important;
+  cursor: pointer;
 }
 
 .sql-workbench .top-controls > .awr-field:nth-of-type(2) select:focus {
@@ -252,11 +259,11 @@
 
 @media (max-width: 900px) {
   .sql-workbench .top-controls {
-    grid-template-columns: minmax(0, 1fr) 160px 74px !important;
+    grid-template-columns: minmax(0, 1fr) 130px 74px !important;
   }
 
   .sql-workbench .top-controls > .awr-field:nth-of-type(2) select {
-    width: 160px !important;
+    width: 130px !important;
   }
 }
 

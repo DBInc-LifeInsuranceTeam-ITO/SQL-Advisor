@@ -95,7 +95,7 @@ public class DirectSqlMetricService {
                        rows_processed,
                        first_load_time,
                        TO_CHAR(last_active_time, 'YYYY-MM-DD HH24:MI:SS') last_active_time,
-                       sql_text
+                       sql_fulltext sql_text
                   FROM %s
                  WHERE sql_id IS NOT NULL
                    AND sql_text IS NOT NULL

@@ -51,6 +51,7 @@
   vertical-align: middle;
   font-family: inherit !important;
   white-space: nowrap;
+  text-align: center !important;
 }
 
 .sql-workbench .top-sql-table thead th {
@@ -73,17 +74,17 @@
 }
 
 .sql-workbench .top-sql-table th:nth-child(1),
-.sql-workbench .top-sql-table td:nth-child(1) { width: 26%; text-align: left; }
+.sql-workbench .top-sql-table td:nth-child(1) { width: 26%; }
 .sql-workbench .top-sql-table th:nth-child(2),
-.sql-workbench .top-sql-table td:nth-child(2) { width: 12%; text-align: left; }
+.sql-workbench .top-sql-table td:nth-child(2) { width: 12%; }
 .sql-workbench .top-sql-table th:nth-child(3),
-.sql-workbench .top-sql-table td:nth-child(3) { width: 15%; text-align: right; }
+.sql-workbench .top-sql-table td:nth-child(3) { width: 15%; }
 .sql-workbench .top-sql-table th:nth-child(4),
-.sql-workbench .top-sql-table td:nth-child(4) { width: 16%; text-align: right; }
+.sql-workbench .top-sql-table td:nth-child(4) { width: 16%; }
 .sql-workbench .top-sql-table th:nth-child(5),
-.sql-workbench .top-sql-table td:nth-child(5) { width: 15%; text-align: right; }
+.sql-workbench .top-sql-table td:nth-child(5) { width: 15%; }
 .sql-workbench .top-sql-table th:nth-child(6),
-.sql-workbench .top-sql-table td:nth-child(6) { width: 16%; text-align: right; padding-right: 12px !important; }
+.sql-workbench .top-sql-table td:nth-child(6) { width: 16%; padding-right: 12px !important; }
 
 .sql-workbench .top-sql-table tbody td:nth-child(n+3) {
   overflow: visible;
@@ -138,7 +139,7 @@
   max-width: 100%;
   padding: 0 !important;
   overflow: hidden;
-  text-align: left;
+  text-align: center !important;
   text-overflow: ellipsis;
   white-space: nowrap;
   font-family: inherit !important;

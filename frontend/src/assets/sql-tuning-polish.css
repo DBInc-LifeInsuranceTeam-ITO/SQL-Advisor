@@ -122,7 +122,8 @@
 
 .sql-workbench .top-controls {
   display: grid !important;
-  grid-template-columns: minmax(0, 1fr) 82px !important;
+  grid-template-columns: minmax(220px, 310px) 74px !important;
+  justify-content: start !important;
   align-items: end !important;
   gap: 10px !important;
   margin: 18px 0 12px !important;
@@ -135,48 +136,62 @@
 }
 
 .sql-workbench .top-controls > .awr-field:nth-child(2) {
+  position: relative;
+  display: grid !important;
+  gap: 7px !important;
   min-width: 0;
-}
-
-.sql-workbench .top-controls > .awr-field:nth-child(2)::before {
-  content: '정렬 기준';
-  display: block;
-  margin-bottom: 6px;
-  color: #24382d;
-  font-size: 12px;
+  margin: 0 !important;
+  color: #273a31;
+  font-size: 13px !important;
   font-weight: 800;
 }
 
-.sql-workbench .top-controls > .awr-field:nth-child(2) {
-  font-size: 0 !important;
+.sql-workbench .top-controls > .awr-field:nth-child(2)::after {
+  content: '▼';
+  position: absolute;
+  right: 5px;
+  bottom: 4px;
+  display: grid;
+  place-items: center;
+  width: 34px;
+  height: 34px;
+  border-radius: 9px;
+  background: #f1f5f3;
+  color: #087843;
+  font-size: 10px;
+  pointer-events: none;
 }
 
 .sql-workbench .top-controls > .awr-field:nth-child(2) select {
   width: 100% !important;
   height: 42px !important;
   min-height: 42px !important;
-  padding: 0 38px 0 13px !important;
-  border: 1px solid #8fc7aa !important;
-  border-radius: 9px !important;
-  background-color: #f1faf5 !important;
-  color: #075f38 !important;
+  padding: 0 48px 0 14px !important;
+  border: 1px solid #cbd8d1 !important;
+  border-radius: 11px !important;
+  background: #ffffff !important;
+  color: #17251d !important;
   font-size: 13px !important;
   font-weight: 800 !important;
-  box-shadow: inset 0 0 0 1px rgba(7, 143, 76, 0.05) !important;
+  box-shadow: none !important;
+  appearance: none;
+  -webkit-appearance: none;
+  cursor: pointer;
 }
 
 .sql-workbench .top-controls > .awr-field:nth-child(2) select:focus {
-  border-color: #078f4c !important;
-  outline: 3px solid rgba(7, 143, 76, 0.12) !important;
+  border-color: #5eb789 !important;
+  box-shadow: 0 0 0 3px rgba(7, 143, 76, .10) !important;
+  outline: none !important;
 }
 
 .sql-workbench .query-button {
-  width: 82px !important;
-  min-width: 82px !important;
+  width: 74px !important;
+  min-width: 74px !important;
   height: 42px !important;
   min-height: 42px !important;
-  padding: 0 14px !important;
-  border-radius: 9px !important;
+  padding: 0 12px !important;
+  border-radius: 10px !important;
 }
 
 .sql-workbench .input-panel > .awr-input {
@@ -185,8 +200,13 @@
 }
 
 .sql-workbench .input-panel > .awr-empty.compact {
-  min-height: 54px !important;
-  padding: 14px !important;
+  min-height: 0 !important;
+  margin: 4px 0 0 !important;
+  padding: 7px 2px 0 !important;
+  border: 0 !important;
+  background: transparent !important;
+  color: #7a8a82 !important;
+  font-size: 13px;
 }
 
 .sql-workbench .top-sql-table {
@@ -210,11 +230,6 @@
   }
 
   .sql-workbench .top-controls {
-    grid-template-columns: 1fr 76px !important;
-  }
-
-  .sql-workbench .query-button {
-    width: 76px !important;
-    min-width: 76px !important;
+    grid-template-columns: minmax(0, 1fr) 74px !important;
   }
 }

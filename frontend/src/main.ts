@@ -1,6 +1,7 @@
 import './assets/main.css'
 import './assets/sql-tuning-polish.css'
 import './assets/sql-diagnosis-neutral.css'
+import './sqlTuningUiEnhancer'
 
 import { createApp } from 'vue'
 import { createPinia } from 'pinia'

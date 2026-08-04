@@ -8,29 +8,6 @@ function enhanceSqlTuningControls(): void {
   }
 }
 
-function enhanceAutoLoadOnConnectionChange(): void {
-  const panel = document.querySelector<HTMLElement>('.sql-workbench .input-panel')
-  const connectionSelect = panel?.querySelector<HTMLSelectElement>(':scope > label.awr-field select')
-  if (!connectionSelect || connectionSelect.dataset.autoLoadBound === 'true') return
-
-  connectionSelect.dataset.autoLoadBound = 'true'
-  connectionSelect.addEventListener('change', () => {
-    if (!connectionSelect.value) return
-    window.setTimeout(() => {
-      const queryButton = panel?.querySelector<HTMLButtonElement>('.query-button')
-      if (queryButton && !queryButton.disabled) queryButton.click()
-    }, 0)
-  })
-
-  if (connectionSelect.value) {
-    window.setTimeout(() => {
-      const table = panel?.querySelector('.top-sql-table tbody tr')
-      const queryButton = panel?.querySelector<HTMLButtonElement>('.query-button')
-      if (!table && queryButton && !queryButton.disabled) queryButton.click()
-    }, 0)
-  }
-}
-
 function numericCellValue(value: string): number {
   const normalized = value.replace(/,/g, '').replace(/초/g, '').trim()
   const parsed = Number(normalized)
@@ -43,54 +20,29 @@ function enhanceSortableTopSqlTable(): void {
     table.dataset.sortableHeaders = 'true'
 
     const headers = Array.from(table.querySelectorAll<HTMLTableCellElement>('thead th'))
-    const sortableColumns = new Map<number, string>([
-      [2, '평균시간'],
-      [3, 'Buffer'],
-      [4, 'Disk'],
-      [5, 'Rows']
-    ])
+    const sortableColumns = [2, 3, 4, 5]
 
-    sortableColumns.forEach((label, columnIndex) => {
+    sortableColumns.forEach((columnIndex) => {
       const header = headers[columnIndex]
       if (!header) return
 
-      const button = document.createElement('button')
-      button.type = 'button'
-      button.className = 'table-sort-button'
-      button.dataset.direction = ''
-      button.setAttribute('aria-label', `${label} 정렬`)
+      header.classList.add('sortable-header')
+      header.dataset.sortDirection = ''
+      header.tabIndex = 0
+      header.setAttribute('role', 'button')
+      header.setAttribute('aria-label', `${header.textContent?.trim() ?? ''} 기준 정렬`)
 
-      const text = document.createElement('span')
-      text.className = 'table-sort-label'
-      text.textContent = label
-
-      const indicator = document.createElement('span')
-      indicator.className = 'table-sort-indicator'
-      indicator.setAttribute('aria-hidden', 'true')
-
-      button.append(text, indicator)
-
-      button.addEventListener('click', () => {
+      const sort = () => {
         const tbody = table.tBodies.item(0)
         if (!tbody) return
 
-        const nextDirection = button.dataset.direction === 'desc' ? 'asc' : 'desc'
-        headers.forEach((otherHeader) => {
-          const otherButton = otherHeader.querySelector<HTMLButtonElement>('.table-sort-button')
-          if (!otherButton) return
-          const otherIndicator = otherButton.querySelector<HTMLElement>('.table-sort-indicator')
-          if (otherButton !== button) {
-            otherButton.dataset.direction = ''
-            otherButton.classList.remove('active')
-            if (otherIndicator) otherIndicator.textContent = ''
-            otherHeader.removeAttribute('aria-sort')
-          }
+        const nextDirection = header.dataset.sortDirection === 'desc' ? 'asc' : 'desc'
+        sortableColumns.forEach((otherIndex) => {
+          const otherHeader = headers[otherIndex]
+          if (!otherHeader || otherHeader === header) return
+          otherHeader.dataset.sortDirection = ''
         })
-
-        button.dataset.direction = nextDirection
-        button.classList.add('active')
-        indicator.textContent = nextDirection === 'desc' ? '▼' : '▲'
-        header.setAttribute('aria-sort', nextDirection === 'desc' ? 'descending' : 'ascending')
+        header.dataset.sortDirection = nextDirection
 
         const rows = Array.from(tbody.rows)
         rows.sort((left, right) => {
@@ -99,11 +51,51 @@ function enhanceSortableTopSqlTable(): void {
           return nextDirection === 'desc' ? rightValue - leftValue : leftValue - rightValue
         })
         rows.forEach((row) => tbody.appendChild(row))
-      })
+      }
 
-      header.replaceChildren(button)
+      header.addEventListener('click', sort)
+      header.addEventListener('keydown', (event) => {
+        if (event.key === 'Enter' || event.key === ' ') {
+          event.preventDefault()
+          sort()
+        }
+      })
     })
   })
+}
+
+function enhanceAutomaticTopSqlQuery(): void {
+  const panel = document.querySelector<HTMLElement>('.sql-workbench .input-panel')
+  if (!panel) return
+
+  const connectionSelect = panel.querySelector<HTMLSelectElement>(':scope > label.awr-field select')
+  const queryButton = panel.querySelector<HTMLButtonElement>('.query-button')
+  if (!connectionSelect || !queryButton) return
+
+  if (connectionSelect.dataset.autoQueryBound !== 'true') {
+    connectionSelect.dataset.autoQueryBound = 'true'
+    connectionSelect.addEventListener('change', () => {
+      const selectedValue = connectionSelect.value
+      panel.dataset.autoQueriedConnection = ''
+      if (!selectedValue) return
+      window.setTimeout(() => {
+        if (!queryButton.disabled) {
+          panel.dataset.autoQueriedConnection = selectedValue
+          queryButton.click()
+        }
+      }, 0)
+    })
+  }
+
+  if (
+    connectionSelect.value &&
+    panel.dataset.autoQueriedConnection !== connectionSelect.value &&
+    !panel.querySelector('.top-sql-table tbody tr') &&
+    !queryButton.disabled
+  ) {
+    panel.dataset.autoQueriedConnection = connectionSelect.value
+    window.setTimeout(() => queryButton.click(), 0)
+  }
 }
 
 function enhanceSqlSource(): void {
@@ -131,8 +123,8 @@ function enhanceSqlSource(): void {
 
 function enhanceSqlTuningUi(): void {
   enhanceSqlTuningControls()
-  enhanceAutoLoadOnConnectionChange()
   enhanceSortableTopSqlTable()
+  enhanceAutomaticTopSqlQuery()
   enhanceSqlSource()
 }
 

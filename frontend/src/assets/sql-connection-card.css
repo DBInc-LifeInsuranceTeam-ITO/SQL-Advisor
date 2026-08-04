@@ -1,0 +1,91 @@
+.sql-workbench .selected-connection {
+  grid-template-columns: minmax(0, 1fr) auto !important;
+  gap: 16px !important;
+  padding: 16px 18px !important;
+  min-height: 118px;
+}
+
+.sql-workbench .connection-main {
+  display: grid !important;
+  grid-template-columns: auto minmax(0, 1fr);
+  grid-template-rows: auto auto;
+  align-items: center;
+  column-gap: 14px !important;
+  row-gap: 10px !important;
+}
+
+.sql-workbench .connection-identity {
+  grid-column: 1 / -1;
+  display: flex !important;
+  align-items: center !important;
+  gap: 10px !important;
+}
+
+.sql-workbench .connection-identity strong {
+  display: block !important;
+  color: #10261a;
+  font-size: 20px !important;
+  font-weight: 800 !important;
+  line-height: 1.2 !important;
+}
+
+.sql-workbench .connection-identity strong::before {
+  content: none !important;
+}
+
+.sql-workbench .connection-identity span {
+  min-height: 24px !important;
+  padding: 3px 9px !important;
+  font-size: 12px !important;
+  line-height: 1 !important;
+}
+
+.sql-workbench .connection-identity span::before {
+  content: '계정' !important;
+  margin-right: 5px !important;
+  font-size: 11px !important;
+}
+
+.sql-workbench .connection-main > code {
+  grid-column: 1 / -1;
+  display: grid !important;
+  grid-template-columns: 58px minmax(0, 1fr);
+  gap: 12px !important;
+  align-items: start !important;
+  color: #33483d !important;
+  font-size: 12px !important;
+  line-height: 1.45 !important;
+}
+
+.sql-workbench .connection-main > code::before {
+  content: '접속 주소' !important;
+  color: #6f7f76 !important;
+  font-family: inherit !important;
+  font-size: 11px !important;
+  font-weight: 800 !important;
+  white-space: nowrap;
+}
+
+.sql-workbench .connection-actions {
+  align-self: center !important;
+  flex-direction: column !important;
+  gap: 7px !important;
+}
+
+.sql-workbench .connection-actions .awr-btn {
+  width: 86px;
+  min-height: 34px !important;
+  padding: 0 10px !important;
+  font-size: 12px !important;
+}
+
+@media (max-width: 760px) {
+  .sql-workbench .selected-connection {
+    grid-template-columns: 1fr !important;
+  }
+
+  .sql-workbench .connection-actions {
+    flex-direction: row !important;
+    justify-content: flex-start !important;
+  }
+}

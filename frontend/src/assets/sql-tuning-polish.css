@@ -121,17 +121,72 @@
 }
 
 .sql-workbench .top-controls {
-  grid-template-columns: minmax(120px, .72fr) minmax(150px, .9fr) 92px !important;
-  gap: 12px !important;
+  display: grid !important;
+  grid-template-columns: minmax(0, 1fr) 82px !important;
+  align-items: end !important;
+  gap: 10px !important;
   margin: 18px 0 12px !important;
   padding-top: 16px;
   border-top: 1px solid #e7ece9;
 }
 
+.sql-workbench .top-controls > .awr-field:first-child {
+  display: none !important;
+}
+
+.sql-workbench .top-controls > .awr-field:nth-child(2) {
+  min-width: 0;
+}
+
+.sql-workbench .top-controls > .awr-field:nth-child(2)::before {
+  content: '정렬 기준';
+  display: block;
+  margin-bottom: 6px;
+  color: #24382d;
+  font-size: 12px;
+  font-weight: 800;
+}
+
+.sql-workbench .top-controls > .awr-field:nth-child(2) {
+  font-size: 0 !important;
+}
+
+.sql-workbench .top-controls > .awr-field:nth-child(2) select {
+  width: 100% !important;
+  height: 42px !important;
+  min-height: 42px !important;
+  padding: 0 38px 0 13px !important;
+  border: 1px solid #8fc7aa !important;
+  border-radius: 9px !important;
+  background-color: #f1faf5 !important;
+  color: #075f38 !important;
+  font-size: 13px !important;
+  font-weight: 800 !important;
+  box-shadow: inset 0 0 0 1px rgba(7, 143, 76, 0.05) !important;
+}
+
+.sql-workbench .top-controls > .awr-field:nth-child(2) select:focus {
+  border-color: #078f4c !important;
+  outline: 3px solid rgba(7, 143, 76, 0.12) !important;
+}
+
 .sql-workbench .query-button {
-  width: 92px !important;
-  min-width: 92px !important;
-  min-height: 40px !important;
+  width: 82px !important;
+  min-width: 82px !important;
+  height: 42px !important;
+  min-height: 42px !important;
+  padding: 0 14px !important;
+  border-radius: 9px !important;
+}
+
+.sql-workbench .input-panel > .awr-input {
+  height: 42px !important;
+  min-height: 42px !important;
+}
+
+.sql-workbench .input-panel > .awr-empty.compact {
+  min-height: 54px !important;
+  padding: 14px !important;
 }
 
 .sql-workbench .top-sql-table {
@@ -155,10 +210,11 @@
   }
 
   .sql-workbench .top-controls {
-    grid-template-columns: 1fr !important;
+    grid-template-columns: 1fr 76px !important;
   }
 
   .sql-workbench .query-button {
-    width: 100% !important;
+    width: 76px !important;
+    min-width: 76px !important;
   }
 }

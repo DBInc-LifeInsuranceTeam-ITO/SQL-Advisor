@@ -49,20 +49,23 @@
 .sql-workbench .connection-main > code {
   grid-column: 1 / -1;
   display: grid !important;
-  grid-template-columns: 58px minmax(0, 1fr);
-  gap: 12px !important;
+  grid-template-columns: 72px minmax(0, 1fr);
+  gap: 10px !important;
   align-items: start !important;
   color: #33483d !important;
-  font-size: 12px !important;
+  font-family: inherit !important;
+  font-size: 13px !important;
+  font-weight: 500 !important;
   line-height: 1.45 !important;
+  letter-spacing: 0 !important;
 }
 
 .sql-workbench .connection-main > code::before {
   content: '접속 주소' !important;
   color: #6f7f76 !important;
   font-family: inherit !important;
-  font-size: 11px !important;
-  font-weight: 800 !important;
+  font-size: 12px !important;
+  font-weight: 700 !important;
   white-space: nowrap;
 }
 

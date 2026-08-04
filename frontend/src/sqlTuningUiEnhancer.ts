@@ -4,9 +4,69 @@ function enhanceSqlTuningControls(): void {
   const search = panel?.querySelector<HTMLInputElement>(':scope > input.awr-input')
 
   if (controls && search && search.parentElement !== controls) {
-    const sortField = controls.querySelector('.awr-field:nth-of-type(2)')
-    controls.insertBefore(search, sortField ?? controls.firstChild)
+    controls.insertBefore(search, controls.firstChild)
   }
+}
+
+function numericCellValue(value: string): number {
+  const normalized = value.replace(/,/g, '').replace(/초/g, '').trim()
+  const parsed = Number(normalized)
+  return Number.isFinite(parsed) ? parsed : Number.NEGATIVE_INFINITY
+}
+
+function enhanceSortableTopSqlTable(): void {
+  document.querySelectorAll<HTMLTableElement>('.sql-workbench .top-sql-table table').forEach((table) => {
+    if (table.dataset.sortableHeaders === 'true') return
+    table.dataset.sortableHeaders = 'true'
+
+    const headers = Array.from(table.querySelectorAll<HTMLTableCellElement>('thead th'))
+    const sortableColumns = new Map<number, string>([
+      [2, '평균시간'],
+      [3, 'Buffer'],
+      [4, 'Disk'],
+      [5, 'Rows']
+    ])
+
+    sortableColumns.forEach((label, columnIndex) => {
+      const header = headers[columnIndex]
+      if (!header) return
+
+      const button = document.createElement('button')
+      button.type = 'button'
+      button.className = 'table-sort-button'
+      button.dataset.direction = ''
+      button.innerHTML = `<span>${label}</span><span class="table-sort-indicator">↕</span>`
+
+      button.addEventListener('click', () => {
+        const tbody = table.tBodies.item(0)
+        if (!tbody) return
+
+        const nextDirection = button.dataset.direction === 'desc' ? 'asc' : 'desc'
+        headers.forEach((otherHeader) => {
+          const otherButton = otherHeader.querySelector<HTMLButtonElement>('.table-sort-button')
+          if (!otherButton || otherButton === button) return
+          otherButton.dataset.direction = ''
+          const indicator = otherButton.querySelector<HTMLElement>('.table-sort-indicator')
+          if (indicator) indicator.textContent = '↕'
+        })
+
+        button.dataset.direction = nextDirection
+        const indicator = button.querySelector<HTMLElement>('.table-sort-indicator')
+        if (indicator) indicator.textContent = nextDirection === 'desc' ? '▼' : '▲'
+
+        const rows = Array.from(tbody.rows)
+        rows.sort((left, right) => {
+          const leftValue = numericCellValue(left.cells[columnIndex]?.textContent ?? '')
+          const rightValue = numericCellValue(right.cells[columnIndex]?.textContent ?? '')
+          return nextDirection === 'desc' ? rightValue - leftValue : leftValue - rightValue
+        })
+        rows.forEach((row) => tbody.appendChild(row))
+      })
+
+      header.textContent = ''
+      header.appendChild(button)
+    })
+  })
 }
 
 function enhanceSqlSource(): void {
@@ -34,6 +94,7 @@ function enhanceSqlSource(): void {
 
 function enhanceSqlTuningUi(): void {
   enhanceSqlTuningControls()
+  enhanceSortableTopSqlTable()
   enhanceSqlSource()
 }
 

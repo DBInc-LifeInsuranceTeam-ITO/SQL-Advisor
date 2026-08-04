@@ -27,45 +27,113 @@
   margin: 0 !important;
 }
 
-.sql-workbench .top-sql-table thead th {
-  padding: 0 !important;
-  white-space: nowrap;
+.sql-workbench .top-sql-table {
+  overflow-x: hidden !important;
 }
+
+.sql-workbench .top-sql-table table {
+  width: 100% !important;
+  min-width: 0 !important;
+  table-layout: fixed;
+  font-family: inherit !important;
+  font-size: 13px !important;
+}
+
+.sql-workbench .top-sql-table thead th,
+.sql-workbench .top-sql-table tbody td {
+  box-sizing: border-box;
+  vertical-align: middle;
+}
+
+.sql-workbench .top-sql-table thead th {
+  height: 44px;
+  padding: 0 10px !important;
+  white-space: nowrap;
+  color: #334155;
+  font-family: inherit !important;
+  font-size: 12px !important;
+  font-weight: 800 !important;
+}
+
+.sql-workbench .top-sql-table tbody td {
+  padding: 12px 10px !important;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  color: #172033;
+  font-family: inherit !important;
+  font-size: 13px !important;
+}
+
+.sql-workbench .top-sql-table th:nth-child(1),
+.sql-workbench .top-sql-table td:nth-child(1) { width: 29%; }
+.sql-workbench .top-sql-table th:nth-child(2),
+.sql-workbench .top-sql-table td:nth-child(2) { width: 13%; }
+.sql-workbench .top-sql-table th:nth-child(3),
+.sql-workbench .top-sql-table td:nth-child(3) { width: 16%; }
+.sql-workbench .top-sql-table th:nth-child(4),
+.sql-workbench .top-sql-table td:nth-child(4) { width: 15%; }
+.sql-workbench .top-sql-table th:nth-child(5),
+.sql-workbench .top-sql-table td:nth-child(5) { width: 13%; }
+.sql-workbench .top-sql-table th:nth-child(6),
+.sql-workbench .top-sql-table td:nth-child(6) { width: 14%; }
 
 .sql-workbench .table-sort-button {
   display: inline-flex;
-  width: 100%;
-  min-height: 44px;
+  width: auto;
+  min-height: 32px;
   align-items: center;
   justify-content: flex-start;
-  gap: 6px;
-  padding: 0 12px;
+  gap: 5px;
+  padding: 0;
   border: 0;
   background: transparent;
-  color: inherit;
-  font: inherit;
-  font-weight: 800;
+  color: #334155;
+  font-family: inherit !important;
+  font-size: 12px !important;
+  font-weight: 800 !important;
+  line-height: 1;
   cursor: pointer;
 }
 
-.sql-workbench .table-sort-button:hover {
-  background: #eef7f2;
-  color: #087843;
+.sql-workbench .table-sort-button:hover,
+.sql-workbench .table-sort-button.active {
+  color: #078f4c;
 }
 
 .sql-workbench .table-sort-button:focus-visible {
   outline: 2px solid #078f4c;
-  outline-offset: -2px;
+  outline-offset: 3px;
+  border-radius: 3px;
 }
 
 .sql-workbench .table-sort-indicator {
+  display: inline-block;
+  min-width: 9px;
   color: #078f4c;
-  font-size: 10px;
+  font-family: inherit !important;
+  font-size: 9px !important;
   line-height: 1;
+}
+
+.sql-workbench .sql-link {
+  max-width: 100%;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-family: inherit !important;
 }
 
 @media (max-width: 760px) {
   .sql-workbench .top-controls {
     grid-template-columns: minmax(0, 1fr) 74px !important;
+  }
+
+  .sql-workbench .top-sql-table {
+    overflow-x: auto !important;
+  }
+
+  .sql-workbench .top-sql-table table {
+    min-width: 620px !important;
   }
 }

@@ -2,8 +2,7 @@
   <div class="realtime-dashboard">
     <header class="dashboard-header">
       <div>
-        <span class="eyebrow">REAL-TIME SQL ADVISOR</span>
-        <h1>SQL 실시간 모니터링</h1>
+        <h1>대시보드</h1>
         <p>연계 분석에 등록된 DB의 실행 SQL을 5초 주기로 확인합니다.</p>
       </div>
 

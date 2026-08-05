@@ -10,14 +10,14 @@
       <div class="header-actions">
         <label class="db-select">
           <span>대상 DB</span>
-          <select v-model.number="selectedConnectionId" :disabled="connections.length === 0">
-            <option v-if="connections.length === 0" :value="0">등록된 DB 없음</option>
+          <select v-model.number="selectedConnectionId">
+            <option :value="TEST_CONNECTION_ID">TEST</option>
             <option v-for="connection in connections" :key="connection.id" :value="connection.id">
               {{ connection.name }}
             </option>
           </select>
         </label>
-        <div class="collector-state" :class="{ error: Boolean(errorMessage), collecting: !errorMessage }">
+        <div class="collector-state" :class="{ error: Boolean(errorMessage), loading }">
           <span class="live-dot"></span>
           <div>
             <strong>{{ errorMessage ? '수집 실패' : loading ? '수집 중' : '수집 정상' }}</strong>
@@ -105,11 +105,12 @@ import type { SqlMetricResponse, TargetDbConnectionResponse } from '@/types/awr'
 type MetricKey = 'activeSessions' | 'cpu' | 'io'
 type ActivityPoint = MonitoringDashboardResponse['activity']['points'][number]
 
+const TEST_CONNECTION_ID = -1
 const CHART_SLOT_COUNT = 12
 const CHART_INTERVAL_MS = 5000
 
 const connections = ref<TargetDbConnectionResponse[]>([])
-const selectedConnectionId = ref(0)
+const selectedConnectionId = ref(TEST_CONNECTION_ID)
 const dashboard = ref<MonitoringDashboardResponse | null>(null)
 const topSql = ref<SqlMetricResponse[]>([])
 const selectedMetric = ref<MetricKey>('activeSessions')
@@ -117,6 +118,7 @@ const loading = ref(false)
 const errorMessage = ref('')
 let timer: number | undefined
 let topSqlTick = 0
+let testTick = 0
 
 const metricOptions: { key: MetricKey; label: string }[] = [
   { key: 'activeSessions', label: 'Active Sessions' },
@@ -145,15 +147,9 @@ const chartPoints = computed(() => selectedSeries.value
 const areaPath = computed(() => `M 0 220 L ${chartPoints.value.replaceAll(' ', ' L ')} L 720 220 Z`)
 const chartTimeLabels = computed(() => [0, 2, 4, 6, 8, 10, 11].map(index => formatTime(chartWindow.value[index]?.collectedAt)))
 
-function parseServerDate(value?: string) {
-  if (!value) return null
-  const hasTimezone = /(?:Z|[+-]\d{2}:?\d{2})$/i.test(value)
-  return new Date(hasTimezone ? value : `${value}Z`)
-}
-
 function buildChartWindow(points: ActivityPoint[]): ActivityPoint[] {
-  const sorted = [...points].sort((left, right) => (parseServerDate(left.collectedAt)?.getTime() || 0) - (parseServerDate(right.collectedAt)?.getTime() || 0))
-  const end = parseServerDate(dashboard.value?.connection.collectedAt)?.getTime() || Date.now()
+  const sorted = [...points].sort((left, right) => new Date(left.collectedAt).getTime() - new Date(right.collectedAt).getTime())
+  const end = dashboard.value?.connection.collectedAt ? parseServerTime(dashboard.value.connection.collectedAt).getTime() : Date.now()
   const first = sorted[0]
   const fallback: ActivityPoint = first || {
     collectedAt: new Date(end).toISOString(), activeSessions: 0, executions: 0, cpu: 0, io: 0
@@ -163,7 +159,7 @@ function buildChartWindow(points: ActivityPoint[]): ActivityPoint[] {
   let latest = fallback
   return Array.from({ length: CHART_SLOT_COUNT }, (_, index) => {
     const slotTime = end - (CHART_SLOT_COUNT - 1 - index) * CHART_INTERVAL_MS
-    while (cursor < sorted.length && (parseServerDate(sorted[cursor].collectedAt)?.getTime() || 0) <= slotTime + CHART_INTERVAL_MS / 2) {
+    while (cursor < sorted.length && parseServerTime(sorted[cursor].collectedAt).getTime() <= slotTime + CHART_INTERVAL_MS / 2) {
       latest = sorted[cursor]
       cursor += 1
     }
@@ -182,21 +178,68 @@ function niceCeiling(value: number, metric: MetricKey) {
 async function loadConnections() {
   try {
     connections.value = await getTargetDbConnections()
-    selectedConnectionId.value = connections.value.find(item => item.monitoringEnabled)?.id || connections.value[0]?.id || 0
-  } catch (error) { errorMessage.value = extractError(error) }
+    selectedConnectionId.value = TEST_CONNECTION_ID
+  } catch (error) {
+    selectedConnectionId.value = TEST_CONNECTION_ID
+    errorMessage.value = ''
+  }
 }
 
 async function refreshDashboard() {
-  if (!selectedConnectionId.value || loading.value) return
+  if (loading.value) return
   loading.value = true
   try {
-    dashboard.value = await getMonitoringDashboard(selectedConnectionId.value)
-    if (topSqlTick++ % 3 === 0) {
-      topSql.value = await getDirectTopSql(selectedConnectionId.value, { source: 'CURRENT', limit: 20, sortBy: 'ELAPSED' })
+    if (selectedConnectionId.value === TEST_CONNECTION_ID) {
+      refreshTestDashboard()
+    } else {
+      dashboard.value = await getMonitoringDashboard(selectedConnectionId.value)
+      if (topSqlTick++ % 3 === 0) {
+        topSql.value = await getDirectTopSql(selectedConnectionId.value, { source: 'CURRENT', limit: 20, sortBy: 'ELAPSED' })
+      }
     }
     errorMessage.value = ''
   } catch (error) { errorMessage.value = extractError(error) }
   finally { loading.value = false }
+}
+
+function refreshTestDashboard() {
+  const now = Date.now()
+  const activePattern = [5, 7, 6, 9, 12, 10, 14, 11, 16, 13, 18, 15]
+  const cpuPattern = [0.6, 0.9, 0.7, 1.2, 1.8, 1.4, 2.1, 1.6, 2.5, 2.0, 2.8, 2.3]
+  const ioPattern = [120, 180, 150, 260, 420, 310, 560, 440, 720, 610, 840, 760]
+  const shift = testTick % CHART_SLOT_COUNT
+  const points = Array.from({ length: CHART_SLOT_COUNT }, (_, index) => {
+    const patternIndex = (index + shift) % CHART_SLOT_COUNT
+    return {
+      collectedAt: new Date(now - (CHART_SLOT_COUNT - 1 - index) * CHART_INTERVAL_MS).toISOString(),
+      activeSessions: activePattern[patternIndex],
+      executions: 40 + patternIndex * 7,
+      cpu: cpuPattern[patternIndex],
+      io: ioPattern[patternIndex]
+    }
+  })
+
+  dashboard.value = {
+    connection: { collectedAt: new Date(now).toISOString() },
+    summary: {
+      activeSqlCount: 18,
+      longRunningSqlCount: 3,
+      warningSqlCount: 5,
+      blockingSessionCount: 1
+    },
+    activity: { points }
+  } as MonitoringDashboardResponse
+
+  topSql.value = [
+    { sqlId: 'testsql00001', module: 'ORDER_BATCH', elapsedTimeSec: 182.4, bufferGets: 1280000, diskReads: 184000, executions: 12 },
+    { sqlId: 'testsql00002', module: 'ONLINE_API', elapsedTimeSec: 96.8, bufferGets: 842000, diskReads: 92000, executions: 286 },
+    { sqlId: 'testsql00003', module: 'CLAIM_BATCH', elapsedTimeSec: 74.1, bufferGets: 615000, diskReads: 121000, executions: 8 },
+    { sqlId: 'testsql00004', module: 'SQL_ADVISOR', elapsedTimeSec: 52.6, bufferGets: 390000, diskReads: 44000, executions: 134 },
+    { sqlId: 'testsql00005', module: 'CUSTOMER_API', elapsedTimeSec: 31.9, bufferGets: 248000, diskReads: 18000, executions: 612 },
+    { sqlId: 'testsql00006', module: 'REPORT', elapsedTimeSec: 22.7, bufferGets: 176000, diskReads: 9000, executions: 43 }
+  ] as SqlMetricResponse[]
+
+  testTick += 1
 }
 
 function restartPolling() {
@@ -204,8 +247,14 @@ function restartPolling() {
   dashboard.value = null
   topSql.value = []
   topSqlTick = 0
+  testTick = 0
   void refreshDashboard()
   timer = window.setInterval(() => void refreshDashboard(), CHART_INTERVAL_MS)
+}
+
+function parseServerTime(value: string) {
+  if (/[zZ]$|[+-]\d{2}:?\d{2}$/.test(value)) return new Date(value)
+  return new Date(`${value}Z`)
 }
 
 function formatMetric(value: number) { return selectedMetric.value === 'cpu' ? `${value.toFixed(1)}초` : Math.round(value).toLocaleString() }
@@ -213,15 +262,14 @@ function formatAxisMetric(value: number) { return selectedMetric.value === 'cpu'
 function formatCompact(value: number) { if (value >= 1_000_000) return `${(value / 1_000_000).toFixed(1)}M`; if (value >= 1_000) return `${Math.round(value / 1_000)}K`; return value.toLocaleString() }
 function formatMetricNumber(value?: number | null) { return (value || 0).toFixed(1) }
 function formatTime(value?: string) {
-  const date = parseServerDate(value)
-  if (!date || Number.isNaN(date.getTime())) return '-'
+  if (!value) return '-'
   return new Intl.DateTimeFormat('ko-KR', {
     timeZone: 'Asia/Seoul', hour: '2-digit', minute: '2-digit', second: '2-digit', hour12: false
-  }).format(date)
+  }).format(parseServerTime(value))
 }
 function extractError(error: unknown) { return typeof error === 'object' && error && 'message' in error ? String(error.message) : '실시간 데이터 조회에 실패했습니다.' }
 
-watch(selectedConnectionId, value => { if (value) restartPolling() })
+watch(selectedConnectionId, () => restartPolling())
 onMounted(loadConnections)
 onBeforeUnmount(() => { if (timer) window.clearInterval(timer) })
 </script>

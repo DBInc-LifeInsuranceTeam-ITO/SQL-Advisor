@@ -17,7 +17,7 @@
             </option>
           </select>
         </label>
-        <div class="collector-state" :class="{ error: Boolean(errorMessage) }">
+        <div class="collector-state" :class="{ error: Boolean(errorMessage), collecting: !errorMessage }">
           <span class="live-dot"></span>
           <div>
             <strong>{{ errorMessage ? '수집 실패' : loading ? '수집 중' : '수집 정상' }}</strong>
@@ -145,9 +145,15 @@ const chartPoints = computed(() => selectedSeries.value
 const areaPath = computed(() => `M 0 220 L ${chartPoints.value.replaceAll(' ', ' L ')} L 720 220 Z`)
 const chartTimeLabels = computed(() => [0, 2, 4, 6, 8, 10, 11].map(index => formatTime(chartWindow.value[index]?.collectedAt)))
 
+function parseServerDate(value?: string) {
+  if (!value) return null
+  const hasTimezone = /(?:Z|[+-]\d{2}:?\d{2})$/i.test(value)
+  return new Date(hasTimezone ? value : `${value}Z`)
+}
+
 function buildChartWindow(points: ActivityPoint[]): ActivityPoint[] {
-  const sorted = [...points].sort((left, right) => new Date(left.collectedAt).getTime() - new Date(right.collectedAt).getTime())
-  const end = dashboard.value?.connection.collectedAt ? new Date(dashboard.value.connection.collectedAt).getTime() : Date.now()
+  const sorted = [...points].sort((left, right) => (parseServerDate(left.collectedAt)?.getTime() || 0) - (parseServerDate(right.collectedAt)?.getTime() || 0))
+  const end = parseServerDate(dashboard.value?.connection.collectedAt)?.getTime() || Date.now()
   const first = sorted[0]
   const fallback: ActivityPoint = first || {
     collectedAt: new Date(end).toISOString(), activeSessions: 0, executions: 0, cpu: 0, io: 0
@@ -157,7 +163,7 @@ function buildChartWindow(points: ActivityPoint[]): ActivityPoint[] {
   let latest = fallback
   return Array.from({ length: CHART_SLOT_COUNT }, (_, index) => {
     const slotTime = end - (CHART_SLOT_COUNT - 1 - index) * CHART_INTERVAL_MS
-    while (cursor < sorted.length && new Date(sorted[cursor].collectedAt).getTime() <= slotTime + CHART_INTERVAL_MS / 2) {
+    while (cursor < sorted.length && (parseServerDate(sorted[cursor].collectedAt)?.getTime() || 0) <= slotTime + CHART_INTERVAL_MS / 2) {
       latest = sorted[cursor]
       cursor += 1
     }
@@ -206,7 +212,13 @@ function formatMetric(value: number) { return selectedMetric.value === 'cpu' ? `
 function formatAxisMetric(value: number) { return selectedMetric.value === 'cpu' ? value.toFixed(value < 1 ? 1 : 0) : Math.round(value).toLocaleString() }
 function formatCompact(value: number) { if (value >= 1_000_000) return `${(value / 1_000_000).toFixed(1)}M`; if (value >= 1_000) return `${Math.round(value / 1_000)}K`; return value.toLocaleString() }
 function formatMetricNumber(value?: number | null) { return (value || 0).toFixed(1) }
-function formatTime(value?: string) { if (!value) return '-'; return new Intl.DateTimeFormat('ko-KR', { hour: '2-digit', minute: '2-digit', second: '2-digit', hour12: false }).format(new Date(value)) }
+function formatTime(value?: string) {
+  const date = parseServerDate(value)
+  if (!date || Number.isNaN(date.getTime())) return '-'
+  return new Intl.DateTimeFormat('ko-KR', {
+    timeZone: 'Asia/Seoul', hour: '2-digit', minute: '2-digit', second: '2-digit', hour12: false
+  }).format(date)
+}
 function extractError(error: unknown) { return typeof error === 'object' && error && 'message' in error ? String(error.message) : '실시간 데이터 조회에 실패했습니다.' }
 
 watch(selectedConnectionId, value => { if (value) restartPolling() })

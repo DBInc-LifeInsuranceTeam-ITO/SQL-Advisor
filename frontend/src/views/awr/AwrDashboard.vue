@@ -270,7 +270,10 @@ function formatTime(value?: string) {
 function extractError(error: unknown) { return typeof error === 'object' && error && 'message' in error ? String(error.message) : '실시간 데이터 조회에 실패했습니다.' }
 
 watch(selectedConnectionId, () => restartPolling())
-onMounted(loadConnections)
+onMounted(async () => {
+  await loadConnections()
+  restartPolling()
+})
 onBeforeUnmount(() => { if (timer) window.clearInterval(timer) })
 </script>
 

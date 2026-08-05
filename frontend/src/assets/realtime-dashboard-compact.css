@@ -5,10 +5,15 @@
   overflow: hidden;
 }
 
-.dashboard-header {
+.realtime-dashboard > .dashboard-header {
   height: 92px;
   gap: 18px;
   margin: 0;
+  padding: 0 !important;
+  border: 0 !important;
+  border-radius: 0 !important;
+  background: transparent !important;
+  box-shadow: none !important;
 }
 
 .dashboard-header h1 {
@@ -121,7 +126,7 @@
 }
 
 @media (min-width: 1301px) and (max-height: 820px) {
-  .dashboard-header {
+  .realtime-dashboard > .dashboard-header {
     height: 78px;
   }
 

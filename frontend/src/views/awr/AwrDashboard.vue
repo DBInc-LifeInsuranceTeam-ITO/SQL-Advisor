@@ -4,7 +4,7 @@
       <div>
         <span class="eyebrow">REAL-TIME SQL ADVISOR</span>
         <h1>대시보드</h1>
-        <p>연계 분석에 등록된 DB의 실행 SQL을 5초 주기로 확인합니다.</p>
+        <p>연계 분석에 등록된 DB의 실행 SQL을 2초 주기로 확인합니다.</p>
       </div>
 
       <div class="header-actions">
@@ -107,7 +107,7 @@ type ActivityPoint = MonitoringDashboardResponse['activity']['points'][number]
 
 const TEST_CONNECTION_ID = -1
 const CHART_SLOT_COUNT = 12
-const CHART_INTERVAL_MS = 5000
+const CHART_INTERVAL_MS = 2000
 
 const connections = ref<TargetDbConnectionResponse[]>([])
 const selectedConnectionId = ref(TEST_CONNECTION_ID)

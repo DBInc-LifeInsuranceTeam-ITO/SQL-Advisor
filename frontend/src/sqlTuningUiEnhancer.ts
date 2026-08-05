@@ -121,6 +121,87 @@ function enhanceTerminology(): void {
   })
 }
 
+function findManualField(form: HTMLElement, fieldName: string): HTMLLabelElement | undefined {
+  return Array.from(form.querySelectorAll<HTMLLabelElement>(':scope > label.awr-field'))
+    .find(label => label.firstChild?.textContent?.trim() === fieldName)
+}
+
+function enhanceManualAnalysisForm(): void {
+  document.querySelectorAll<HTMLElement>('.sql-workbench .input-panel .awr-form').forEach((form) => {
+    if (form.dataset.manualLayout === 'true') return
+
+    const sqlField = findManualField(form, 'SQL 원문')
+    const questionField = findManualField(form, '질문')
+    const planField = findManualField(form, '실행계획')
+    const ddlField = findManualField(form, '테이블 DDL')
+    const indexField = findManualField(form, '기존 인덱스')
+    const bindField = findManualField(form, '바인드 샘플')
+    const analyzeButton = form.querySelector<HTMLButtonElement>(':scope > button.awr-btn.primary')
+
+    if (!sqlField || !questionField || !planField || !ddlField || !indexField || !bindField || !analyzeButton) return
+
+    form.dataset.manualLayout = 'true'
+    form.classList.add('manual-analysis-form')
+
+    sqlField.classList.add('manual-primary-field')
+    questionField.classList.add('manual-question-field')
+
+    const requiredBadge = document.createElement('span')
+    requiredBadge.className = 'manual-field-badge required'
+    requiredBadge.textContent = '필수'
+    sqlField.insertBefore(requiredBadge, sqlField.querySelector('textarea'))
+
+    const sqlHelp = document.createElement('p')
+    sqlHelp.className = 'manual-field-help'
+    sqlHelp.textContent = '튜닝할 SQL 원문만 입력해도 기본 분석을 실행할 수 있습니다.'
+    sqlField.appendChild(sqlHelp)
+
+    const questionHelp = document.createElement('p')
+    questionHelp.className = 'manual-field-help'
+    questionHelp.textContent = '특정하게 확인하고 싶은 내용이 있을 때만 입력하세요.'
+    questionField.appendChild(questionHelp)
+
+    const actionRow = document.createElement('div')
+    actionRow.className = 'manual-analysis-actions'
+    const actionHint = document.createElement('span')
+    actionHint.textContent = 'SQL 원문 입력 후 바로 분석할 수 있습니다.'
+    actionRow.append(actionHint, analyzeButton)
+
+    const advanced = document.createElement('details')
+    advanced.className = 'manual-advanced'
+    const summary = document.createElement('summary')
+    summary.innerHTML = '<span>추가 정보</span><small>선택 입력 · 분석 정확도 향상</small>'
+    advanced.appendChild(summary)
+
+    const intro = document.createElement('div')
+    intro.className = 'manual-advanced-intro'
+    intro.innerHTML = '<strong>보유한 정보만 입력하세요.</strong><p>실행계획은 접근 경로 분석에 가장 유용하고, DDL·인덱스·바인드 값은 원인과 개선안을 더 구체화할 때 사용합니다.</p>'
+    advanced.appendChild(intro)
+
+    const grid = document.createElement('div')
+    grid.className = 'manual-advanced-grid'
+
+    const descriptions = new Map<HTMLLabelElement, string>([
+      [planField, '권장 · DBMS_XPLAN 결과가 있으면 Full Scan, 조인 방식, 예상 행 수를 분석합니다.'],
+      [ddlField, '선택 · 컬럼 타입과 제약조건을 확인할 때 사용합니다.'],
+      [indexField, '선택 · 기존 인덱스와 중복되지 않는 개선안을 만드는 데 사용합니다.'],
+      [bindField, '선택 · 특정 바인드 값에서만 느려지는 문제를 확인할 때 사용합니다.']
+    ])
+
+    ;[planField, ddlField, indexField, bindField].forEach((field) => {
+      field.classList.add('manual-advanced-field')
+      const help = document.createElement('p')
+      help.className = 'manual-field-help'
+      help.textContent = descriptions.get(field) ?? ''
+      field.appendChild(help)
+      grid.appendChild(field)
+    })
+
+    advanced.appendChild(grid)
+    form.append(sqlField, questionField, actionRow, advanced)
+  })
+}
+
 function enhanceSqlSource(): void {
   document.querySelectorAll<HTMLPreElement>('.sql-workbench pre.sql-box').forEach((sqlBox) => {
     if (sqlBox.dataset.expandable === 'true') return
@@ -149,6 +230,7 @@ function enhanceSqlTuningUi(): void {
   enhanceSortableTopSqlTable()
   enhanceAutomaticTopSqlQuery()
   enhanceTerminology()
+  enhanceManualAnalysisForm()
   enhanceSqlSource()
 }
 

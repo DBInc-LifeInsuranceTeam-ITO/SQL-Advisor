@@ -48,3 +48,71 @@
   outline: 3px solid rgba(7, 143, 76, 0.16);
   outline-offset: 2px;
 }
+
+/* 테이블 하나와 해당 인덱스 목록을 하나의 시각적 그룹으로 구분 */
+.sql-workbench .result-block .table-card {
+  overflow: hidden;
+  margin: 0 0 18px !important;
+  padding: 0 !important;
+  border: 1px solid #dce5e1;
+  border-radius: 11px;
+  background: #ffffff;
+}
+
+.sql-workbench .result-block .table-card:last-child {
+  margin-bottom: 0 !important;
+}
+
+.sql-workbench .result-block .table-card > h4 {
+  display: flex !important;
+  align-items: center;
+  justify-content: space-between;
+  gap: 14px;
+  min-height: 46px;
+  margin: 0 !important;
+  padding: 11px 14px !important;
+  border-bottom: 1px solid #e1e8e5;
+  background: #f6f9f8;
+  color: #172b21;
+  font-size: 14px;
+  line-height: 1.35;
+}
+
+.sql-workbench .result-block .table-card > h4 small {
+  flex: 0 0 auto;
+  color: #66766e;
+  font-size: 11px;
+  font-weight: 500;
+  white-space: nowrap;
+}
+
+.sql-workbench .result-block .table-card > .awr-table-wrap {
+  margin: 0 !important;
+  border: 0 !important;
+  border-radius: 0 !important;
+}
+
+.sql-workbench .result-block .table-card .awr-table {
+  margin: 0 !important;
+  border: 0 !important;
+}
+
+.sql-workbench .result-block .table-card .awr-table thead th {
+  background: #eef3f1;
+}
+
+.sql-workbench .result-block .table-card .awr-table tbody tr:last-child td {
+  border-bottom: 0;
+}
+
+@media (max-width: 760px) {
+  .sql-workbench .result-block .table-card > h4 {
+    align-items: flex-start;
+    flex-direction: column;
+    gap: 4px;
+  }
+
+  .sql-workbench .result-block .table-card > h4 small {
+    white-space: normal;
+  }
+}

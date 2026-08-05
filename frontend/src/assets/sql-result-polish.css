@@ -105,6 +105,11 @@
   border-bottom: 0;
 }
 
+/* 테이블/인덱스 묶음과 하단 안내 문구가 붙어 보이지 않도록 분리 */
+.sql-workbench .result-panel .result-block + .awr-empty.compact {
+  margin-top: 18px !important;
+}
+
 @media (max-width: 760px) {
   .sql-workbench .result-block .table-card > h4 {
     align-items: flex-start;

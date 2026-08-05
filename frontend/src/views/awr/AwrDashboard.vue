@@ -57,10 +57,10 @@
           <div class="chart-grid-lines"><i v-for="line in 5" :key="line"></i></div>
           <svg viewBox="0 0 720 220" preserveAspectRatio="none">
             <defs><linearGradient id="areaGradient" x1="0" y1="0" x2="0" y2="1"><stop offset="0%" stop-color="#16a34a" stop-opacity="0.28"/><stop offset="100%" stop-color="#16a34a" stop-opacity="0"/></linearGradient></defs>
-            <path :d="areaPath" fill="url(#areaGradient)" />
-            <polyline :points="chartPoints" fill="none" stroke="#0b8f49" stroke-width="4" stroke-linecap="round" stroke-linejoin="round" />
+            <path v-if="areaPath" :d="areaPath" fill="url(#areaGradient)" />
+            <polyline v-if="chartPoints" :points="chartPoints" fill="none" stroke="#0b8f49" stroke-width="4" stroke-linecap="round" stroke-linejoin="round" />
           </svg>
-          <div class="chart-labels"><span v-for="(label, index) in compactTimeLabels" :key="`${label}-${index}`">{{ label }}</span></div>
+          <div class="chart-labels"><span v-for="label in chartTimeLabels" :key="label">{{ label }}</span></div>
         </div>
       </article>
 
@@ -101,6 +101,11 @@ import type { SqlMetricResponse, TargetDbConnectionResponse } from '@/types/awr'
 
 type MetricKey = 'activeSessions' | 'executions' | 'cpu' | 'io'
 
+const CHART_SLOT_COUNT = 12
+const CHART_WIDTH = 720
+const CHART_BASE_Y = 205
+const CHART_RANGE_Y = 175
+
 const connections = ref<TargetDbConnectionResponse[]>([])
 const selectedConnectionId = ref(0)
 const dashboard = ref<MonitoringDashboardResponse | null>(null)
@@ -130,13 +135,44 @@ const summaries = computed(() => [
 const currentMetricValue = computed(() => formatMetric(selectedSeries.value.at(-1) || 0))
 const averageMetricValue = computed(() => formatMetric(selectedSeries.value.length ? selectedSeries.value.reduce((a, b) => a + b, 0) / selectedSeries.value.length : 0))
 const maxMetricValue = computed(() => formatMetric(Math.max(...selectedSeries.value, 0)))
-const chartPoints = computed(() => {
-  const values = selectedSeries.value.length > 1 ? selectedSeries.value : [0, selectedSeries.value[0] || 0]
+
+const chartCoordinates = computed(() => {
+  const values = selectedSeries.value.slice(-CHART_SLOT_COUNT)
+  if (values.length === 0) return []
+
   const max = Math.max(...values, 1)
-  return values.map((value, index) => `${(index / (values.length - 1)) * 720},${205 - (value / max) * 175}`).join(' ')
+  const slotWidth = CHART_WIDTH / (CHART_SLOT_COUNT - 1)
+  const startSlot = CHART_SLOT_COUNT - values.length
+
+  const coordinates = values.map((value, index) => ({
+    x: (startSlot + index) * slotWidth,
+    y: CHART_BASE_Y - (value / max) * CHART_RANGE_Y
+  }))
+
+  if (coordinates.length === 1) {
+    const only = coordinates[0]
+    return [{ x: Math.max(0, only.x - slotWidth), y: only.y }, only]
+  }
+  return coordinates
 })
-const areaPath = computed(() => `M 0 220 L ${chartPoints.value.replaceAll(' ', ' L ')} L 720 220 Z`)
-const compactTimeLabels = computed(() => activityPoints.value.filter((_, index) => index % 2 === 0).map(point => formatTime(point.collectedAt)))
+
+const chartPoints = computed(() => chartCoordinates.value.map(point => `${point.x},${point.y}`).join(' '))
+const areaPath = computed(() => {
+  const points = chartCoordinates.value
+  if (points.length === 0) return ''
+  const first = points[0]
+  const last = points.at(-1)!
+  return `M ${first.x} 220 L ${points.map(point => `${point.x} ${point.y}`).join(' L ')} L ${last.x} 220 Z`
+})
+
+const chartTimeLabels = computed(() => {
+  const anchorValue = dashboard.value?.connection.collectedAt
+  const anchor = anchorValue ? new Date(anchorValue) : new Date()
+  return [55, 45, 35, 25, 15, 5, 0].map(secondsAgo => {
+    const time = new Date(anchor.getTime() - secondsAgo * 1000)
+    return formatTime(time.toISOString())
+  })
+})
 
 async function loadConnections() {
   try {

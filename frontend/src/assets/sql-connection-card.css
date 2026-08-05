@@ -20,10 +20,10 @@
   gap: 16px !important;
   padding: 18px 20px !important;
   min-height: 118px;
-  border: 1px solid #c8dfd2 !important;
-  border-left: 1px solid #c8dfd2 !important;
-  background: linear-gradient(135deg, #eef9f3 0%, #f8fcfa 100%) !important;
-  box-shadow: 0 6px 18px rgba(16, 82, 52, 0.08) !important;
+  border: 1px solid #d7e0e8 !important;
+  border-left: 1px solid #d7e0e8 !important;
+  background: linear-gradient(135deg, #f7f9fb 0%, #eef3f7 100%) !important;
+  box-shadow: 0 5px 16px rgba(30, 41, 59, 0.07) !important;
 }
 
 .sql-workbench .connection-main {
@@ -59,7 +59,7 @@
   padding: 3px 9px !important;
   font-size: 12px !important;
   line-height: 1 !important;
-  background: #dff3e8 !important;
+  background: #e5f6ec !important;
 }
 
 .sql-workbench .connection-identity span::before {
@@ -74,7 +74,7 @@
   grid-template-columns: 72px minmax(0, 1fr);
   gap: 10px !important;
   align-items: start !important;
-  color: #33483d !important;
+  color: #334155 !important;
   font-family: inherit !important;
   font-size: 13px !important;
   font-weight: 500 !important;
@@ -84,7 +84,7 @@
 
 .sql-workbench .connection-main > code::before {
   content: '접속 주소' !important;
-  color: #6f7f76 !important;
+  color: #64748b !important;
   font-family: inherit !important;
   font-size: 12px !important;
   font-weight: 700 !important;
@@ -102,7 +102,17 @@
   min-height: 34px !important;
   padding: 0 10px !important;
   font-size: 12px !important;
-  background: rgba(255, 255, 255, 0.78) !important;
+  background: #ffffff !important;
+}
+
+.sql-workbench .connection-actions .awr-btn:first-child {
+  border-color: #a9cdb9 !important;
+  color: #087843 !important;
+}
+
+.sql-workbench .connection-actions .awr-btn.danger {
+  border-color: #f0c5c5 !important;
+  color: #c43838 !important;
 }
 
 @media (max-width: 760px) {

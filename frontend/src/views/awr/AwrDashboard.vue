@@ -1,172 +1,203 @@
 <template>
-  <div class="awr-page dashboard-page dashboard-v5-page">
-    <section class="dashboard-top-strip">
-      <article class="summary-card state" :class="performanceClass">
-        <span class="summary-label">종합 상태</span>
-        <strong>{{ performanceLabel }}</strong>
-        <em>{{ performanceScore }}점</em>
-      </article>
+  <div class="realtime-dashboard">
+    <header class="dashboard-header">
+      <div>
+        <span class="eyebrow">REAL-TIME SQL ADVISOR</span>
+        <h1>SQL 실시간 모니터링</h1>
+        <p>현재 실행 SQL과 성능 이상 징후를 5초 주기로 확인합니다.</p>
+      </div>
 
-      <article class="summary-card risk">
-        <span class="summary-label">우선 점검 SQL</span>
-        <strong>{{ topRiskSql.length }}건</strong>
-        <em>{{ dominantIssueLabel }}</em>
-      </article>
+      <div class="header-actions">
+        <label class="db-select">
+          <span>대상 DB</span>
+          <select v-model="selectedDb">
+            <option value="DBLIFE">DBLIFE</option>
+            <option value="DBLIFE-DEV">DBLIFE-DEV</option>
+          </select>
+        </label>
+        <div class="collector-state">
+          <span class="live-dot"></span>
+          <div>
+            <strong>수집 정상</strong>
+            <small>마지막 갱신 {{ lastUpdated }}</small>
+          </div>
+        </div>
+      </div>
+    </header>
 
-      <article class="summary-card bottleneck">
-        <span class="summary-label">주요 병목</span>
-        <strong>{{ dominantBottleneckLabel }}</strong>
-        <em>{{ dominantBottleneckPercent }}</em>
-      </article>
-
-      <article class="summary-card report">
-        <span class="summary-label">분석 현황</span>
-        <strong>{{ readyReportCount }}/{{ reportCount }}</strong>
-        <em>실패 {{ failedReportCount }}건</em>
+    <section class="summary-grid">
+      <article v-for="item in summaries" :key="item.label" class="summary-card" :class="item.tone">
+        <span>{{ item.label }}</span>
+        <strong>{{ item.value }}</strong>
+        <small>{{ item.description }}</small>
       </article>
     </section>
 
-    <div v-if="publicLoadMessage" class="dashboard-alert">
-      {{ publicLoadMessage }}
-    </div>
-
-    <section class="dashboard-v5-grid">
-      <article class="dashboard-panel status-panel" :class="performanceClass">
-        <div class="panel-header">
+    <section class="dashboard-grid">
+      <article class="panel activity-panel">
+        <div class="panel-title-row">
           <div>
-            <span class="panel-kicker">종합 진단</span>
-            <h2>성능 상태</h2>
+            <span class="panel-kicker">DB ACTIVITY</span>
+            <h2>실시간 DB 활동 추이</h2>
           </div>
-          <span class="panel-badge">{{ performanceLabel }}</span>
-        </div>
-
-        <div class="score-zone">
-          <div class="score-ring" :style="{ '--score': `${performanceScore}%` }">
-            <div class="score-inner">
-              <strong>{{ performanceScore }}</strong>
-              <span>/ 100</span>
-            </div>
-          </div>
-        </div>
-
-        <div class="status-summary-box">
-          <strong>{{ performanceMessage }}</strong>
-          <p>{{ dominantIssueLabel }} · {{ dominantBottleneckLabel }}</p>
-        </div>
-
-        <div class="status-metric-grid">
-          <div>
-            <span>완료율</span>
-            <strong>{{ readyPercent }}</strong>
-          </div>
-          <div>
-            <span>실패</span>
-            <strong>{{ failedReportCount }}</strong>
-          </div>
-        </div>
-      </article>
-
-      <article class="dashboard-panel bottleneck-panel">
-        <div class="panel-header">
-          <div>
-            <span class="panel-kicker">병목 분석</span>
-            <h2>병목 분포</h2>
-          </div>
-        </div>
-
-        <div v-if="topWaitEvents.length === 0" class="empty-panel">
-          분석 완료된 병목 정보가 아직 없습니다.
-        </div>
-
-        <template v-else>
-          <div class="distribution-hero">
-            <div class="distribution-title">
-              <span>DB Time 기준 상위 병목</span>
-              <strong>{{ dominantBottleneckLabel }}</strong>
-            </div>
-
-            <div class="distribution-bar">
-              <span
-                v-for="(event, index) in topWaitEvents"
-                :key="`${event.waitClass}-${event.eventName}`"
-                :class="`segment segment-${index + 1}`"
-                :style="{ width: `${event.segmentPercent}%` }"
-              ></span>
-            </div>
-          </div>
-
-          <div class="bottleneck-list">
-            <article
-              v-for="(event, index) in topWaitEvents"
-              :key="`${event.waitClass}-${event.eventName}`"
-              class="bottleneck-item"
+          <div class="metric-tabs">
+            <button
+              v-for="metric in metricOptions"
+              :key="metric.key"
+              type="button"
+              :class="{ active: selectedMetric === metric.key }"
+              @click="selectedMetric = metric.key"
             >
-              <div class="bottleneck-rank" :class="`rank-${index + 1}`">{{ index + 1 }}</div>
-
-              <div class="bottleneck-content">
-                <div class="bottleneck-topline">
-                  <strong>{{ normalizeWaitEventName(event.eventName) }}</strong>
-                  <span>{{ formatPercent(event.dbTimePercent) }}</span>
-                </div>
-
-                <div class="bottleneck-subline">
-                  <em>{{ waitClassLabel(event.waitClass) }}</em>
-                  <small>{{ bottleneckComment(event) }}</small>
-                </div>
-
-                <div class="bottleneck-track">
-                  <i
-                    :class="`track-fill fill-${index + 1}`"
-                    :style="{ width: `${event.barPercent}%` }"
-                  ></i>
-                </div>
-              </div>
-            </article>
+              {{ metric.label }}
+            </button>
           </div>
-        </template>
+        </div>
+
+        <div class="chart-summary">
+          <div>
+            <span>현재</span>
+            <strong>{{ currentMetricValue }}</strong>
+          </div>
+          <div>
+            <span>최근 1분 평균</span>
+            <strong>{{ averageMetricValue }}</strong>
+          </div>
+          <div>
+            <span>최고</span>
+            <strong>{{ maxMetricValue }}</strong>
+          </div>
+        </div>
+
+        <div class="line-chart" aria-label="실시간 DB 활동 차트">
+          <div class="chart-grid-lines">
+            <i v-for="line in 5" :key="line"></i>
+          </div>
+          <svg viewBox="0 0 720 220" preserveAspectRatio="none">
+            <defs>
+              <linearGradient id="areaGradient" x1="0" y1="0" x2="0" y2="1">
+                <stop offset="0%" stop-color="#16a34a" stop-opacity="0.28" />
+                <stop offset="100%" stop-color="#16a34a" stop-opacity="0" />
+              </linearGradient>
+            </defs>
+            <path :d="areaPath" fill="url(#areaGradient)" />
+            <polyline :points="chartPoints" fill="none" stroke="#0b8f49" stroke-width="4" stroke-linecap="round" stroke-linejoin="round" />
+          </svg>
+          <div class="chart-labels">
+            <span v-for="label in timeLabels" :key="label">{{ label }}</span>
+          </div>
+        </div>
       </article>
 
-      <article class="dashboard-panel sql-panel">
-        <div class="panel-header">
+      <article class="panel priority-panel">
+        <div class="panel-title-row">
           <div>
-            <span class="panel-kicker">집중 점검 대상</span>
-            <h2>우선 점검 SQL</h2>
+            <span class="panel-kicker">PRIORITY SQL</span>
+            <h2>지금 확인해야 할 SQL</h2>
+          </div>
+          <button class="text-button" type="button">전체 보기</button>
+        </div>
+
+        <div class="sql-table-wrap">
+          <table class="sql-table">
+            <thead>
+              <tr>
+                <th>위험도</th>
+                <th>SQL ID</th>
+                <th>경과</th>
+                <th>CPU</th>
+                <th>Buffer Gets</th>
+                <th>문제 유형</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr v-for="sql in prioritySql" :key="sql.sqlId">
+                <td><span class="severity" :class="sql.severity">{{ sql.severityLabel }}</span></td>
+                <td>
+                  <strong class="sql-id">{{ sql.sqlId }}</strong>
+                  <small>{{ sql.schema }}</small>
+                </td>
+                <td>{{ sql.elapsed }}</td>
+                <td>{{ sql.cpu }}</td>
+                <td>{{ sql.bufferGets }}</td>
+                <td><span class="issue-tag">{{ sql.issue }}</span></td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+      </article>
+
+      <article class="panel degradation-panel">
+        <div class="panel-title-row">
+          <div>
+            <span class="panel-kicker">PERFORMANCE CHANGE</span>
+            <h2>성능 저하 SQL</h2>
+          </div>
+          <span class="reference-badge">최근 7일 기준</span>
+        </div>
+
+        <div class="degradation-list">
+          <article v-for="item in degradedSql" :key="item.sqlId" class="degradation-item">
+            <div class="degradation-head">
+              <div>
+                <strong>{{ item.sqlId }}</strong>
+                <small>{{ item.module }}</small>
+              </div>
+              <em>+{{ item.change }}%</em>
+            </div>
+            <div class="comparison-row">
+              <span>평균 {{ item.baseline }}</span>
+              <i>→</i>
+              <strong>현재 {{ item.current }}</strong>
+            </div>
+            <div class="progress-track"><span :style="{ width: `${Math.min(item.change / 10, 100)}%` }"></span></div>
+          </article>
+        </div>
+      </article>
+
+      <article class="panel issue-panel">
+        <div class="panel-title-row">
+          <div>
+            <span class="panel-kicker">DETECTION RULE</span>
+            <h2>이상 SQL 탐지 현황</h2>
+          </div>
+          <button class="text-button" type="button" @click="showRules = !showRules">기준 보기</button>
+        </div>
+
+        <div class="issue-list">
+          <div v-for="issue in issueSummary" :key="issue.label" class="issue-row">
+            <span class="issue-icon" :class="issue.tone">{{ issue.icon }}</span>
+            <div>
+              <strong>{{ issue.label }}</strong>
+              <small>{{ issue.description }}</small>
+            </div>
+            <em>{{ issue.count }}건</em>
           </div>
         </div>
 
-        <div v-if="topRiskSql.length === 0" class="empty-panel">
-          분석 완료된 SQL 지표가 아직 없습니다.
+        <div v-if="showRules" class="rule-box">
+          <strong>기본 탐지 기준</strong>
+          <p>장기 실행 30초 이상 · Buffer Gets 100,000 이상 · Disk Reads 10,000 이상 · 동일 SQL 평균 수행시간 대비 200% 이상 증가 · Blocking Session 존재 · Plan Hash 변경</p>
+        </div>
+      </article>
+
+      <article class="panel recommendation-panel">
+        <div class="panel-title-row">
+          <div>
+            <span class="panel-kicker">AI ADVISOR</span>
+            <h2>최근 튜닝 권고</h2>
+          </div>
+          <span class="ai-badge">AI 분석 3건</span>
         </div>
 
-        <div v-else class="sql-stack">
-          <button
-            v-for="item in topRiskSql"
-            :key="`${item.reportId}-${item.sqlId}-${item.rankNo}`"
-            type="button"
-            class="sql-card"
-            @click="openReport(item.reportId)"
-          >
-            <span class="sql-topline">
-              <strong>{{ item.sqlId }}</strong>
-              <em class="risk-pill" :class="riskClass(item.riskScore)">
-                {{ riskLabel(item.riskScore) }}
-              </em>
-            </span>
-
-            <span class="sql-reason">{{ riskReason(item) }}</span>
-
-            <span class="sql-metrics">
-              <span>CPU {{ formatSeconds(item.cpuTimeSec) }}</span>
-              <span>실행 {{ formatCompactNumber(item.executions) }}회</span>
-              <span>Buffer {{ formatCompactNumber(item.bufferGets) }}</span>
-            </span>
-          </button>
-        </div>
-
-        <div class="next-action-box">
-          <span>다음 조치</span>
-          <strong>{{ actionGuides[0]?.title || '분석 결과 확인' }}</strong>
-          <p>{{ actionGuides[0]?.description || 'AWR 리포트를 추가 등록해 비교 분석 기반을 늘려보세요.' }}</p>
+        <div class="recommendation-list">
+          <article v-for="item in recommendations" :key="item.title">
+            <span :class="item.tone">{{ item.type }}</span>
+            <div>
+              <strong>{{ item.title }}</strong>
+              <p>{{ item.description }}</p>
+            </div>
+            <button type="button">권고안 검토</button>
+          </article>
         </div>
       </article>
     </section>
@@ -174,525 +205,111 @@
 </template>
 
 <script setup lang="ts">
-import { computed, onMounted, ref } from 'vue'
-import { useRouter } from 'vue-router'
-import { getAwrReport, getAwrReports } from '@/api/awr'
-import { getSqlTuningHistory } from '@/api/sqlTuning'
-import { useAuthStore } from '@/stores/auth'
-import type {
-  ReportDetailResponse,
-  ReportSummaryResponse,
-  SqlMetricResponse,
-  SqlTuningResponse,
-  WaitEventResponse
-} from '@/types/awr'
+import { computed, onBeforeUnmount, onMounted, ref } from 'vue'
 
-interface RiskSqlItem extends SqlMetricResponse {
-  reportId: number
-  reportName: string
-  riskScore: number
+interface MetricOption {
+  key: 'activeSessions' | 'executions' | 'cpu' | 'io'
+  label: string
 }
 
-interface WaitEventItem extends WaitEventResponse {
-  dbTimePercent: number
-  barPercent: number
-  segmentPercent: number
-}
+const selectedDb = ref('DBLIFE')
+const selectedMetric = ref<MetricOption['key']>('activeSessions')
+const lastUpdated = ref('10:27:00')
+const showRules = ref(false)
+const tick = ref(0)
+let timer: number | undefined
 
-const WAIT_CLASS_SUMMARY_NAMES = new Set([
-  'CPU',
-  'USER I/O',
-  'SYSTEM I/O',
-  'COMMIT',
-  'CONCURRENCY',
-  'APPLICATION',
-  'CONFIGURATION',
-  'ADMINISTRATIVE',
-  'NETWORK',
-  'CLUSTER',
-  'QUEUEING',
-  'SCHEDULER',
-  'OTHER'
+const metricOptions: MetricOption[] = [
+  { key: 'activeSessions', label: 'Active Sessions' },
+  { key: 'executions', label: 'Executions' },
+  { key: 'cpu', label: 'CPU' },
+  { key: 'io', label: 'I/O' }
+]
+
+const metricSeries = computed<Record<MetricOption['key'], number[]>>(() => {
+  const offset = tick.value % 6
+  return {
+    activeSessions: [7, 9, 8, 13, 15, 12, 18, 21, 17, 24, 22, 19 + offset],
+    executions: [82, 96, 91, 124, 116, 140, 152, 147, 174, 169, 188, 181 + offset * 2],
+    cpu: [24, 28, 26, 31, 39, 35, 42, 47, 44, 51, 46, 48 + offset],
+    io: [31, 36, 34, 45, 41, 52, 49, 63, 58, 71, 66, 69 + offset]
+  }
+})
+
+const selectedSeries = computed(() => metricSeries.value[selectedMetric.value])
+const currentMetricValue = computed(() => formatMetric(selectedSeries.value.at(-1) || 0))
+const averageMetricValue = computed(() => formatMetric(Math.round(selectedSeries.value.slice(-6).reduce((sum, value) => sum + value, 0) / 6)))
+const maxMetricValue = computed(() => formatMetric(Math.max(...selectedSeries.value)))
+
+const chartPoints = computed(() => {
+  const values = selectedSeries.value
+  const max = Math.max(...values, 1)
+  return values.map((value, index) => `${(index / (values.length - 1)) * 720},${205 - (value / max) * 175}`).join(' ')
+})
+
+const areaPath = computed(() => `M 0 220 L ${chartPoints.value.replaceAll(' ', ' L ')} L 720 220 Z`)
+const timeLabels = ['10:22', '10:23', '10:24', '10:25', '10:26', '10:27']
+
+const summaries = computed(() => [
+  { label: '현재 실행 SQL', value: `${18 + (tick.value % 3)}건`, description: 'Active 세션 기준', tone: 'normal' },
+  { label: '장기 실행 SQL', value: '3건', description: '30초 이상 수행', tone: 'warning' },
+  { label: '성능 저하 SQL', value: '5건', description: '평균 대비 2배 이상', tone: 'danger' },
+  { label: 'Blocking 세션', value: '1건', description: '즉시 확인 필요', tone: 'danger' },
+  { label: '수집 상태', value: '정상', description: '5초 주기 갱신', tone: 'success' }
 ])
-const router = useRouter()
-const authStore = useAuthStore()
 
-const reports = ref<ReportSummaryResponse[]>([])
-const reportDetails = ref<ReportDetailResponse[]>([])
-const history = ref<SqlTuningResponse[]>([])
+const prioritySql = [
+  { severity: 'critical', severityLabel: '긴급', sqlId: '5ioq123scan5a', schema: 'BATCH_APP', elapsed: '183초', cpu: '41.2%', bufferGets: '1.2M', issue: '장기 실행' },
+  { severity: 'high', severityLabel: '높음', sqlId: '8ax12kq9pt3df', schema: 'ONLINE_APP', elapsed: '42초', cpu: '23.4%', bufferGets: '820K', issue: 'Logical Read 과다' },
+  { severity: 'high', severityLabel: '높음', sqlId: '2bc44mx81u7kd', schema: 'API_USER', elapsed: '18초', cpu: '8.1%', bufferGets: '210K', issue: 'Physical I/O 증가' },
+  { severity: 'medium', severityLabel: '주의', sqlId: '7zp10va4nh2qs', schema: 'BATCH_APP', elapsed: '11초', cpu: '12.6%', bufferGets: '96K', issue: '실행 횟수 급증' }
+]
 
-const publicLoadMessage = ref('')
-const workspaceLoadMessage = ref('')
+const degradedSql = [
+  { sqlId: '5ioq123scan5a', module: '보험료 배치', baseline: '0.8초', current: '8.3초', change: 937 },
+  { sqlId: '8ax12kq9pt3df', module: '계약 조회 API', baseline: '2.1초', current: '9.7초', change: 361 },
+  { sqlId: '2bc44mx81u7kd', module: '고객 조회', baseline: '0.2초', current: '0.7초', change: 250 }
+]
 
-const canUseWorkspace = computed(() => !authStore.authEnabled || authStore.isAuthenticated)
+const issueSummary = [
+  { icon: '⏱', label: '장기 실행', description: '30초 이상 실행 중인 SQL', count: 3, tone: 'red' },
+  { icon: '↕', label: '과다 Logical Read', description: 'Buffer Gets 100,000 이상', count: 4, tone: 'orange' },
+  { icon: '◫', label: '실행계획 변경', description: 'Plan Hash Value 변경 감지', count: 1, tone: 'blue' },
+  { icon: '⚠', label: 'Blocking 발생', description: '다른 세션의 진행을 차단', count: 1, tone: 'purple' }
+]
 
-function isReadyStatus(status?: string | null) {
-  return ['INDEXED', 'COMPLETED', 'DONE'].includes(
-    (status || '').trim().toUpperCase()
-  )
+const recommendations = [
+  { type: 'INDEX', title: 'ORDERS 조건절 인덱스 후보 검토', description: 'CUSTOMER_ID와 STATUS 복합 인덱스 적용 시 예상 읽기 블록 수를 줄일 수 있습니다.', tone: 'green' },
+  { type: 'PLAN', title: '실행계획 변경 원인 확인', description: '통계정보 갱신 이후 Full Table Scan으로 변경되었습니다. 기존 Plan과 비교가 필요합니다.', tone: 'blue' },
+  { type: 'SQL', title: '함수 적용 조건절 개선', description: '인덱스 컬럼에 적용된 TO_CHAR 함수로 인덱스 접근이 제한될 수 있습니다.', tone: 'orange' }
+]
+
+function formatMetric(value: number) {
+  if (selectedMetric.value === 'cpu') return `${value}%`
+  if (selectedMetric.value === 'io') return `${value} MB/s`
+  return value.toLocaleString()
 }
 
-const reportCount = computed(() => reports.value.length)
+function updateClock() {
+  lastUpdated.value = new Intl.DateTimeFormat('ko-KR', {
+    hour: '2-digit',
+    minute: '2-digit',
+    second: '2-digit',
+    hour12: false
+  }).format(new Date())
+}
 
-const readyReportCount = computed(() =>
-  reports.value.filter((report) => isReadyStatus(report.status)).length
-)
-
-const failedReportCount = computed(() =>
-  reports.value.filter((report) => report.status === 'FAILED').length
-)
-
-const processingReportCount = computed(() =>
-  reports.value.filter((report) =>
-    ['QUEUED', 'EXTRACTING', 'INDEXING', 'NEEDS_TEXT_EXTRACTION'].includes(report.status)
-  ).length
-)
-
-const readyPercent = computed(() => {
-  if (reportCount.value === 0) return '0%'
-  return `${Math.round((readyReportCount.value / reportCount.value) * 100)}%`
+onMounted(() => {
+  updateClock()
+  timer = window.setInterval(() => {
+    tick.value += 1
+    updateClock()
+  }, 5000)
 })
 
-const missingInputCount = computed(() =>
-  history.value.reduce((sum, item) => sum + item.missingInputs.length, 0)
-)
-
-const indexCandidateCount = computed(() =>
-  history.value.reduce((sum, item) => sum + item.indexRecommendations.length, 0)
-)
-
-const topRiskSql = computed<RiskSqlItem[]>(() => {
-  return reportDetails.value
-    .flatMap((detail) =>
-      detail.topSql.map((sql) => ({
-        ...sql,
-        reportId: detail.id,
-        reportName: detail.filename,
-        riskScore: calculateRiskScore(sql)
-      }))
-    )
-    .sort((left, right) => right.riskScore - left.riskScore)
-    .slice(0, 3)
+onBeforeUnmount(() => {
+  if (timer) window.clearInterval(timer)
 })
-
-const topWaitEvents = computed<WaitEventItem[]>(() => {
-  const grouped = new Map<
-    string,
-    {
-      eventName: string
-      waitClass: string
-      dbTimePercent: number
-      totalWaitTimeSec: number
-    }
-  >()
-
-  reportDetails.value.forEach((detail) => {
-    detail.topWaitEvents.forEach((event) => {
-      const key = `${event.waitClass}:${event.eventName}`
-
-      const current = grouped.get(key) || {
-        eventName: event.eventName,
-        waitClass: event.waitClass,
-        dbTimePercent: 0,
-        totalWaitTimeSec: 0
-      }
-
-      current.dbTimePercent += event.dbTimePercent || 0
-      current.totalWaitTimeSec += event.totalWaitTimeSec || 0
-
-      grouped.set(key, current)
-    })
-  })
-
-const allRows = Array.from(grouped.values())
-const rows = allRows
-  .filter((row) => {
-    const rowName = normalizeWaitEventName(row.eventName)
-      .trim()
-      .toUpperCase()
-
-    // DB CPU, db file sequential read 같은 실제 이벤트는 유지
-    if (!WAIT_CLASS_SUMMARY_NAMES.has(rowName)) {
-      return true
-    }
-
-    // CPU / User I/O / Commit 등 Wait Class 집계 행인 경우,
-    // 같은 Wait Class의 실제 이벤트와 수치가 같으면 중복으로 판단해 숨김
-    const duplicateExists = allRows.some((other) => {
-      if (other === row) {
-        return false
-      }
-
-      const otherName = normalizeWaitEventName(other.eventName)
-        .trim()
-        .toUpperCase()
-
-      // 비교 대상은 Wait Class 집계 행이 아닌 실제 이벤트만 사용
-      if (WAIT_CLASS_SUMMARY_NAMES.has(otherName)) {
-        return false
-      }
-
-      const otherWaitClass = (other.waitClass || '')
-        .trim()
-        .toUpperCase()
-
-      const sameWaitClass =
-        otherWaitClass === rowName ||
-        otherName.endsWith(` ${rowName}`)
-
-      // 화면은 소수점 첫째 자리까지 보여주므로 0.05 이내면 같은 값으로 처리
-      const samePercent =
-        Math.abs((other.dbTimePercent || 0) - (row.dbTimePercent || 0)) < 0.05
-
-      return sameWaitClass && samePercent
-    })
-
-    return !duplicateExists
-  })
-  .sort(
-    (left, right) =>
-      right.dbTimePercent - left.dbTimePercent ||
-      right.totalWaitTimeSec - left.totalWaitTimeSec
-  )
-  .slice(0, 3)
-
-  const maxPercent = Math.max(...rows.map((row) => row.dbTimePercent), 1)
-  const totalPercent = Math.max(rows.reduce((sum, row) => sum + row.dbTimePercent, 0), 1)
-
-  return rows.map((row) => ({
-    waitClass: row.waitClass,
-    eventName: row.eventName,
-    totalWaitTimeSec: row.totalWaitTimeSec,
-    avgWaitMs: null,
-    dbTimePercent: row.dbTimePercent,
-    barPercent: Math.max((row.dbTimePercent / maxPercent) * 100, 8),
-    segmentPercent: Math.max((row.dbTimePercent / totalPercent) * 100, 8)
-  }))
-})
-
-const performanceScore = computed(() => {
-  let score = 100
-
-  score -= failedReportCount.value * 10
-  score -= processingReportCount.value * 3
-  score -= topRiskSql.value.filter((item) => item.riskScore >= 75).length * 12
-  score -= topRiskSql.value.filter((item) => item.riskScore >= 45 && item.riskScore < 75).length * 5
-  score -= topWaitEvents.value.filter((event) => event.dbTimePercent >= 30).length * 10
-  score -= Math.min(missingInputCount.value * 2, 10)
-
-  return Math.max(Math.min(score, 100), 0)
-})
-
-const performanceLabel = computed(() => {
-  if (performanceScore.value >= 85) return '안정'
-  if (performanceScore.value >= 65) return '주의'
-  return '점검 필요'
-})
-
-const performanceClass = computed(() => {
-  if (performanceScore.value >= 85) return 'good'
-  if (performanceScore.value >= 65) return 'caution'
-  return 'bad'
-})
-
-const performanceMessage = computed(() => {
-  if (reportCount.value === 0) {
-    return 'AWR 리포트를 등록하면 종합 상태를 확인할 수 있습니다.'
-  }
-
-  if (failedReportCount.value > 0) {
-    return `실패 리포트 ${failedReportCount.value}건을 먼저 확인해야 합니다.`
-  }
-
-  if (topRiskSql.value.some((item) => item.riskScore >= 75)) {
-    return '부하가 큰 SQL이 있어 우선 점검이 필요합니다.'
-  }
-
-  if (topWaitEvents.value.some((event) => event.dbTimePercent >= 30)) {
-    return '특정 병목 비중이 커서 원인 점검이 필요합니다.'
-  }
-
-  return '현재 기준 큰 이상 징후는 없습니다.'
-})
-
-const dominantWaitEvent = computed(() => topWaitEvents.value[0] ?? null)
-
-const dominantBottleneckLabel = computed(() => {
-  if (!dominantWaitEvent.value) return '이상 없음'
-  return normalizeWaitEventName(dominantWaitEvent.value.eventName)
-})
-
-const dominantBottleneckPercent = computed(() => {
-  if (!dominantWaitEvent.value) return '-'
-  return formatPercent(dominantWaitEvent.value.dbTimePercent)
-})
-
-const dominantIssueLabel = computed(() => {
-  if (!topRiskSql.value.length) return '이상 징후 없음'
-  return riskReason(topRiskSql.value[0])
-})
-
-const overviewHighlights = computed(() => {
-  const items: { title: string; description: string; tone: string }[] = []
-
-  if (failedReportCount.value > 0) {
-    items.push({
-      title: `실패 리포트 ${failedReportCount.value}건`,
-      description: '재처리 여부와 원본 파일 상태를 우선 확인해야 합니다.',
-      tone: 'danger'
-    })
-  } else {
-    items.push({
-      title: `분석 완료 ${readyReportCount.value}건`,
-      description: `전체 ${reportCount.value}건 중 ${readyPercent.value}가 분석 완료 상태입니다.`,
-      tone: 'neutral'
-    })
-  }
-
-  if (dominantWaitEvent.value) {
-    items.push({
-      title: `${normalizeWaitEventName(dominantWaitEvent.value.eventName)} 비중 높음`,
-      description: `${waitClassLabel(dominantWaitEvent.value.waitClass)} 구간이 ${formatPercent(dominantWaitEvent.value.dbTimePercent)} 수준입니다.`,
-      tone: dominantWaitEvent.value.dbTimePercent >= 30 ? 'warn' : 'neutral'
-    })
-  }
-
-  if (topRiskSql.value[0]) {
-    items.push({
-      title: '상위 SQL 점검 필요',
-      description: `${topRiskSql.value[0].sqlId} - ${riskReason(topRiskSql.value[0])}`,
-      tone: topRiskSql.value[0].riskScore >= 75 ? 'danger' : 'warn'
-    })
-  }
-
-  return items.slice(0, 3)
-})
-
-const actionGuides = computed(() => {
-  const items: { title: string; description: string; tone: string }[] = []
-
-  if (failedReportCount.value > 0) {
-    items.push({
-      title: '실패 리포트 확인',
-      description: '분석 실패 건이 있으면 원본 파일과 재처리 여부를 먼저 확인하세요.',
-      tone: 'danger'
-    })
-  }
-
-  if (topRiskSql.value.length > 0) {
-    items.push({
-      title: '상위 부하 SQL 우선 점검',
-      description: `${topRiskSql.value[0].sqlId}부터 실행 횟수, CPU 시간, Buffer Gets를 확인하세요.`,
-      tone: 'warn'
-    })
-  }
-
-  if (dominantWaitEvent.value) {
-    items.push({
-      title: '병목 유형별 원인 확인',
-      description: `${waitClassLabel(dominantWaitEvent.value.waitClass)} 구간이 높으므로 관련 자원 상태를 점검하세요.`,
-      tone: 'neutral'
-    })
-  }
-
-  if (items.length < 3) {
-    items.push({
-      title: '분석 결과 축적',
-      description: 'AWR 리포트를 추가 등록해 비교 분석 기반을 늘리는 것이 좋습니다.',
-      tone: 'neutral'
-    })
-  }
-
-  return items.slice(0, 3)
-})
-
-onMounted(loadDashboard)
-
-async function loadDashboard() {
-  publicLoadMessage.value = ''
-  workspaceLoadMessage.value = ''
-
-  try {
-    reports.value = await getAwrReports()
-    await loadInsightDetails()
-  } catch (error) {
-    publicLoadMessage.value = error instanceof Error ? error.message : '대시보드 AWR 현황을 불러오지 못했습니다.'
-  }
-
-  if (!canUseWorkspace.value) return
-
-  try {
-    history.value = await getSqlTuningHistory()
-  } catch (error) {
-    workspaceLoadMessage.value = error instanceof Error ? error.message : 'SQL 튜닝 작업 현황을 불러오지 못했습니다.'
-  }
-}
-
-async function loadInsightDetails() {
-  const completedReports = reports.value.filter((report) =>
-    isReadyStatus(report.status)
-  )
-
-  // Wait Event 데이터가 있는 리포트를 우선 확보
-  const waitTargets = completedReports
-    .filter((report) => report.waitEventCount > 0)
-    .slice(0, 5)
-
-  // Top SQL 데이터가 있는 리포트도 별도로 확보
-  const sqlTargets = completedReports
-    .filter((report) => report.topSqlCount > 0)
-    .slice(0, 5)
-
-  // 기존 데이터의 집계 건수가 0으로 잘못 저장된 경우를 위한 보조 조회
-  const fallbackTargets = completedReports.slice(0, 5)
-
-  // 동일 리포트 중복 제거
-  const targetMap = new Map<number, ReportSummaryResponse>()
-
-  for (const report of [
-    ...waitTargets,
-    ...sqlTargets,
-    ...fallbackTargets
-  ]) {
-    targetMap.set(report.id, report)
-  }
-
-  const targets = Array.from(targetMap.values())
-
-  const results = await Promise.allSettled(
-    targets.map((report) => getAwrReport(report.id))
-  )
-
-  reportDetails.value = results
-    .filter(
-      (
-        result
-      ): result is PromiseFulfilledResult<ReportDetailResponse> =>
-        result.status === 'fulfilled'
-    )
-    .map((result) => result.value)
-}
-
-function openReport(reportId: number) {
-  router.push({
-    name: 'awr-report-detail',
-    params: {
-      id: reportId
-    }
-  })
-}
-
-function workspaceMetric(value: number) {
-  if (workspaceLoadMessage.value) return '-'
-  return canUseWorkspace.value ? formatNumber(value) : '-'
-}
-
-function calculateRiskScore(sql: SqlMetricResponse) {
-  const base = sql.score ?? 0
-  const elapsed = Math.min((sql.elapsedTimeSec || 0) / 10, 30)
-  const cpu = Math.min((sql.cpuTimeSec || 0) / 10, 25)
-  const buffer = Math.min(Math.log10((sql.bufferGets || 0) + 1) * 5, 25)
-  const disk = Math.min(Math.log10((sql.diskReads || 0) + 1) * 4, 15)
-  const rankBonus = Math.max(10 - (sql.rankNo || 10), 0)
-
-  return Math.round(Math.min(base + elapsed + cpu + buffer + disk + rankBonus, 100))
-}
-
-function riskLabel(score: number) {
-  if (score >= 75) return '높음'
-  if (score >= 45) return '주의'
-  return '낮음'
-}
-
-function riskClass(score: number) {
-  if (score >= 75) return 'danger'
-  if (score >= 45) return 'warn'
-  return 'ok'
-}
-
-function riskReason(sql: SqlMetricResponse) {
-  const elapsed = sql.elapsedTimeSec || 0
-  const cpu = sql.cpuTimeSec || 0
-  const buffer = sql.bufferGets || 0
-  const disk = sql.diskReads || 0
-  const execs = sql.executions || 0
-
-  if (cpu >= elapsed * 0.55 && cpu > 0) return 'CPU 사용 비중 높음'
-  if (buffer >= 1_000_000) return 'Buffer Gets 과다'
-  if (disk >= 100_000) return 'Disk Reads 과다'
-  if (execs >= 1_000) return '실행 횟수 과다'
-  if (elapsed >= 300) return '수행 시간 과다'
-
-  return '상위 부하 SQL'
-}
-
-function waitClassLabel(waitClass?: string | null) {
-  const labels: Record<string, string> = {
-    CPU: 'CPU',
-    'User I/O': '사용자 I/O',
-    'System I/O': '시스템 I/O',
-    Commit: '커밋 대기',
-    Concurrency: '동시성 대기',
-    Cluster: 'RAC 클러스터',
-    Application: '애플리케이션',
-    Network: '네트워크'
-  }
-
-  if (!waitClass) return '-'
-  return labels[waitClass] || waitClass
-}
-
-function normalizeWaitEventName(name?: string | null) {
-  if (!name) return '-'
-
-  const normalized = name
-    .split(/\s+/)
-    .filter(Boolean)
-    .filter((token, index, arr) => index === 0 || token !== arr[index - 1])
-    .join(' ')
-
-  const map: Record<string, string> = {
-    'DB CPU CPU': 'DB CPU',
-    'CPU CPU': 'CPU'
-  }
-
-  return map[normalized] || normalized
-}
-
-function bottleneckComment(event: WaitEventItem) {
-  if (event.dbTimePercent >= 40) return 'DB Time 비중이 매우 높습니다.'
-  if (event.dbTimePercent >= 20) return '우선 확인이 필요한 병목입니다.'
-  return '참고 수준으로 확인하면 됩니다.'
-}
-
-function formatNumber(value: number) {
-  return new Intl.NumberFormat('ko-KR').format(value)
-}
-
-function formatCompactNumber(value?: number | null) {
-  if (!value) return '-'
-
-  return new Intl.NumberFormat('ko-KR', {
-    notation: 'compact',
-    maximumFractionDigits: 1
-  }).format(value)
-}
-
-function formatSeconds(value?: number | null) {
-  if (!value) return '-'
-
-  if (value >= 60) {
-    return `${(value / 60).toFixed(1)}분`
-  }
-
-  return `${value.toFixed(1)}초`
-}
-
-function formatPercent(value?: number | null) {
-  if (!value) return '-'
-  return `${value.toFixed(1)}%`
-}
 </script>
 
-<style src="./awr.css"></style>
-<style scoped src="./AwrDashboard.css"></style>
+<style src="./AwrDashboard.css"></style>

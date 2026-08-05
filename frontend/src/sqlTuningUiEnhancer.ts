@@ -98,6 +98,25 @@ function enhanceAutomaticTopSqlQuery(): void {
   }
 }
 
+function enhanceTerminology(): void {
+  const modeButtons = document.querySelectorAll<HTMLButtonElement>('.sql-workbench .mode-switch button')
+  if (modeButtons[0]?.textContent?.trim() === 'DB 자동 진단') modeButtons[0].textContent = 'DB 연계 분석'
+
+  const heroDescription = document.querySelector<HTMLElement>('.sql-workbench .awr-upload-hero p:last-child')
+  if (heroDescription?.textContent?.includes('자동 진단')) {
+    heroDescription.textContent = 'DB에 직접 연결해 SQL 성능 지표와 실행계획을 분석하거나 SQL을 직접 입력해 상세 분석합니다.'
+  }
+
+  document.querySelectorAll<HTMLElement>('.sql-workbench .result-panel .awr-panel-title').forEach((title) => {
+    if (title.textContent?.trim() === '자동 진단 결과') title.textContent = 'DB 연계 분석 결과'
+  })
+
+  const resultSummary = document.querySelector<HTMLElement>('.sql-workbench .diagnosis-copy h3')
+  if (resultSummary?.textContent?.includes('성능 점검 항목')) {
+    resultSummary.textContent = resultSummary.textContent.replace('성능 점검 항목', '성능 분석 항목')
+  }
+}
+
 function enhanceSqlSource(): void {
   document.querySelectorAll<HTMLPreElement>('.sql-workbench pre.sql-box').forEach((sqlBox) => {
     if (sqlBox.dataset.expandable === 'true') return
@@ -108,12 +127,12 @@ function enhanceSqlSource(): void {
     const button = document.createElement('button')
     button.type = 'button'
     button.className = 'sql-expand-button'
-    button.textContent = '전체 보기'
+    button.textContent = '전체 SQL 보기 ︾'
     button.setAttribute('aria-expanded', 'false')
 
     button.addEventListener('click', () => {
       const expanded = sqlBox.classList.toggle('expanded')
-      button.textContent = expanded ? '접기' : '전체 보기'
+      button.textContent = expanded ? 'SQL 접기 ︽' : '전체 SQL 보기 ︾'
       button.setAttribute('aria-expanded', String(expanded))
     })
 
@@ -125,6 +144,7 @@ function enhanceSqlTuningUi(): void {
   enhanceSqlTuningControls()
   enhanceSortableTopSqlTable()
   enhanceAutomaticTopSqlQuery()
+  enhanceTerminology()
   enhanceSqlSource()
 }
 

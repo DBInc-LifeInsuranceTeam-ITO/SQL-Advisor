@@ -131,12 +131,12 @@ function enhanceSqlSource(): void {
     const button = document.createElement('button')
     button.type = 'button'
     button.className = 'sql-expand-button'
-    button.textContent = '전체 SQL 보기'
+    button.textContent = '전체 SQL 보기 ▼'
     button.setAttribute('aria-expanded', 'false')
 
     button.addEventListener('click', () => {
       const expanded = sqlBox.classList.toggle('expanded')
-      button.textContent = expanded ? 'SQL 접기' : '전체 SQL 보기'
+      button.textContent = expanded ? 'SQL 접기 ▲' : '전체 SQL 보기 ▼'
       button.setAttribute('aria-expanded', String(expanded))
     })
 

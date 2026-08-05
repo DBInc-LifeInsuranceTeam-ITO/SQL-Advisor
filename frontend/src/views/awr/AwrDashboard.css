@@ -50,10 +50,11 @@
 .collector-state.error .live-dot { background:#ef4444; }
 
 .summary-grid { height:98px; display:grid; grid-template-columns:repeat(4,minmax(0,1fr)); gap:14px; margin:8px 0 14px; }
-.summary-card,.panel { border:1px solid rgba(214,228,220,.95); background:rgba(255,255,255,.95); box-shadow:0 14px 34px rgba(27,67,45,.06); }
+.summary-card,.panel { background:rgba(255,255,255,.95); box-shadow:0 14px 34px rgba(27,67,45,.06); }
 .summary-card {
   min-width:0;
-  padding:14px 17px 14px 20px;
+  padding:14px 17px;
+  border:1.5px solid #b9dfca;
   border-radius:20px;
   display:grid;
   align-content:space-between;
@@ -61,31 +62,17 @@
   overflow:hidden;
   box-sizing:border-box;
 }
-.summary-card::before {
-  content:'';
-  position:absolute;
-  top:14px;
-  bottom:14px;
-  left:0;
-  width:4px;
-  border-radius:0 999px 999px 0;
-  background:#20a464;
-}
-.summary-card::after { display:none; }
-.summary-card:nth-child(1) { background:linear-gradient(135deg,rgba(255,255,255,.98),rgba(231,248,239,.88)); }
-.summary-card:nth-child(1)::before { background:#16a765; }
-.summary-card:nth-child(2) { background:linear-gradient(135deg,rgba(255,255,255,.98),rgba(255,246,226,.9)); }
-.summary-card:nth-child(2)::before { background:#e59a19; }
-.summary-card:nth-child(3) { background:linear-gradient(135deg,rgba(255,255,255,.98),rgba(255,237,237,.9)); }
-.summary-card:nth-child(3)::before { background:#ed4a4a; }
-.summary-card:nth-child(4) { background:linear-gradient(135deg,rgba(255,255,255,.98),rgba(255,239,239,.9)); }
-.summary-card:nth-child(4)::before { background:#d92f2f; }
+.summary-card::before,.summary-card::after { display:none; }
+.summary-card:nth-child(1) { border-color:#93d4b1; }
+.summary-card:nth-child(2) { border-color:#edc980; }
+.summary-card:nth-child(3) { border-color:#efaaaa; }
+.summary-card:nth-child(4) { border-color:#e78f8f; }
 .summary-card span,.summary-card small { color:#718078; font-size:11px; font-weight:800; }
 .summary-card strong { margin:2px 0; color:#173c29; font-size:25px; letter-spacing:-.05em; }
 .summary-card.warning strong { color:#d97706; }.summary-card.danger strong { color:#dc2626; }
 
 .main-grid { height:calc(100vh - 252px); min-height:390px; display:grid; grid-template-columns:minmax(0,1.18fr) minmax(0,.98fr); gap:14px; }
-.panel { min-width:0; padding:16px 18px; border-radius:20px; box-sizing:border-box; overflow:hidden; }
+.panel { min-width:0; padding:16px 18px; border:1px solid rgba(214,228,220,.95); border-radius:20px; box-sizing:border-box; overflow:hidden; }
 .panel-title-row { display:flex; align-items:flex-start; justify-content:space-between; gap:12px; margin-bottom:12px; }
 .panel-title-row h2 { font-size:18px; }
 .badge { display:inline-flex; align-items:center; border-radius:999px; padding:6px 9px; color:#557064; background:#eef4f1; font-size:10px; font-weight:900; }
@@ -97,11 +84,12 @@
 .chart-summary div { padding:9px 12px; border-radius:12px; background:#f7faf8; }
 .chart-summary span { display:block; color:#829089; font-size:10px; font-weight:800; }
 .chart-summary strong { display:block; margin-top:3px; color:#173c29; font-size:18px; }
-.line-chart { height:calc(100% - 103px); min-height:210px; position:relative; overflow:visible; padding-bottom:40px; box-sizing:border-box; }
-.line-chart svg,.chart-grid-lines { position:absolute; inset:0 0 40px; width:100%; height:calc(100% - 40px); }
+.line-chart { height:calc(100% - 103px); min-height:210px; position:relative; overflow:visible; padding:0 0 40px 38px; box-sizing:border-box; }
+.line-chart svg,.chart-grid-lines { position:absolute; top:0; right:0; bottom:40px; left:38px; width:calc(100% - 38px); height:calc(100% - 40px); }
 .chart-grid-lines { display:grid; grid-template-rows:repeat(5,1fr); }
 .chart-grid-lines i { border-top:1px dashed #dce7e1; }
-.chart-labels { position:absolute; right:0; bottom:8px; left:0; display:flex; align-items:center; justify-content:space-between; color:#74827b; font-size:10px; font-weight:700; white-space:nowrap; }
+.y-axis-labels { position:absolute; top:-5px; bottom:35px; left:0; width:32px; display:flex; flex-direction:column; justify-content:space-between; align-items:flex-end; color:#74827b; font-size:10px; font-weight:700; }
+.chart-labels { position:absolute; right:0; bottom:8px; left:38px; display:flex; align-items:center; justify-content:space-between; color:#74827b; font-size:10px; font-weight:700; white-space:nowrap; }
 .chart-labels span:first-child { text-align:left; }
 .chart-labels span:last-child { text-align:right; }
 

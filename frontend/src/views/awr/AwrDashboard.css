@@ -15,19 +15,9 @@
 .dashboard-header h1,.panel-title-row h2 { margin:0; color:#10231a; letter-spacing:-.04em; }
 .realtime-dashboard .dashboard-header h1 { font-size:31px !important; line-height:1.05; }
 .dashboard-header p { margin:6px 0 0; color:#718079; font-size:13px; font-weight:600; }
-.header-actions {
-  display:flex;
-  align-items:center;
-  gap:14px;
-  min-height:64px;
-  padding:9px 14px;
-  border:1px solid rgba(172,210,191,.72);
-  border-radius:16px;
-  background:rgba(255,255,255,.42);
-  box-sizing:border-box;
-}
-.db-select,.collector-state { min-width:0; padding:0; border:0; border-radius:0; background:transparent; box-shadow:none; box-sizing:border-box; }
-.db-select { display:grid; gap:6px; width:182px; }
+.header-actions { display:flex; align-items:center; gap:26px; min-height:64px; padding-right:8px; }
+.db-select,.collector-state { min-width:172px; padding:0; border:0; border-radius:0; background:transparent; box-shadow:none; box-sizing:border-box; }
+.db-select { display:grid; gap:6px; }
 .db-select span,.collector-state small { color:#7b8882; font-size:10px; font-weight:800; }
 .db-select select {
   appearance:none;
@@ -38,7 +28,7 @@
   border:1px solid rgba(9,143,76,.22);
   border-radius:10px;
   outline:0;
-  background-color:rgba(255,255,255,.72);
+  background-color:rgba(255,255,255,.58);
   background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='16' height='16' viewBox='0 0 16 16'%3E%3Cpath fill='%23078f4c' d='M4 6l4 4 4-4z'/%3E%3C/svg%3E");
   background-repeat:no-repeat;
   background-position:right 10px center;
@@ -50,9 +40,9 @@
   cursor:pointer;
   transition:border-color .18s ease, background-color .18s ease, box-shadow .18s ease;
 }
-.db-select select:hover { border-color:rgba(9,143,76,.42); background-color:rgba(255,255,255,.9); }
+.db-select select:hover { border-color:rgba(9,143,76,.42); background-color:rgba(255,255,255,.82); }
 .db-select select:focus { border-color:#078f4c; box-shadow:0 0 0 3px rgba(7,143,76,.12); }
-.collector-state { display:flex; align-items:center; gap:11px; min-width:160px; }
+.collector-state { display:flex; align-items:center; gap:11px; }
 .collector-state div { display:grid; gap:3px; }
 .collector-state strong { color:#16713f; font-size:14px; }
 .collector-state.error strong { color:#c62828; }

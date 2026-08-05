@@ -57,8 +57,8 @@
           <div class="chart-grid-lines"><i v-for="line in 5" :key="line"></i></div>
           <svg viewBox="0 0 720 220" preserveAspectRatio="none">
             <defs><linearGradient id="areaGradient" x1="0" y1="0" x2="0" y2="1"><stop offset="0%" stop-color="#16a34a" stop-opacity="0.28"/><stop offset="100%" stop-color="#16a34a" stop-opacity="0"/></linearGradient></defs>
-            <path v-if="areaPath" :d="areaPath" fill="url(#areaGradient)" />
-            <polyline v-if="chartPoints" :points="chartPoints" fill="none" stroke="#0b8f49" stroke-width="4" stroke-linecap="round" stroke-linejoin="round" />
+            <path :d="areaPath" fill="url(#areaGradient)" />
+            <polyline :points="chartPoints" fill="none" stroke="#0b8f49" stroke-width="4" stroke-linecap="round" stroke-linejoin="round" />
           </svg>
           <div class="chart-labels"><span v-for="label in chartTimeLabels" :key="label">{{ label }}</span></div>
         </div>
@@ -100,11 +100,10 @@ import { getMonitoringDashboard, type MonitoringDashboardResponse } from '@/api/
 import type { SqlMetricResponse, TargetDbConnectionResponse } from '@/types/awr'
 
 type MetricKey = 'activeSessions' | 'executions' | 'cpu' | 'io'
+type ActivityPoint = MonitoringDashboardResponse['activity']['points'][number]
 
 const CHART_SLOT_COUNT = 12
-const CHART_WIDTH = 720
-const CHART_BASE_Y = 205
-const CHART_RANGE_Y = 175
+const CHART_INTERVAL_MS = 5000
 
 const connections = ref<TargetDbConnectionResponse[]>([])
 const selectedConnectionId = ref(0)
@@ -124,7 +123,8 @@ const metricOptions: { key: MetricKey; label: string }[] = [
 ]
 
 const activityPoints = computed(() => dashboard.value?.activity.points || [])
-const selectedSeries = computed(() => activityPoints.value.map(point => point[selectedMetric.value]))
+const chartWindow = computed(() => buildChartWindow(activityPoints.value))
+const selectedSeries = computed(() => chartWindow.value.map(point => point[selectedMetric.value]))
 const lastUpdated = computed(() => formatTime(dashboard.value?.connection.collectedAt))
 const summaries = computed(() => [
   { label: '현재 실행 SQL', value: `${dashboard.value?.summary.activeSqlCount || 0}건`, description: 'Active 세션 기준', tone: 'normal' },
@@ -133,46 +133,39 @@ const summaries = computed(() => [
   { label: 'Blocking 세션', value: `${dashboard.value?.summary.blockingSessionCount || 0}건`, description: '즉시 확인 필요', tone: 'danger' }
 ])
 const currentMetricValue = computed(() => formatMetric(selectedSeries.value.at(-1) || 0))
-const averageMetricValue = computed(() => formatMetric(selectedSeries.value.length ? selectedSeries.value.reduce((a, b) => a + b, 0) / selectedSeries.value.length : 0))
+const averageMetricValue = computed(() => formatMetric(selectedSeries.value.reduce((sum, value) => sum + value, 0) / CHART_SLOT_COUNT))
 const maxMetricValue = computed(() => formatMetric(Math.max(...selectedSeries.value, 0)))
-
-const chartCoordinates = computed(() => {
-  const values = selectedSeries.value.slice(-CHART_SLOT_COUNT)
-  if (values.length === 0) return []
-
+const chartPoints = computed(() => {
+  const values = selectedSeries.value
   const max = Math.max(...values, 1)
-  const slotWidth = CHART_WIDTH / (CHART_SLOT_COUNT - 1)
-  const startSlot = CHART_SLOT_COUNT - values.length
+  return values.map((value, index) => `${(index / (CHART_SLOT_COUNT - 1)) * 720},${205 - (value / max) * 175}`).join(' ')
+})
+const areaPath = computed(() => `M 0 220 L ${chartPoints.value.replaceAll(' ', ' L ')} L 720 220 Z`)
+const chartTimeLabels = computed(() => [0, 2, 4, 6, 8, 10, 11].map(index => formatTime(chartWindow.value[index]?.collectedAt)))
 
-  const coordinates = values.map((value, index) => ({
-    x: (startSlot + index) * slotWidth,
-    y: CHART_BASE_Y - (value / max) * CHART_RANGE_Y
-  }))
-
-  if (coordinates.length === 1) {
-    const only = coordinates[0]
-    return [{ x: Math.max(0, only.x - slotWidth), y: only.y }, only]
+function buildChartWindow(points: ActivityPoint[]): ActivityPoint[] {
+  const sorted = [...points].sort((left, right) => new Date(left.collectedAt).getTime() - new Date(right.collectedAt).getTime())
+  const end = dashboard.value?.connection.collectedAt ? new Date(dashboard.value.connection.collectedAt).getTime() : Date.now()
+  const first = sorted[0]
+  const fallback: ActivityPoint = first || {
+    collectedAt: new Date(end).toISOString(),
+    activeSessions: 0,
+    executions: 0,
+    cpu: 0,
+    io: 0
   }
-  return coordinates
-})
 
-const chartPoints = computed(() => chartCoordinates.value.map(point => `${point.x},${point.y}`).join(' '))
-const areaPath = computed(() => {
-  const points = chartCoordinates.value
-  if (points.length === 0) return ''
-  const first = points[0]
-  const last = points.at(-1)!
-  return `M ${first.x} 220 L ${points.map(point => `${point.x} ${point.y}`).join(' L ')} L ${last.x} 220 Z`
-})
-
-const chartTimeLabels = computed(() => {
-  const anchorValue = dashboard.value?.connection.collectedAt
-  const anchor = anchorValue ? new Date(anchorValue) : new Date()
-  return [55, 45, 35, 25, 15, 5, 0].map(secondsAgo => {
-    const time = new Date(anchor.getTime() - secondsAgo * 1000)
-    return formatTime(time.toISOString())
+  let cursor = 0
+  let latest = fallback
+  return Array.from({ length: CHART_SLOT_COUNT }, (_, index) => {
+    const slotTime = end - (CHART_SLOT_COUNT - 1 - index) * CHART_INTERVAL_MS
+    while (cursor < sorted.length && new Date(sorted[cursor].collectedAt).getTime() <= slotTime + CHART_INTERVAL_MS / 2) {
+      latest = sorted[cursor]
+      cursor += 1
+    }
+    return { ...latest, collectedAt: new Date(slotTime).toISOString() }
   })
-})
+}
 
 async function loadConnections() {
   try {
@@ -205,7 +198,7 @@ function restartPolling() {
   topSql.value = []
   topSqlTick = 0
   void refreshDashboard()
-  timer = window.setInterval(() => void refreshDashboard(), 5000)
+  timer = window.setInterval(() => void refreshDashboard(), CHART_INTERVAL_MS)
 }
 
 function formatMetric(value: number) { return selectedMetric.value === 'cpu' ? `${value.toFixed(1)}초` : Math.round(value).toLocaleString() }

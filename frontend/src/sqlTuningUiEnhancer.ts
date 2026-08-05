@@ -117,12 +117,6 @@ function enhanceTerminology(): void {
   }
 }
 
-function setSqlExpandButtonContent(button: HTMLButtonElement, expanded: boolean): void {
-  const label = expanded ? 'SQL 접기' : '전체 SQL 보기'
-  const icon = expanded ? '︽' : '︾'
-  button.innerHTML = `<span class="sql-expand-label">${label}</span><span class="sql-expand-icon" aria-hidden="true">${icon}</span>`
-}
-
 function enhanceSqlSource(): void {
   document.querySelectorAll<HTMLPreElement>('.sql-workbench pre.sql-box').forEach((sqlBox) => {
     if (sqlBox.dataset.expandable === 'true') return
@@ -133,12 +127,12 @@ function enhanceSqlSource(): void {
     const button = document.createElement('button')
     button.type = 'button'
     button.className = 'sql-expand-button'
-    setSqlExpandButtonContent(button, false)
+    button.textContent = '전체 SQL 보기'
     button.setAttribute('aria-expanded', 'false')
 
     button.addEventListener('click', () => {
       const expanded = sqlBox.classList.toggle('expanded')
-      setSqlExpandButtonContent(button, expanded)
+      button.textContent = expanded ? 'SQL 접기' : '전체 SQL 보기'
       button.setAttribute('aria-expanded', String(expanded))
     })
 

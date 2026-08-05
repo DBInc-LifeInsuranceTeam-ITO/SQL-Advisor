@@ -102,7 +102,7 @@ import { getDirectTopSql, getTargetDbConnections } from '@/api/sqlTuning'
 import { getMonitoringDashboard, type MonitoringDashboardResponse } from '@/api/monitoring'
 import type { SqlMetricResponse, TargetDbConnectionResponse } from '@/types/awr'
 
-type MetricKey = 'activeSessions' | 'executions' | 'cpu' | 'io'
+type MetricKey = 'activeSessions' | 'cpu' | 'io'
 type ActivityPoint = MonitoringDashboardResponse['activity']['points'][number]
 
 const CHART_SLOT_COUNT = 12
@@ -120,7 +120,6 @@ let topSqlTick = 0
 
 const metricOptions: { key: MetricKey; label: string }[] = [
   { key: 'activeSessions', label: 'Active Sessions' },
-  { key: 'executions', label: 'Executions' },
   { key: 'cpu', label: 'CPU' },
   { key: 'io', label: 'I/O' }
 ]

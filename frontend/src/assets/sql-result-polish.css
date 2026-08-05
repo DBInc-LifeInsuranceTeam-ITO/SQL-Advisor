@@ -49,6 +49,62 @@
   outline-offset: 2px;
 }
 
+/* 직접 SQL 분석 폼이 패널 그리드 폭에 갇히지 않도록 전체 폭으로 고정 */
+.sql-workbench .input-panel > .awr-form {
+  grid-column: 1 / -1 !important;
+  display: grid !important;
+  width: 100% !important;
+  min-width: 0 !important;
+  gap: 16px !important;
+}
+
+.sql-workbench .input-panel > .awr-form .awr-field {
+  display: grid !important;
+  width: 100% !important;
+  min-width: 0 !important;
+  gap: 7px !important;
+  margin: 0 !important;
+}
+
+.sql-workbench .input-panel > .awr-form .awr-input,
+.sql-workbench .input-panel > .awr-form .awr-textarea {
+  display: block !important;
+  box-sizing: border-box !important;
+  width: 100% !important;
+  min-width: 0 !important;
+  max-width: 100% !important;
+  margin: 0 !important;
+  font-family: inherit !important;
+}
+
+.sql-workbench .input-panel > .awr-form .awr-input {
+  height: 44px !important;
+  min-height: 44px !important;
+}
+
+.sql-workbench .input-panel > .awr-form .awr-textarea {
+  height: 150px !important;
+  min-height: 150px !important;
+  max-height: 150px !important;
+  padding: 12px 14px !important;
+  overflow: auto !important;
+  resize: none !important;
+  line-height: 1.55 !important;
+}
+
+.sql-workbench .input-panel > .awr-form .awr-textarea.main-sql {
+  height: 230px !important;
+  min-height: 230px !important;
+  max-height: 230px !important;
+}
+
+.sql-workbench .input-panel > .awr-form > .awr-btn.primary {
+  justify-self: end;
+  min-width: 132px;
+  min-height: 42px;
+  margin-top: 2px;
+}
+
 /* 테이블 하나와 해당 인덱스 목록을 하나의 시각적 그룹으로 구분 */
 .sql-workbench .result-block .table-card {
   overflow: hidden;
@@ -111,6 +167,11 @@
 }
 
 @media (max-width: 760px) {
+  .sql-workbench .input-panel > .awr-form > .awr-btn.primary {
+    justify-self: stretch;
+    width: 100%;
+  }
+
   .sql-workbench .result-block .table-card > h4 {
     align-items: flex-start;
     flex-direction: column;

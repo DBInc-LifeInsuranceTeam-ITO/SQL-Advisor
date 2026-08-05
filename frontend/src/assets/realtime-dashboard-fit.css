@@ -1,0 +1,152 @@
+.realtime-dashboard {
+  height: 100vh !important;
+  min-height: 0 !important;
+  padding: 14px 24px 16px !important;
+  overflow: hidden !important;
+}
+
+.realtime-dashboard .dashboard-header {
+  margin-bottom: 12px !important;
+  gap: 16px !important;
+}
+
+.realtime-dashboard .dashboard-header h1 {
+  font-size: 26px !important;
+}
+
+.realtime-dashboard .dashboard-header p {
+  margin-top: 4px !important;
+  font-size: 12px !important;
+}
+
+.realtime-dashboard .db-select,
+.realtime-dashboard .collector-state {
+  min-width: 178px !important;
+  padding: 10px 13px !important;
+  border-radius: 15px !important;
+}
+
+.realtime-dashboard .summary-grid {
+  gap: 12px !important;
+  margin-bottom: 12px !important;
+}
+
+.realtime-dashboard .summary-card {
+  min-height: 88px !important;
+  padding: 13px 16px !important;
+  border-radius: 18px !important;
+}
+
+.realtime-dashboard .summary-card strong {
+  margin: 2px 0 !important;
+  font-size: 24px !important;
+}
+
+.realtime-dashboard .dashboard-grid {
+  height: calc(100vh - 250px) !important;
+  grid-template-rows: minmax(300px, 1fr) 185px !important;
+  gap: 12px !important;
+  align-items: stretch !important;
+}
+
+.realtime-dashboard .panel {
+  padding: 16px !important;
+  border-radius: 20px !important;
+  overflow: hidden !important;
+}
+
+.realtime-dashboard .activity-panel,
+.realtime-dashboard .priority-panel {
+  min-height: 0 !important;
+  height: 100% !important;
+}
+
+.realtime-dashboard .panel-title-row {
+  margin-bottom: 12px !important;
+}
+
+.realtime-dashboard .panel-title-row h2 {
+  font-size: 18px !important;
+}
+
+.realtime-dashboard .chart-summary {
+  margin-bottom: 8px !important;
+}
+
+.realtime-dashboard .chart-summary div {
+  padding: 9px 12px !important;
+}
+
+.realtime-dashboard .chart-summary strong {
+  font-size: 17px !important;
+}
+
+.realtime-dashboard .line-chart {
+  height: calc(100% - 108px) !important;
+  min-height: 150px !important;
+}
+
+.realtime-dashboard .dashboard-grid > .panel:nth-child(n + 3) {
+  min-height: 0 !important;
+  height: 185px !important;
+  padding: 14px 16px !important;
+}
+
+.realtime-dashboard .dashboard-grid > .panel:nth-child(n + 3) .panel-title-row {
+  margin-bottom: 8px !important;
+}
+
+.realtime-dashboard .dashboard-grid > .panel:nth-child(n + 3) .panel-title-row h2 {
+  font-size: 16px !important;
+}
+
+.realtime-dashboard .dashboard-grid > .panel:nth-child(n + 3) .panel-kicker {
+  margin-bottom: 2px !important;
+  font-size: 10px !important;
+}
+
+.realtime-dashboard .sql-table th {
+  padding: 7px 6px !important;
+}
+
+.realtime-dashboard .sql-table td {
+  padding: 10px 6px !important;
+}
+
+@media (max-height: 900px) and (min-width: 1301px) {
+  .realtime-dashboard {
+    padding-top: 10px !important;
+    padding-bottom: 10px !important;
+  }
+
+  .realtime-dashboard .dashboard-header {
+    margin-bottom: 8px !important;
+  }
+
+  .realtime-dashboard .dashboard-header h1 {
+    font-size: 24px !important;
+  }
+
+  .realtime-dashboard .dashboard-header p {
+    display: none !important;
+  }
+
+  .realtime-dashboard .summary-card {
+    min-height: 78px !important;
+    padding: 10px 14px !important;
+  }
+
+  .realtime-dashboard .summary-grid {
+    margin-bottom: 8px !important;
+  }
+
+  .realtime-dashboard .dashboard-grid {
+    height: calc(100vh - 198px) !important;
+    grid-template-rows: minmax(270px, 1fr) 168px !important;
+    gap: 8px !important;
+  }
+
+  .realtime-dashboard .dashboard-grid > .panel:nth-child(n + 3) {
+    height: 168px !important;
+  }
+}

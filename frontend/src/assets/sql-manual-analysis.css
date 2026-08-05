@@ -6,6 +6,8 @@
 
 .sql-workbench .manual-analysis-form .awr-field {
   display: grid;
+  grid-template-columns: max-content max-content minmax(0, 1fr);
+  align-items: center;
   gap: 8px;
   margin: 0 !important;
   color: #203128;
@@ -15,6 +17,7 @@
 
 .sql-workbench .manual-analysis-form .awr-input,
 .sql-workbench .manual-analysis-form .awr-textarea {
+  grid-column: 1 / -1;
   width: 100% !important;
   box-sizing: border-box;
   resize: none !important;
@@ -35,8 +38,9 @@
 }
 
 .sql-workbench .manual-field-badge {
+  grid-column: 2;
   justify-self: start;
-  margin-left: 6px;
+  margin: 0;
   padding: 3px 7px;
   border-radius: 999px;
   font-size: 10px;
@@ -50,6 +54,7 @@
 }
 
 .sql-workbench .manual-field-help {
+  grid-column: 1 / -1;
   margin: -2px 0 0 !important;
   color: #748078;
   font-size: 11px;

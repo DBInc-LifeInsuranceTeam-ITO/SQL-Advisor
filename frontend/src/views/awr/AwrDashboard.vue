@@ -46,11 +46,13 @@
             </button>
           </div>
         </div>
+
         <div class="chart-summary">
           <div><span>현재</span><strong>{{ currentMetricValue }}</strong></div>
           <div><span>최근 평균</span><strong>{{ averageMetricValue }}</strong></div>
           <div><span>최고</span><strong>{{ maxMetricValue }}</strong></div>
         </div>
+
         <div class="line-chart">
           <div class="chart-grid-lines"><i v-for="line in 5" :key="line"></i></div>
           <svg viewBox="0 0 720 220" preserveAspectRatio="none">
@@ -62,57 +64,29 @@
         </div>
       </article>
 
-      <article class="panel priority-panel">
+      <article class="panel top-sql-panel">
         <div class="panel-title-row">
-          <div><span class="panel-kicker">PRIORITY SQL</span><h2>지금 확인해야 할 SQL</h2></div>
-          <span class="badge">실행 중 SQL</span>
+          <div><span class="panel-kicker">TOP SQL</span><h2>부하 상위 SQL</h2></div>
+          <span class="badge">총 수행시간 기준</span>
         </div>
-        <div v-if="prioritySql.length === 0" class="empty-panel">현재 실행 중인 점검 대상 SQL이 없습니다.</div>
+
+        <div v-if="topSql.length === 0" class="empty-panel">수집된 업무 SQL이 없습니다.</div>
         <div v-else class="table-wrap">
           <table>
-            <thead><tr><th>위험도</th><th>SQL ID</th><th>경과</th><th>CPU</th><th>문제</th></tr></thead>
+            <thead>
+              <tr><th>순위</th><th>SQL ID</th><th>수행시간</th><th>Buffer Gets</th><th>Disk Reads</th><th>실행</th></tr>
+            </thead>
             <tbody>
-              <tr v-for="sql in prioritySql.slice(0, 5)" :key="`${sql.sqlId}-${sql.username}`">
-                <td><span class="severity" :class="severityClass(sql.riskLevel)">{{ sql.riskLabel }}</span></td>
-                <td><strong class="sql-id">{{ sql.sqlId }}</strong><small>{{ sql.username }}</small></td>
-                <td>{{ formatSeconds(sql.elapsedSec) }}</td><td>{{ sql.cpuPercent.toFixed(1) }}%</td><td><span class="issue-tag">{{ sql.issueLabel }}</span></td>
+              <tr v-for="(sql, index) in topSql.slice(0, 10)" :key="`${sql.sqlId}-${index}`">
+                <td><span class="rank-badge">{{ index + 1 }}</span></td>
+                <td><strong class="sql-id">{{ sql.sqlId }}</strong><small>{{ sql.module || sql.sectionName || '모듈 정보 없음' }}</small></td>
+                <td>{{ formatMetricNumber(sql.elapsedTimeSec) }}초</td>
+                <td>{{ formatCompact(sql.bufferGets || 0) }}</td>
+                <td>{{ formatCompact(sql.diskReads || 0) }}</td>
+                <td>{{ formatCompact(sql.executions || 0) }}</td>
               </tr>
             </tbody>
           </table>
-        </div>
-      </article>
-    </section>
-
-    <section class="bottom-grid">
-      <article class="panel compact-panel">
-        <div class="panel-title-row"><div><span class="panel-kicker">TOP SQL</span><h2>부하 상위 SQL</h2></div><span class="badge">Elapsed 기준</span></div>
-        <div v-if="topSql.length === 0" class="compact-empty">수집된 SQL이 없습니다.</div>
-        <div v-else class="rank-list">
-          <div v-for="(sql, index) in topSql.slice(0, 5)" :key="sql.sqlId" class="rank-row">
-            <b>{{ index + 1 }}</b><div><strong>{{ sql.sqlId }}</strong><small>{{ sql.module || '모듈 정보 없음' }}</small></div>
-            <span>{{ formatMetricNumber(sql.elapsedTimeSec) }}초</span><em>{{ formatCompact(sql.bufferGets || 0) }} Gets</em>
-          </div>
-        </div>
-      </article>
-
-      <article class="panel compact-panel">
-        <div class="panel-title-row"><div><span class="panel-kicker">WAIT EVENT</span><h2>현재 대기 이벤트</h2></div><span class="badge">Active 세션</span></div>
-        <div v-if="waitEvents.length === 0" class="compact-empty">현재 대기 이벤트가 없습니다.</div>
-        <div v-else class="wait-list">
-          <div v-for="item in waitEvents" :key="item.name" class="wait-row">
-            <div><strong>{{ item.name }}</strong><small>{{ item.count }}개 세션</small></div>
-            <span>{{ item.percent }}%</span>
-            <i><b :style="{ width: `${item.percent}%` }"></b></i>
-          </div>
-        </div>
-      </article>
-
-      <article class="panel compact-panel">
-        <div class="panel-title-row"><div><span class="panel-kicker">DETECTION</span><h2>이상 징후 요약</h2></div><span class="badge">실시간 기준</span></div>
-        <div class="detection-list">
-          <div v-for="item in detections" :key="item.label" class="detection-row">
-            <span :class="item.tone">{{ item.icon }}</span><div><strong>{{ item.label }}</strong><small>{{ item.description }}</small></div><em>{{ item.count }}건</em>
-          </div>
         </div>
       </article>
     </section>
@@ -138,35 +112,21 @@ let timer: number | undefined
 let topSqlTick = 0
 
 const metricOptions: { key: MetricKey; label: string }[] = [
-  { key: 'activeSessions', label: 'Active Sessions' }, { key: 'executions', label: 'Executions' },
-  { key: 'cpu', label: 'CPU' }, { key: 'io', label: 'I/O' }
+  { key: 'activeSessions', label: 'Active Sessions' },
+  { key: 'executions', label: 'Executions' },
+  { key: 'cpu', label: 'CPU' },
+  { key: 'io', label: 'I/O' }
 ]
+
 const activityPoints = computed(() => dashboard.value?.activity.points || [])
 const selectedSeries = computed(() => activityPoints.value.map(point => point[selectedMetric.value]))
 const lastUpdated = computed(() => formatTime(dashboard.value?.connection.collectedAt))
-const prioritySql = computed(() => dashboard.value?.prioritySql || [])
 const summaries = computed(() => [
   { label: '현재 실행 SQL', value: `${dashboard.value?.summary.activeSqlCount || 0}건`, description: 'Active 세션 기준', tone: 'normal' },
   { label: '장기 실행 SQL', value: `${dashboard.value?.summary.longRunningSqlCount || 0}건`, description: '30초 이상 수행', tone: 'warning' },
   { label: '주의 SQL', value: `${dashboard.value?.summary.warningSqlCount || 0}건`, description: '임계값 초과', tone: 'danger' },
   { label: 'Blocking 세션', value: `${dashboard.value?.summary.blockingSessionCount || 0}건`, description: '즉시 확인 필요', tone: 'danger' }
 ])
-const detections = computed(() => [
-  { icon: '⏱', label: '장기 실행', description: '30초 이상 실행', count: dashboard.value?.issues.longRunning || 0, tone: 'red' },
-  { icon: '↕', label: 'Logical Read 과다', description: 'Buffer Gets 100K 이상', count: dashboard.value?.issues.logicalReads || 0, tone: 'orange' },
-  { icon: '◫', label: 'Physical I/O 과다', description: 'Disk Reads 10K 이상', count: dashboard.value?.issues.physicalReads || 0, tone: 'blue' },
-  { icon: '⚠', label: 'Blocking', description: '다른 세션 차단', count: dashboard.value?.issues.blocking || 0, tone: 'purple' }
-])
-const waitEvents = computed(() => {
-  const counts = new Map<string, number>()
-  prioritySql.value.forEach(sql => {
-    const name = sql.waitEvent?.trim()
-    if (name && name !== 'SQL*Net message from client') counts.set(name, (counts.get(name) || 0) + 1)
-  })
-  const total = Array.from(counts.values()).reduce((sum, value) => sum + value, 0) || 1
-  return Array.from(counts.entries()).sort((a, b) => b[1] - a[1]).slice(0, 4)
-    .map(([name, count]) => ({ name, count, percent: Math.round((count / total) * 100) }))
-})
 const currentMetricValue = computed(() => formatMetric(selectedSeries.value.at(-1) || 0))
 const averageMetricValue = computed(() => formatMetric(selectedSeries.value.length ? selectedSeries.value.reduce((a, b) => a + b, 0) / selectedSeries.value.length : 0))
 const maxMetricValue = computed(() => formatMetric(Math.max(...selectedSeries.value, 0)))
@@ -182,30 +142,42 @@ async function loadConnections() {
   try {
     connections.value = await getTargetDbConnections()
     selectedConnectionId.value = connections.value.find(item => item.monitoringEnabled)?.id || connections.value[0]?.id || 0
-  } catch (error) { errorMessage.value = extractError(error) }
+  } catch (error) {
+    errorMessage.value = extractError(error)
+  }
 }
+
 async function refreshDashboard() {
   if (!selectedConnectionId.value || loading.value) return
   loading.value = true
   try {
     dashboard.value = await getMonitoringDashboard(selectedConnectionId.value)
-    if (topSqlTick++ % 3 === 0) topSql.value = await getDirectTopSql(selectedConnectionId.value, { source: 'CURRENT', limit: 20, sortBy: 'ELAPSED' })
+    if (topSqlTick++ % 3 === 0) {
+      topSql.value = await getDirectTopSql(selectedConnectionId.value, { source: 'CURRENT', limit: 20, sortBy: 'ELAPSED' })
+    }
     errorMessage.value = ''
-  } catch (error) { errorMessage.value = extractError(error) }
-  finally { loading.value = false }
+  } catch (error) {
+    errorMessage.value = extractError(error)
+  } finally {
+    loading.value = false
+  }
 }
+
 function restartPolling() {
   if (timer) window.clearInterval(timer)
-  dashboard.value = null; topSql.value = []; topSqlTick = 0
-  void refreshDashboard(); timer = window.setInterval(() => void refreshDashboard(), 5000)
+  dashboard.value = null
+  topSql.value = []
+  topSqlTick = 0
+  void refreshDashboard()
+  timer = window.setInterval(() => void refreshDashboard(), 5000)
 }
+
 function formatMetric(value: number) { return selectedMetric.value === 'cpu' ? `${value.toFixed(1)}초` : Math.round(value).toLocaleString() }
-function formatSeconds(value: number) { return `${value.toLocaleString()}초` }
 function formatCompact(value: number) { if (value >= 1_000_000) return `${(value / 1_000_000).toFixed(1)}M`; if (value >= 1_000) return `${Math.round(value / 1_000)}K`; return value.toLocaleString() }
 function formatMetricNumber(value?: number | null) { return (value || 0).toFixed(1) }
 function formatTime(value?: string) { if (!value) return '-'; return new Intl.DateTimeFormat('ko-KR', { hour: '2-digit', minute: '2-digit', second: '2-digit', hour12: false }).format(new Date(value)) }
-function severityClass(level: string) { if (level === 'CRITICAL') return 'critical'; if (level === 'HIGH') return 'high'; return 'medium' }
 function extractError(error: unknown) { return typeof error === 'object' && error && 'message' in error ? String(error.message) : '실시간 데이터 조회에 실패했습니다.' }
+
 watch(selectedConnectionId, value => { if (value) restartPolling() })
 onMounted(loadConnections)
 onBeforeUnmount(() => { if (timer) window.clearInterval(timer) })

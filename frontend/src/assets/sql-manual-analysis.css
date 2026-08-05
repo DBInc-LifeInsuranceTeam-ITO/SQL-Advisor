@@ -1,0 +1,207 @@
+.sql-workbench .manual-analysis-form {
+  display: grid !important;
+  gap: 16px !important;
+  width: 100%;
+}
+
+.sql-workbench .manual-analysis-form .awr-field {
+  display: grid;
+  grid-template-columns: max-content max-content minmax(0, 1fr);
+  align-items: center;
+  gap: 8px;
+  margin: 0 !important;
+  color: #203128;
+  font-size: 13px;
+  font-weight: 800;
+}
+
+.sql-workbench .manual-analysis-form .awr-input,
+.sql-workbench .manual-analysis-form .awr-textarea {
+  grid-column: 1 / -1;
+  width: 100% !important;
+  box-sizing: border-box;
+  resize: none !important;
+  font-family: inherit !important;
+  font-size: 13px !important;
+  font-weight: 500 !important;
+  line-height: 1.55 !important;
+}
+
+.sql-workbench .manual-analysis-form .main-sql {
+  min-height: 220px !important;
+  height: 220px !important;
+}
+
+.sql-workbench .manual-question-field .awr-input {
+  height: 44px !important;
+  min-height: 44px !important;
+}
+
+.sql-workbench .manual-field-badge {
+  grid-column: 2;
+  justify-self: start;
+  margin: 0;
+  padding: 3px 7px;
+  border-radius: 999px;
+  font-size: 10px;
+  font-weight: 900;
+  line-height: 1;
+}
+
+.sql-workbench .manual-field-badge.required {
+  background: #e8f7ef;
+  color: #087843;
+}
+
+.sql-workbench .manual-field-help {
+  grid-column: 1 / -1;
+  margin: -2px 0 0 !important;
+  color: #748078;
+  font-size: 11px;
+  font-weight: 500;
+  line-height: 1.45;
+}
+
+.sql-workbench .manual-analysis-actions {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  padding: 14px 16px;
+  border: 1px solid #dbe6e0;
+  border-radius: 11px;
+  background: #f8fbf9;
+}
+
+.sql-workbench .manual-analysis-actions > span {
+  color: #68776f;
+  font-size: 12px;
+}
+
+.sql-workbench .manual-analysis-actions .awr-btn {
+  min-width: 138px;
+  min-height: 42px;
+  margin: 0 !important;
+}
+
+.sql-workbench .manual-advanced {
+  overflow: hidden;
+  border: 1px solid #dce5e1;
+  border-radius: 12px;
+  background: #fff;
+}
+
+.sql-workbench .manual-advanced > summary {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  min-height: 54px;
+  padding: 0 16px;
+  cursor: pointer;
+  list-style: none;
+  color: #1c2f25;
+  font-size: 14px;
+  font-weight: 900;
+}
+
+.sql-workbench .manual-advanced > summary::-webkit-details-marker {
+  display: none;
+}
+
+.sql-workbench .manual-advanced > summary::after {
+  content: '▼';
+  margin-left: auto;
+  color: #078f4c;
+  font-size: 11px;
+}
+
+.sql-workbench .manual-advanced[open] > summary::after {
+  content: '▲';
+}
+
+.sql-workbench .manual-advanced > summary small {
+  color: #7a8880;
+  font-size: 11px;
+  font-weight: 600;
+}
+
+.sql-workbench .manual-advanced[open] > summary {
+  border-bottom: 1px solid #e2e9e5;
+  background: #f8fbf9;
+}
+
+.sql-workbench .manual-advanced-intro {
+  margin: 16px 16px 0;
+  padding: 13px 14px;
+  border-radius: 10px;
+  background: #f4f8f6;
+}
+
+.sql-workbench .manual-advanced-intro strong {
+  display: block;
+  margin-bottom: 4px;
+  color: #263a30;
+  font-size: 12px;
+}
+
+.sql-workbench .manual-advanced-intro p {
+  margin: 0;
+  color: #6c7b73;
+  font-size: 11px;
+  line-height: 1.5;
+}
+
+.sql-workbench .manual-advanced-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 16px;
+  padding: 16px;
+}
+
+.sql-workbench .manual-advanced-field:first-child {
+  grid-column: 1 / -1;
+}
+
+.sql-workbench .manual-advanced-field .awr-textarea {
+  min-height: 130px !important;
+  height: 130px !important;
+}
+
+.sql-workbench .manual-advanced-field:first-child .awr-textarea {
+  min-height: 170px !important;
+  height: 170px !important;
+}
+
+@media (max-width: 900px) {
+  .sql-workbench .manual-advanced-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .sql-workbench .manual-advanced-field:first-child {
+    grid-column: auto;
+  }
+}
+
+@media (max-width: 640px) {
+  .sql-workbench .manual-analysis-actions {
+    align-items: stretch;
+    flex-direction: column;
+  }
+
+  .sql-workbench .manual-analysis-actions .awr-btn {
+    width: 100%;
+  }
+
+  .sql-workbench .manual-advanced > summary {
+    align-items: flex-start;
+    flex-direction: column;
+    justify-content: center;
+    gap: 3px;
+    padding: 10px 16px;
+  }
+
+  .sql-workbench .manual-advanced > summary::after {
+    position: absolute;
+    right: 16px;
+  }
+}

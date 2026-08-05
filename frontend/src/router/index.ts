@@ -15,15 +15,8 @@ function normalizeRole(role?: string | null): UserRole {
 const router = createRouter({
   history: createWebHistory(import.meta.env.BASE_URL),
   routes: [
-    {
-      path: '/',
-      redirect: '/dashboard'
-    },
-    {
-      path: '/login',
-      name: 'login',
-      component: () => import('@/views/AuthCallbackView.vue')
-    },
+    { path: '/', redirect: '/dashboard' },
+    { path: '/login', name: 'login', component: () => import('@/views/AuthCallbackView.vue') },
     {
       path: '/dashboard',
       name: 'awr-dashboard',
@@ -66,8 +59,10 @@ const router = createRouter({
       path: '/sql-tuning',
       name: 'sql-tuning',
       meta: { requiresAuth: true, roles: ['ADMIN', 'USER', 'MONITOR'] },
-      component: () => import('@/views/sql-tuning/SqlTuningWorkbench.vue')
+      component: () => import('@/views/sql-tuning/SqlTuningUnifiedView.vue')
     },
+    { path: '/sql-tuning/manual', redirect: '/sql-tuning' },
+    { path: '/sql-diagnosis', redirect: '/sql-tuning' },
     {
       path: '/settings/ai',
       name: 'awr-ai-settings',
@@ -80,10 +75,7 @@ const router = createRouter({
       meta: { requiresAuth: true, roles: ['ADMIN'] },
       component: () => import('@/views/awr/UserManagement.vue')
     },
-    {
-      path: '/:pathMatch(.*)*',
-      redirect: '/dashboard'
-    }
+    { path: '/:pathMatch(.*)*', redirect: '/dashboard' }
   ]
 })
 
@@ -92,32 +84,19 @@ router.beforeEach(async (to) => {
   await authStore.initialize()
 
   if (to.name === 'login') {
-    if (!authStore.authEnabled || authStore.isAuthenticated) {
-      return { name: 'awr-dashboard' }
-    }
-
+    if (!authStore.authEnabled || authStore.isAuthenticated) return { name: 'awr-dashboard' }
     return true
   }
 
   if (to.meta.requiresAuth && authStore.authEnabled && !authStore.isAuthenticated) {
-    if (authStore.internalLoginEnabled) {
-      return true
-    }
-
-    return {
-      name: 'login',
-      query: { redirect: to.fullPath }
-    }
+    if (authStore.internalLoginEnabled) return true
+    return { name: 'login', query: { redirect: to.fullPath } }
   }
 
   const allowedRoles = to.meta.roles as UserRole[] | undefined
-
   if (authStore.authEnabled && authStore.isAuthenticated && allowedRoles?.length) {
     const currentRole = normalizeRole(authStore.user?.role)
-
-    if (!allowedRoles.includes(currentRole)) {
-      return { name: 'awr-dashboard' }
-    }
+    if (!allowedRoles.includes(currentRole)) return { name: 'awr-dashboard' }
   }
 
   return true

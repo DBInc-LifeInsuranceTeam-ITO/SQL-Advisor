@@ -1,0 +1,302 @@
+.sql-workbench .input-panel {
+  display: grid;
+  grid-template-columns: 140px minmax(0, 1fr) 74px;
+  column-gap: 10px;
+  padding: 20px;
+}
+
+.sql-workbench .input-panel > .awr-panel-header,
+.sql-workbench .input-panel > .connection-form,
+.sql-workbench .input-panel > .awr-field,
+.sql-workbench .input-panel > .selected-connection,
+.sql-workbench .input-panel > .top-sql-table,
+.sql-workbench .input-panel > .awr-empty {
+  grid-column: 1 / -1;
+}
+
+.sql-workbench .input-panel > .awr-panel-header {
+  margin-bottom: 16px;
+}
+
+.sql-workbench .selected-connection {
+  display: grid !important;
+  grid-template-columns: minmax(0, 1fr) auto !important;
+  align-items: center !important;
+  gap: 20px !important;
+  margin: 14px 0 20px !important;
+  padding: 18px 20px !important;
+  border: 1px solid #cfe1d6 !important;
+  border-left: 5px solid #078f4c !important;
+  border-radius: 12px !important;
+  background: #ffffff !important;
+  box-shadow: 0 5px 16px rgba(15, 46, 31, 0.06) !important;
+}
+
+.sql-workbench .connection-main {
+  display: grid !important;
+  gap: 12px !important;
+  min-width: 0;
+}
+
+.sql-workbench .connection-identity {
+  display: flex !important;
+  align-items: flex-end !important;
+  gap: 12px !important;
+  min-width: 0;
+}
+
+.sql-workbench .connection-identity strong {
+  position: relative;
+  display: inline-flex;
+  flex-direction: column;
+  gap: 3px;
+  color: #13271c;
+  font-size: 20px !important;
+  line-height: 1.2;
+}
+
+.sql-workbench .connection-identity strong::before {
+  content: '연결명';
+  color: #708078;
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: .02em;
+}
+
+.sql-workbench .connection-identity span {
+  display: inline-flex !important;
+  align-items: center !important;
+  min-height: 26px !important;
+  padding: 4px 10px !important;
+  border-radius: 999px !important;
+  background: #eaf7ef !important;
+  color: #087843 !important;
+  font-size: 12px !important;
+  font-weight: 800 !important;
+}
+
+.sql-workbench .connection-identity span::before {
+  content: '계정 ';
+  margin-right: 4px;
+  color: #5f7568;
+  font-weight: 700;
+}
+
+.sql-workbench .connection-main > code {
+  display: grid !important;
+  grid-template-columns: 64px minmax(0, 1fr);
+  align-items: center;
+  gap: 10px;
+  min-width: 0;
+  overflow: visible !important;
+  color: #42564b !important;
+  font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+  font-size: 12px !important;
+  line-height: 1.5;
+  white-space: normal !important;
+  overflow-wrap: anywhere;
+}
+
+.sql-workbench .connection-main > code::before {
+  content: 'JDBC URL';
+  color: #708078;
+  font-family: inherit;
+  font-size: 11px;
+  font-weight: 800;
+}
+
+.sql-workbench .connection-actions {
+  display: flex !important;
+  align-items: center !important;
+  justify-content: flex-end !important;
+  gap: 8px !important;
+  margin: 0 !important;
+}
+
+.sql-workbench .connection-actions .awr-btn {
+  min-height: 36px;
+  padding: 0 13px !important;
+  border-radius: 9px !important;
+  white-space: nowrap;
+}
+
+.sql-workbench .connection-actions .awr-btn:first-child {
+  border-color: #b9d5c5 !important;
+  background: #f7fbf9 !important;
+  color: #087843 !important;
+}
+
+.sql-workbench .connection-actions .awr-btn.danger {
+  border-color: #f1c5c5 !important;
+  background: #fffafa !important;
+  color: #c43838 !important;
+}
+
+.sql-workbench .top-controls {
+  display: grid !important;
+  grid-template-columns: minmax(0, 1fr) 140px 74px !important;
+  align-items: end !important;
+  gap: 10px !important;
+  grid-column: 1 / -1;
+  margin: 18px 0 12px !important;
+  padding-top: 16px;
+  border-top: 1px solid #e7ece9;
+}
+
+.sql-workbench .top-controls > .awr-field:first-child {
+  display: none !important;
+}
+
+.sql-workbench .top-controls > input.awr-input {
+  grid-column: 1;
+  width: 100%;
+  height: 42px !important;
+  min-height: 42px !important;
+  margin: 0 !important;
+}
+
+.sql-workbench .top-controls > .awr-field:nth-of-type(2) {
+  grid-column: 2;
+  min-width: 0;
+  margin: 0 !important;
+  font-size: 0 !important;
+}
+
+.sql-workbench .top-controls > .awr-field:nth-of-type(2) select {
+  appearance: none !important;
+  -webkit-appearance: none !important;
+  width: 140px !important;
+  height: 42px !important;
+  min-height: 42px !important;
+  padding: 0 36px 0 12px !important;
+  border: 1px solid #cbd7d0 !important;
+  border-radius: 9px !important;
+  background-color: #ffffff !important;
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='16' height='16' viewBox='0 0 16 16'%3E%3Cpath fill='%23078f4c' d='M4 6l4 4 4-4z'/%3E%3C/svg%3E") !important;
+  background-repeat: no-repeat !important;
+  background-position: right 10px center !important;
+  background-size: 16px 16px !important;
+  color: #163326 !important;
+  font-size: 13px !important;
+  font-weight: 800 !important;
+  box-shadow: none !important;
+  cursor: pointer;
+}
+
+.sql-workbench .top-controls > .awr-field:nth-of-type(2) select:focus {
+  border-color: #078f4c !important;
+  outline: 3px solid rgba(7, 143, 76, 0.10) !important;
+}
+
+.sql-workbench .query-button {
+  grid-column: 3;
+  justify-self: end;
+  width: 74px !important;
+  min-width: 74px !important;
+  height: 42px !important;
+  min-height: 42px !important;
+  margin: 0 !important;
+  padding: 0 12px !important;
+  border-radius: 9px !important;
+}
+
+.sql-workbench .input-panel > .awr-input {
+  height: 42px !important;
+  min-height: 42px !important;
+}
+
+.sql-workbench .input-panel > .awr-empty.compact {
+  min-height: 0 !important;
+  margin-top: 0 !important;
+  padding: 4px 2px !important;
+  border: 0 !important;
+  background: transparent !important;
+  color: #718078;
+}
+
+.sql-workbench .top-sql-table {
+  margin-top: 0;
+  border: 1px solid #e3e8e5;
+  border-radius: 10px;
+}
+
+.sql-workbench .top-sql-table tbody tr.selected {
+  background: #eaf8f0 !important;
+  box-shadow: inset 3px 0 0 #078f4c;
+}
+
+.sql-workbench .sql-collapsible {
+  position: relative;
+  max-height: 220px;
+  overflow: hidden;
+  margin-bottom: 0 !important;
+}
+
+.sql-workbench .sql-collapsible.expanded {
+  max-height: none;
+  overflow: auto;
+}
+
+.sql-workbench .sql-expand-button {
+  display: block;
+  width: 100%;
+  margin: 0 0 16px;
+  padding: 9px 12px;
+  border: 1px solid #d5dde5;
+  border-top: 0;
+  border-radius: 0 0 10px 10px;
+  background: #f8fafc;
+  color: #334155;
+  font: inherit;
+  font-size: 12px;
+  font-weight: 800;
+  cursor: pointer;
+}
+
+.sql-workbench .sql-expand-button:hover {
+  background: #eef3f7;
+}
+
+@media (max-width: 900px) {
+  .sql-workbench .top-controls {
+    grid-template-columns: minmax(0, 1fr) 130px 74px !important;
+  }
+
+  .sql-workbench .top-controls > .awr-field:nth-of-type(2) select {
+    width: 130px !important;
+  }
+}
+
+@media (max-width: 760px) {
+  .sql-workbench .input-panel {
+    display: block;
+  }
+
+  .sql-workbench .selected-connection {
+    grid-template-columns: 1fr !important;
+  }
+
+  .sql-workbench .connection-actions {
+    justify-content: flex-start !important;
+  }
+
+  .sql-workbench .top-controls {
+    grid-template-columns: 1fr 74px !important;
+  }
+
+  .sql-workbench .top-controls > input.awr-input {
+    grid-column: 1 / -1;
+  }
+
+  .sql-workbench .top-controls > .awr-field:nth-of-type(2) {
+    grid-column: 1;
+  }
+
+  .sql-workbench .top-controls > .awr-field:nth-of-type(2) select {
+    width: 100% !important;
+  }
+
+  .sql-workbench .query-button {
+    grid-column: 2;
+  }
+}

@@ -1,0 +1,15 @@
+.sql-workbench .score,
+.sql-workbench .risk-policy,
+.sql-workbench .finding-card .badge {
+  display: none !important;
+}
+
+.sql-workbench .diagnosis-overview {
+  grid-template-columns: minmax(0, 1fr) !important;
+  gap: 0 !important;
+  margin-bottom: 16px !important;
+}
+
+.sql-workbench .finding-card > div:first-child {
+  gap: 8px !important;
+}

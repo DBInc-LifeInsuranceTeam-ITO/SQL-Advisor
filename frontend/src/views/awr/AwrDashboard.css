@@ -54,7 +54,7 @@
 .summary-card {
   min-width:0;
   padding:14px 17px;
-  border:1.5px solid #b9dfca;
+  border:2px solid #b9dfca;
   border-radius:20px;
   display:grid;
   align-content:space-between;

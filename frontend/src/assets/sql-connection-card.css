@@ -1,8 +1,29 @@
+.sql-workbench .input-panel > label.awr-field > select.awr-input {
+  appearance: none !important;
+  -webkit-appearance: none !important;
+  padding-right: 44px !important;
+  background-color: #ffffff !important;
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='18' height='18' viewBox='0 0 18 18'%3E%3Cpath fill='%23078f4c' d='M5 7l4 4 4-4z'/%3E%3C/svg%3E") !important;
+  background-repeat: no-repeat !important;
+  background-position: right 14px center !important;
+  background-size: 18px 18px !important;
+  cursor: pointer;
+}
+
+.sql-workbench .input-panel > label.awr-field > select.awr-input:focus {
+  border-color: #078f4c !important;
+  outline: 3px solid rgba(7, 143, 76, 0.10) !important;
+}
+
 .sql-workbench .selected-connection {
   grid-template-columns: minmax(0, 1fr) auto !important;
   gap: 16px !important;
-  padding: 16px 18px !important;
+  padding: 18px 20px !important;
   min-height: 118px;
+  border: 1px solid #c8dfd2 !important;
+  border-left: 1px solid #c8dfd2 !important;
+  background: linear-gradient(135deg, #eef9f3 0%, #f8fcfa 100%) !important;
+  box-shadow: 0 6px 18px rgba(16, 82, 52, 0.08) !important;
 }
 
 .sql-workbench .connection-main {
@@ -38,6 +59,7 @@
   padding: 3px 9px !important;
   font-size: 12px !important;
   line-height: 1 !important;
+  background: #dff3e8 !important;
 }
 
 .sql-workbench .connection-identity span::before {
@@ -80,6 +102,7 @@
   min-height: 34px !important;
   padding: 0 10px !important;
   font-size: 12px !important;
+  background: rgba(255, 255, 255, 0.78) !important;
 }
 
 @media (max-width: 760px) {

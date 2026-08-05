@@ -4,6 +4,7 @@ import './assets/sql-diagnosis-neutral.css'
 import './assets/sql-connection-card.css'
 import './assets/sql-top-sql-table.css'
 import './assets/sql-result-polish.css'
+import './assets/sql-manual-analysis.css'
 import './sqlTuningUiEnhancer'
 
 import { createApp } from 'vue'

@@ -13,7 +13,7 @@
 .dashboard-header { height: 94px; display: flex; align-items: center; justify-content: space-between; gap: 20px; }
 .eyebrow,.panel-kicker { display:block; margin-bottom:4px; color:#0a8f49; font-size:10px; font-weight:900; letter-spacing:.08em; }
 .dashboard-header h1,.panel-title-row h2 { margin:0; color:#10231a; letter-spacing:-.04em; }
-.dashboard-header h1 { font-size:28px; }
+.dashboard-header h1 { font-size:31px; }
 .dashboard-header p { margin:6px 0 0; color:#718079; font-size:13px; font-weight:600; }
 .header-actions { display:flex; align-items:center; gap:26px; min-height:64px; padding-right:8px; }
 .db-select,.collector-state { min-width:172px; padding:0; border:0; border-radius:0; background:transparent; box-shadow:none; box-sizing:border-box; }
@@ -98,7 +98,7 @@ table { width:100%; border-collapse:collapse; font-size:13px; }
 th { position:sticky; top:0; z-index:1; padding:11px 9px; color:#72817a; background:#f6f9f7; text-align:left; font-size:11px; font-weight:900; }
 td { padding:13px 9px; border-bottom:1px solid #edf2ef; color:#30463a; font-size:13px; font-weight:750; white-space:nowrap; }
 td small { display:block; margin-top:4px; color:#839189; font-size:10px; }
-.sql-id { color:#173c29; font-family:ui-monospace,SFMono-Regular,Menlo,monospace; font-size:12px; }
+.sql-id { color:#30463a; font-family:inherit; font-size:13px; font-weight:750; }
 .rank-badge { display:inline-grid; place-items:center; width:28px; height:28px; border-radius:9px; color:#078f4c; background:#eaf7ef; font-size:12px; font-weight:900; }
 .empty-panel { height:calc(100% - 50px); display:grid; place-items:center; color:#7a8780; font-size:13px; font-weight:700; text-align:center; }
 

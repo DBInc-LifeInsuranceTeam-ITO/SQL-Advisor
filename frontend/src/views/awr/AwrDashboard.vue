@@ -54,6 +54,9 @@
         </div>
 
         <div class="line-chart">
+          <div class="y-axis-labels">
+            <span v-for="label in yAxisLabels" :key="label">{{ label }}</span>
+          </div>
           <div class="chart-grid-lines"><i v-for="line in 5" :key="line"></i></div>
           <svg viewBox="0 0 720 220" preserveAspectRatio="none">
             <defs><linearGradient id="areaGradient" x1="0" y1="0" x2="0" y2="1"><stop offset="0%" stop-color="#16a34a" stop-opacity="0.28"/><stop offset="100%" stop-color="#16a34a" stop-opacity="0"/></linearGradient></defs>
@@ -135,11 +138,11 @@ const summaries = computed(() => [
 const currentMetricValue = computed(() => formatMetric(selectedSeries.value.at(-1) || 0))
 const averageMetricValue = computed(() => formatMetric(selectedSeries.value.reduce((sum, value) => sum + value, 0) / CHART_SLOT_COUNT))
 const maxMetricValue = computed(() => formatMetric(Math.max(...selectedSeries.value, 0)))
-const chartPoints = computed(() => {
-  const values = selectedSeries.value
-  const max = Math.max(...values, 1)
-  return values.map((value, index) => `${(index / (CHART_SLOT_COUNT - 1)) * 720},${205 - (value / max) * 175}`).join(' ')
-})
+const chartMax = computed(() => niceCeiling(Math.max(...selectedSeries.value, 0), selectedMetric.value))
+const yAxisLabels = computed(() => [1, .75, .5, .25, 0].map(ratio => formatAxisMetric(chartMax.value * ratio)))
+const chartPoints = computed(() => selectedSeries.value
+  .map((value, index) => `${(index / (CHART_SLOT_COUNT - 1)) * 720},${205 - (value / chartMax.value) * 175}`)
+  .join(' '))
 const areaPath = computed(() => `M 0 220 L ${chartPoints.value.replaceAll(' ', ' L ')} L 720 220 Z`)
 const chartTimeLabels = computed(() => [0, 2, 4, 6, 8, 10, 11].map(index => formatTime(chartWindow.value[index]?.collectedAt)))
 
@@ -148,11 +151,7 @@ function buildChartWindow(points: ActivityPoint[]): ActivityPoint[] {
   const end = dashboard.value?.connection.collectedAt ? new Date(dashboard.value.connection.collectedAt).getTime() : Date.now()
   const first = sorted[0]
   const fallback: ActivityPoint = first || {
-    collectedAt: new Date(end).toISOString(),
-    activeSessions: 0,
-    executions: 0,
-    cpu: 0,
-    io: 0
+    collectedAt: new Date(end).toISOString(), activeSessions: 0, executions: 0, cpu: 0, io: 0
   }
 
   let cursor = 0
@@ -167,13 +166,19 @@ function buildChartWindow(points: ActivityPoint[]): ActivityPoint[] {
   })
 }
 
+function niceCeiling(value: number, metric: MetricKey) {
+  if (value <= 0) return metric === 'cpu' ? 1 : metric === 'activeSessions' ? 4 : 100
+  const magnitude = 10 ** Math.floor(Math.log10(value))
+  const normalized = value / magnitude
+  const nice = normalized <= 1 ? 1 : normalized <= 2 ? 2 : normalized <= 5 ? 5 : 10
+  return nice * magnitude
+}
+
 async function loadConnections() {
   try {
     connections.value = await getTargetDbConnections()
     selectedConnectionId.value = connections.value.find(item => item.monitoringEnabled)?.id || connections.value[0]?.id || 0
-  } catch (error) {
-    errorMessage.value = extractError(error)
-  }
+  } catch (error) { errorMessage.value = extractError(error) }
 }
 
 async function refreshDashboard() {
@@ -185,11 +190,8 @@ async function refreshDashboard() {
       topSql.value = await getDirectTopSql(selectedConnectionId.value, { source: 'CURRENT', limit: 20, sortBy: 'ELAPSED' })
     }
     errorMessage.value = ''
-  } catch (error) {
-    errorMessage.value = extractError(error)
-  } finally {
-    loading.value = false
-  }
+  } catch (error) { errorMessage.value = extractError(error) }
+  finally { loading.value = false }
 }
 
 function restartPolling() {
@@ -202,6 +204,7 @@ function restartPolling() {
 }
 
 function formatMetric(value: number) { return selectedMetric.value === 'cpu' ? `${value.toFixed(1)}초` : Math.round(value).toLocaleString() }
+function formatAxisMetric(value: number) { return selectedMetric.value === 'cpu' ? value.toFixed(value < 1 ? 1 : 0) : Math.round(value).toLocaleString() }
 function formatCompact(value: number) { if (value >= 1_000_000) return `${(value / 1_000_000).toFixed(1)}M`; if (value >= 1_000) return `${Math.round(value / 1_000)}K`; return value.toLocaleString() }
 function formatMetricNumber(value?: number | null) { return (value || 0).toFixed(1) }
 function formatTime(value?: string) { if (!value) return '-'; return new Intl.DateTimeFormat('ko-KR', { hour: '2-digit', minute: '2-digit', second: '2-digit', hour12: false }).format(new Date(value)) }

@@ -115,6 +115,10 @@ function enhanceTerminology(): void {
   if (resultSummary?.textContent?.includes('성능 점검 항목')) {
     resultSummary.textContent = resultSummary.textContent.replace('성능 점검 항목', '성능 분석 항목')
   }
+
+  document.querySelectorAll<HTMLButtonElement>('.sql-workbench .input-panel .awr-panel-header button').forEach((button) => {
+    if (button.textContent?.trim() === '새로고침') button.remove()
+  })
 }
 
 function enhanceSqlSource(): void {

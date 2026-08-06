@@ -1,0 +1,17 @@
+.top-sql-panel .badge {
+  font-size: 0;
+}
+
+.top-sql-panel .badge::after {
+  content: '최근 수집 구간 CPU 기준';
+  font-size: 10px;
+}
+
+.top-sql-panel .top-sql-head .value-cell:nth-child(3) {
+  font-size: 0;
+}
+
+.top-sql-panel .top-sql-head .value-cell:nth-child(3)::after {
+  content: '최근 수행시간';
+  font-size: 11px;
+}

@@ -80,7 +80,7 @@
               <tr><th>순위</th><th>SQL ID</th><th>수행시간</th><th>Buffer Gets</th><th>실행</th></tr>
             </thead>
             <tbody>
-              <tr v-for="(sql, index) in topSql.slice(0, 7)" :key="`${sql.sqlId}-${index}`">
+              <tr v-for="(sql, index) in visibleTopSql" :key="`${sql.sqlId}-${index}`">
                 <td><span class="rank-badge">{{ index + 1 }}</span></td>
                 <td><strong class="sql-id">{{ sql.sqlId }}</strong><small>{{ sql.module || sql.sectionName || '모듈 정보 없음' }}</small></td>
                 <td>{{ formatMetricNumber(sql.elapsedTimeSec) }}초</td>
@@ -107,6 +107,7 @@ type ActivityPoint = MonitoringDashboardResponse['activity']['points'][number]
 const TEST_CONNECTION_ID = -1
 const CHART_SLOT_COUNT = 12
 const CHART_INTERVAL_MS = 2000
+const TOP_SQL_VISIBLE_COUNT = 5
 
 const connections = ref<TargetDbConnectionResponse[]>([])
 const selectedConnectionId = ref(TEST_CONNECTION_ID)
@@ -126,6 +127,7 @@ const activityPoints = computed(() => dashboard.value?.activity.points || [])
 const chartWindow = computed(() => buildChartWindow(activityPoints.value))
 const lastUpdated = computed(() => formatTime(dashboard.value?.connection.collectedAt))
 const firstChartTime = computed(() => formatTime(chartWindow.value[0]?.collectedAt))
+const visibleTopSql = computed(() => topSql.value.slice(0, TOP_SQL_VISIBLE_COUNT))
 const summaries = computed(() => [
   { label: '현재 실행 SQL', value: `${dashboard.value?.summary.activeSqlCount || 0}건`, description: 'Active 세션 기준', tone: 'normal' },
   { label: '장기 실행 SQL', value: `${dashboard.value?.summary.longRunningSqlCount || 0}건`, description: '30초 이상 수행', tone: 'warning' },

@@ -189,8 +189,8 @@
 .top-sql-scroll::-webkit-scrollbar-thumb { background:#d6e3dc; border-radius:999px; }
 .top-sql-scroll { scrollbar-width:thin; scrollbar-color:#d6e3dc transparent; }
 .top-sql-item {
-  flex:0 0 66px;
-  min-height:66px;
+  flex:0 0 60px;
+  min-height:60px;
   padding:0 8px;
   border-bottom:1px solid #edf2ef;
 }
@@ -255,8 +255,8 @@
     column-gap:8px;
   }
   .top-sql-item {
-    flex-basis:60px;
-    min-height:60px;
+    flex-basis:56px;
+    min-height:56px;
   }
   .top-sql-cell { font-size:11px; }
   .sql-id { font-size:12px; }

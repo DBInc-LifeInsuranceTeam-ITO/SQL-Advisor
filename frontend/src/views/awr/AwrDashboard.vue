@@ -107,7 +107,7 @@ type ActivityPoint = MonitoringDashboardResponse['activity']['points'][number]
 const TEST_CONNECTION_ID = -1
 const CHART_SLOT_COUNT = 12
 const CHART_INTERVAL_MS = 2000
-const TOP_SQL_VISIBLE_COUNT = 5
+const TOP_SQL_VISIBLE_COUNT = 6
 
 const connections = ref<TargetDbConnectionResponse[]>([])
 const selectedConnectionId = ref(TEST_CONNECTION_ID)

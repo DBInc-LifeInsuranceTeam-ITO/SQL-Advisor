@@ -5,7 +5,7 @@
   padding: 8px 14px 10px;
   box-sizing: border-box;
   display: grid;
-  grid-template-rows: 44px 32px 52px minmax(0, 1fr);
+  grid-template-rows: 40px 30px 58px minmax(0, 1fr);
   gap: 6px;
   color: #10231a;
   background:
@@ -23,7 +23,7 @@
 }
 .eyebrow,.panel-kicker { display:block; margin-bottom:2px; color:#0a8f49; font-size:8px; font-weight:900; letter-spacing:.08em; }
 .dashboard-header h1,.panel-title-row h2,.metric-card-header h2 { margin:0; color:#10231a; letter-spacing:-.04em; }
-.realtime-dashboard .dashboard-header h1 { font-size:24px !important; line-height:1; }
+.realtime-dashboard .dashboard-header h1 { font-size:22px !important; line-height:1; }
 .collector-state { display:flex; align-items:center; gap:9px; min-width:158px; }
 .collector-state div { display:grid; gap:1px; }
 .collector-state strong { color:#16713f; font-size:12px; }
@@ -51,7 +51,7 @@
   display: inline-flex;
   align-items: center;
   gap: 6px;
-  height: 27px;
+  height: 26px;
   padding: 0 12px;
   border: 1px solid #d7e5dd;
   border-radius: 9px;
@@ -68,22 +68,33 @@
 .db-status.warning { background:#f59e0b; }.db-status.error { background:#ef4444; }
 
 .summary-grid {
-  min-height: 0;
+  height:58px !important;
+  min-height:58px !important;
+  max-height:58px !important;
+  overflow:hidden;
   display:grid;
   grid-template-columns:repeat(4,minmax(0,1fr));
+  grid-template-rows:58px;
   gap:9px;
+  position:relative;
+  z-index:2;
 }
 .summary-card,.panel { background:rgba(255,255,255,.96); box-shadow:0 8px 20px rgba(27,67,45,.05); }
 .summary-card {
+  width:100%;
+  height:58px !important;
+  min-height:58px !important;
+  max-height:58px !important;
   min-width:0;
-  min-height:0;
-  padding:5px 10px;
+  padding:6px 11px !important;
+  margin:0 !important;
   border:1.5px solid #b9dfca;
   border-radius:12px;
   display:grid;
   grid-template-columns:1fr auto;
-  grid-template-rows:auto auto;
+  grid-template-rows:1fr 1fr;
   align-items:center;
+  overflow:hidden;
   box-sizing:border-box;
 }
 .summary-card:nth-child(2) { border-color:#edc980; }
@@ -98,6 +109,8 @@
   display: grid;
   grid-template-columns: minmax(0, 1.35fr) minmax(400px, .95fr);
   gap: 9px;
+  position:relative;
+  z-index:1;
 }
 .chart-grid {
   min-width:0;

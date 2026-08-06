@@ -54,40 +54,25 @@ src/api/sqlTuning.ts
 - SVG 기반 실시간 차트
 - Nginx 정적 서빙 및 `/api` 프록시
 
-## 로컬 개발
+## 빌드 및 검증
 
 ```bash
 npm install
-npm run dev
-```
-
-기본 주소는 `http://localhost:5173`입니다.
-
-## 주요 명령어
-
-```bash
-npm run dev
 npm run build
 npm run type-check
 npm run lint
-npm run preview
 ```
 
-## 전체 스택 실행
+## 운영 배포
 
-Dev:
-
-```bash
-sh deploy/init-env.sh --mode dev
-docker compose -f deploy/docker-compose.dev.yml up -d --build
-```
-
-Prod:
+저장소 루트에서 운영 Compose로 전체 스택을 실행합니다.
 
 ```bash
 sh deploy/init-env.sh --mode prod
 docker compose -f deploy/docker-compose.prod.yml up -d --build
 ```
+
+운영 환경에서는 Nginx가 빌드된 프론트엔드 정적 파일을 서빙하고 `/api` 요청을 API 컨테이너로 프록시합니다.
 
 ## API 연동
 
@@ -120,7 +105,7 @@ docker compose -f deploy/docker-compose.prod.yml up -d --build
 | `GET` | `/config/ai` | AI 설정 조회 |
 | `POST` | `/config/ai` | AI 설정 저장 |
 
-## 개발 주의사항
+## 운영 주의사항
 
 - 대시보드 폴링 주기를 줄이면 API와 Oracle 호출량이 증가합니다.
 - 실시간 화면 스타일은 `AwrDashboard.css`와 전역 보정 CSS의 우선순위를 함께 확인해야 합니다.

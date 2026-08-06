@@ -155,24 +155,26 @@
   flex:1;
   display:grid;
   grid-template-rows:auto minmax(0,1fr);
-  gap:8px;
+  gap:6px;
 }
 .top-sql-row {
   display:grid;
   grid-template-columns:52px minmax(0,1.75fr) minmax(92px,.95fr) minmax(96px,1fr) minmax(68px,.7fr);
-  column-gap:12px;
+  column-gap:10px;
   align-items:center;
 }
 .top-sql-head {
   padding:0 8px;
-  min-height:40px;
+  min-height:36px;
   border-radius:10px;
   background:#f6f9f7;
 }
 .top-sql-head .top-sql-cell {
   color:#526a5d;
-  font-size:12px;
+  font-size:11px;
   font-weight:900;
+  text-align:center;
+  justify-content:center;
 }
 .top-sql-scroll {
   min-height:0;
@@ -187,8 +189,8 @@
 .top-sql-scroll::-webkit-scrollbar-thumb { background:#d6e3dc; border-radius:999px; }
 .top-sql-scroll { scrollbar-width:thin; scrollbar-color:#d6e3dc transparent; }
 .top-sql-item {
-  flex:0 0 84px;
-  min-height:84px;
+  flex:0 0 66px;
+  min-height:66px;
   padding:0 8px;
   border-bottom:1px solid #edf2ef;
 }
@@ -196,37 +198,43 @@
 .top-sql-cell {
   min-width:0;
   color:#30463a;
-  font-size:13px;
+  font-size:12px;
   font-weight:600;
 }
 .rank-cell {
   display:flex;
   align-items:center;
   justify-content:center;
+  text-align:center;
 }
 .sql-cell {
   display:flex;
   flex-direction:column;
   justify-content:center;
-  gap:4px;
+  align-items:center;
+  gap:3px;
+  text-align:center;
 }
 .value-cell {
   display:flex;
   align-items:center;
-  justify-content:flex-start;
+  justify-content:center;
+  text-align:center;
+  font-variant-numeric:tabular-nums;
 }
-.sql-id { color:#203d2e; font-size:15px; font-weight:900; line-height:1.1; }
+.sql-id { color:#203d2e; font-size:13px; font-weight:900; line-height:1.1; }
 .top-sql-cell small {
   display:block;
+  max-width:100%;
   color:#74847b;
-  font-size:11px;
+  font-size:10px;
   font-weight:700;
   line-height:1.2;
   white-space:nowrap;
   overflow:hidden;
   text-overflow:ellipsis;
 }
-.rank-badge { display:inline-grid; place-items:center; width:28px; height:28px; border-radius:8px; color:#078f4c; background:#eaf7ef; font-size:13px; font-weight:900; }
+.rank-badge { display:inline-grid; place-items:center; width:25px; height:25px; border-radius:8px; color:#078f4c; background:#eaf7ef; font-size:12px; font-weight:900; }
 .empty-panel { display:grid; place-items:center; color:#7a8780; font-size:12px; font-weight:700; }
 
 @media (max-width: 1450px) {
@@ -246,11 +254,13 @@
   .metric-card-header h2,.panel-title-row h2 { font-size:16px; }
   .top-sql-row {
     grid-template-columns:46px minmax(0,1.65fr) minmax(82px,.92fr) minmax(90px,.95fr) minmax(60px,.65fr);
-    column-gap:10px;
+    column-gap:8px;
   }
   .top-sql-item {
-    flex-basis:76px;
-    min-height:76px;
+    flex-basis:60px;
+    min-height:60px;
   }
-  .sql-id { font-size:14px; }
+  .top-sql-cell { font-size:11px; }
+  .sql-id { font-size:12px; }
+  .top-sql-cell small { font-size:9px; }
 }

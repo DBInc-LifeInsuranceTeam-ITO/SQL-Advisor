@@ -55,11 +55,16 @@
             <span>최고 {{ metric.max }}</span>
           </div>
           <div class="mini-chart">
-            <div class="chart-grid-lines"><i v-for="line in 4" :key="line"></i></div>
-            <svg viewBox="0 0 420 120" preserveAspectRatio="none" aria-hidden="true">
-              <path :d="metric.areaPath" class="chart-area" />
-              <polyline :points="metric.points" class="chart-line" />
-            </svg>
+            <div class="chart-y-axis">
+              <span v-for="label in metric.yAxisLabels" :key="label">{{ label }}</span>
+            </div>
+            <div class="chart-plot">
+              <div class="chart-grid-lines"><i v-for="line in 4" :key="line"></i></div>
+              <svg viewBox="0 0 420 120" preserveAspectRatio="none" aria-hidden="true">
+                <path :d="metric.areaPath" class="chart-area" />
+                <polyline :points="metric.points" class="chart-line" />
+              </svg>
+            </div>
             <div class="chart-time"><span>{{ firstChartTime }}</span><span>{{ lastUpdated }}</span></div>
           </div>
         </article>
@@ -151,6 +156,7 @@ function buildMetricCard(key: MetricKey, kicker: string, label: string) {
     label,
     points,
     areaPath,
+    yAxisLabels: [ceiling, ceiling * 0.67, ceiling * 0.33, 0].map(value => formatAxisMetric(value, key)),
     current: formatMetric(values.at(-1) || 0, key),
     average: formatMetric(average, key),
     max: formatMetric(maxValue, key)
@@ -249,6 +255,12 @@ function parseServerTime(value: string) {
 }
 function formatMetric(value: number, metric: MetricKey) {
   if (metric === 'cpu') return `${value.toFixed(1)}초`
+  return Math.round(value).toLocaleString()
+}
+function formatAxisMetric(value: number, metric: MetricKey) {
+  if (metric === 'cpu') return value.toFixed(value < 1 ? 1 : 0)
+  if (value >= 1_000_000) return `${(value / 1_000_000).toFixed(1)}M`
+  if (value >= 1_000) return `${Math.round(value / 1_000)}K`
   return Math.round(value).toLocaleString()
 }
 function formatCompact(value: number) { if (value >= 1_000_000) return `${(value / 1_000_000).toFixed(1)}M`; if (value >= 1_000) return `${Math.round(value / 1_000)}K`; return value.toLocaleString() }

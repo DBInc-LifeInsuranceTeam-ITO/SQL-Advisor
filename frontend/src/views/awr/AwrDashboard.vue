@@ -40,8 +40,13 @@
         <div class="panel-title-row">
           <div><span class="panel-kicker">DB ACTIVITY</span><h2>실시간 DB 활동 추이</h2></div>
           <div class="metric-tabs">
-            <button v-for="metric in metricOptions" :key="metric.key" type="button"
-              :class="{ active: selectedMetric === metric.key }" @click="selectedMetric = metric.key">
+            <button
+              v-for="metric in metricOptions"
+              :key="metric.key"
+              type="button"
+              :class="{ active: selectedMetric === metric.key }"
+              @click="selectedMetric = metric.key"
+            >
               {{ metric.label }}
             </button>
           </div>
@@ -59,7 +64,12 @@
           </div>
           <div class="chart-grid-lines"><i v-for="line in 5" :key="line"></i></div>
           <svg viewBox="0 0 720 220" preserveAspectRatio="none">
-            <defs><linearGradient id="areaGradient" x1="0" y1="0" x2="0" y2="1"><stop offset="0%" stop-color="#16a34a" stop-opacity="0.28"/><stop offset="100%" stop-color="#16a34a" stop-opacity="0"/></linearGradient></defs>
+            <defs>
+              <linearGradient id="areaGradient" x1="0" y1="0" x2="0" y2="1">
+                <stop offset="0%" stop-color="#16a34a" stop-opacity="0.28" />
+                <stop offset="100%" stop-color="#16a34a" stop-opacity="0" />
+              </linearGradient>
+            </defs>
             <path :d="areaPath" fill="url(#areaGradient)" />
             <polyline :points="chartPoints" fill="none" stroke="#0b8f49" stroke-width="4" stroke-linecap="round" stroke-linejoin="round" />
           </svg>
@@ -68,28 +78,56 @@
       </article>
 
       <article class="panel top-sql-panel">
-        <div class="panel-title-row">
-          <div><span class="panel-kicker">TOP SQL</span><h2>부하 상위 SQL</h2></div>
-          <span class="badge">총 수행시간 기준</span>
+        <div class="panel-title-row top-sql-title-row">
+          <div>
+            <span class="panel-kicker">TOP SQL</span>
+            <h2>부하 상위 SQL</h2>
+          </div>
+          <div class="top-sql-actions">
+            <span class="row-count">{{ topSql.length }}건</span>
+            <span class="badge">총 수행시간 기준</span>
+          </div>
         </div>
 
         <div v-if="topSql.length === 0" class="empty-panel">수집된 업무 SQL이 없습니다.</div>
-        <div v-else class="table-wrap">
-          <table>
-            <thead>
-              <tr><th>순위</th><th>SQL ID</th><th>수행시간</th><th>Buffer Gets</th><th>Disk Reads</th><th>실행</th></tr>
-            </thead>
-            <tbody>
-              <tr v-for="(sql, index) in topSql.slice(0, 10)" :key="`${sql.sqlId}-${index}`">
-                <td><span class="rank-badge">{{ index + 1 }}</span></td>
-                <td><strong class="sql-id">{{ sql.sqlId }}</strong><small>{{ sql.module || sql.sectionName || '모듈 정보 없음' }}</small></td>
-                <td>{{ formatMetricNumber(sql.elapsedTimeSec) }}초</td>
-                <td>{{ formatCompact(sql.bufferGets || 0) }}</td>
-                <td>{{ formatCompact(sql.diskReads || 0) }}</td>
-                <td>{{ formatCompact(sql.executions || 0) }}</td>
-              </tr>
-            </tbody>
-          </table>
+        <div v-else class="top-sql-table-shell">
+          <div class="table-wrap">
+            <table class="top-sql-table">
+              <colgroup>
+                <col class="col-rank" />
+                <col class="col-sql" />
+                <col class="col-elapsed" />
+                <col class="col-buffer" />
+                <col class="col-disk" />
+                <col class="col-executions" />
+              </colgroup>
+              <thead>
+                <tr>
+                  <th class="cell-rank">순위</th>
+                  <th>SQL ID</th>
+                  <th class="cell-number">수행시간</th>
+                  <th class="cell-number">Buffer Gets</th>
+                  <th class="cell-number">Disk Reads</th>
+                  <th class="cell-number">실행</th>
+                </tr>
+              </thead>
+              <tbody>
+                <tr v-for="(sql, index) in topSql" :key="`${sql.sqlId}-${index}`">
+                  <td class="cell-rank"><span class="rank-badge">{{ index + 1 }}</span></td>
+                  <td class="sql-info-cell">
+                    <strong class="sql-id" :title="sql.sqlId">{{ sql.sqlId }}</strong>
+                    <small :title="sql.module || sql.sectionName || '모듈 정보 없음'">
+                      {{ sql.module || sql.sectionName || '모듈 정보 없음' }}
+                    </small>
+                  </td>
+                  <td class="cell-number metric-strong">{{ formatMetricNumber(sql.elapsedTimeSec) }}초</td>
+                  <td class="cell-number">{{ formatCompact(sql.bufferGets || 0) }}</td>
+                  <td class="cell-number">{{ formatCompact(sql.diskReads || 0) }}</td>
+                  <td class="cell-number">{{ formatCompact(sql.executions || 0) }}</td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
         </div>
       </article>
     </section>
@@ -194,12 +232,15 @@ async function refreshDashboard() {
     } else {
       dashboard.value = await getMonitoringDashboard(selectedConnectionId.value)
       if (topSqlTick++ % 3 === 0) {
-        topSql.value = await getDirectTopSql(selectedConnectionId.value, { source: 'CURRENT', limit: 20, sortBy: 'ELAPSED' })
+        topSql.value = await getDirectTopSql(selectedConnectionId.value, { source: 'CURRENT', limit: 50, sortBy: 'ELAPSED' })
       }
     }
     errorMessage.value = ''
-  } catch (error) { errorMessage.value = extractError(error) }
-  finally { loading.value = false }
+  } catch (error) {
+    errorMessage.value = extractError(error)
+  } finally {
+    loading.value = false
+  }
 }
 
 function refreshTestDashboard() {
@@ -230,14 +271,15 @@ function refreshTestDashboard() {
     activity: { points }
   } as MonitoringDashboardResponse
 
-  topSql.value = [
-    { sqlId: 'testsql00001', module: 'ORDER_BATCH', elapsedTimeSec: 182.4, bufferGets: 1280000, diskReads: 184000, executions: 12 },
-    { sqlId: 'testsql00002', module: 'ONLINE_API', elapsedTimeSec: 96.8, bufferGets: 842000, diskReads: 92000, executions: 286 },
-    { sqlId: 'testsql00003', module: 'CLAIM_BATCH', elapsedTimeSec: 74.1, bufferGets: 615000, diskReads: 121000, executions: 8 },
-    { sqlId: 'testsql00004', module: 'SQL_ADVISOR', elapsedTimeSec: 52.6, bufferGets: 390000, diskReads: 44000, executions: 134 },
-    { sqlId: 'testsql00005', module: 'CUSTOMER_API', elapsedTimeSec: 31.9, bufferGets: 248000, diskReads: 18000, executions: 612 },
-    { sqlId: 'testsql00006', module: 'REPORT', elapsedTimeSec: 22.7, bufferGets: 176000, diskReads: 9000, executions: 43 }
-  ] as SqlMetricResponse[]
+  const modules = ['ORDER_BATCH', 'ONLINE_API', 'CLAIM_BATCH', 'SQL_ADVISOR', 'CUSTOMER_API', 'REPORT', 'PAYMENT_BATCH', 'POLICY_API']
+  topSql.value = Array.from({ length: 24 }, (_, index) => ({
+    sqlId: `testsql${String(index + 1).padStart(5, '0')}`,
+    module: modules[index % modules.length],
+    elapsedTimeSec: Math.max(3.2, 182.4 - index * 7.15),
+    bufferGets: Math.max(18000, 1280000 - index * 51000),
+    diskReads: Math.max(1200, 184000 - index * 7200),
+    executions: 8 + ((index * 47) % 620)
+  })) as SqlMetricResponse[]
 
   testTick += 1
 }
@@ -257,9 +299,17 @@ function parseServerTime(value: string) {
   return new Date(`${value}Z`)
 }
 
-function formatMetric(value: number) { return selectedMetric.value === 'cpu' ? `${value.toFixed(1)}초` : Math.round(value).toLocaleString() }
-function formatAxisMetric(value: number) { return selectedMetric.value === 'cpu' ? value.toFixed(value < 1 ? 1 : 0) : Math.round(value).toLocaleString() }
-function formatCompact(value: number) { if (value >= 1_000_000) return `${(value / 1_000_000).toFixed(1)}M`; if (value >= 1_000) return `${Math.round(value / 1_000)}K`; return value.toLocaleString() }
+function formatMetric(value: number) {
+  return selectedMetric.value === 'cpu' ? `${value.toFixed(1)}초` : Math.round(value).toLocaleString()
+}
+function formatAxisMetric(value: number) {
+  return selectedMetric.value === 'cpu' ? value.toFixed(value < 1 ? 1 : 0) : Math.round(value).toLocaleString()
+}
+function formatCompact(value: number) {
+  if (value >= 1_000_000) return `${(value / 1_000_000).toFixed(1)}M`
+  if (value >= 1_000) return `${Math.round(value / 1_000)}K`
+  return value.toLocaleString()
+}
 function formatMetricNumber(value?: number | null) { return (value || 0).toFixed(1) }
 function formatTime(value?: string) {
   if (!value) return '-'
@@ -267,14 +317,20 @@ function formatTime(value?: string) {
     timeZone: 'Asia/Seoul', hour: '2-digit', minute: '2-digit', second: '2-digit', hour12: false
   }).format(parseServerTime(value))
 }
-function extractError(error: unknown) { return typeof error === 'object' && error && 'message' in error ? String(error.message) : '실시간 데이터 조회에 실패했습니다.' }
+function extractError(error: unknown) {
+  return typeof error === 'object' && error && 'message' in error
+    ? String(error.message)
+    : '실시간 데이터 조회에 실패했습니다.'
+}
 
 watch(selectedConnectionId, () => restartPolling())
 onMounted(async () => {
   await loadConnections()
   restartPolling()
 })
-onBeforeUnmount(() => { if (timer) window.clearInterval(timer) })
+onBeforeUnmount(() => {
+  if (timer) window.clearInterval(timer)
+})
 </script>
 
 <style src="./AwrDashboard.css"></style>

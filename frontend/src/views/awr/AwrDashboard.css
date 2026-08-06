@@ -166,7 +166,7 @@
 .top-sql-head {
   padding:0 8px;
   min-height:36px;
-  margin-right:12px;
+  margin-right:8px;
   border-radius:10px;
   background:#f6f9f7;
 }
@@ -179,7 +179,7 @@
   min-height:0;
   height:100%;
   overflow-y:scroll;
-  padding-right:4px;
+  padding-right:0;
   display:flex;
   flex-direction:column;
   scrollbar-gutter:stable;
@@ -192,6 +192,9 @@
   flex:0 0 60px;
   min-height:60px;
   padding:0 8px;
+  margin-left:4px;
+  width:calc(100% - 4px);
+  box-sizing:border-box;
   border-bottom:1px solid #edf2ef;
 }
 .top-sql-item:last-child { border-bottom:0; }
@@ -207,9 +210,7 @@
   font-weight:600;
   text-align:center;
 }
-.rank-cell {
-  justify-content:center;
-}
+.rank-cell { justify-content:center; }
 .sql-cell {
   flex-direction:column;
   justify-content:center;

@@ -14,6 +14,10 @@ import type {
   TargetDbConnectionTestResponse
 } from '@/types/awr'
 
+type SqlLoadSnapshot = Pick<SqlMetricResponse, 'elapsedTimeSec' | 'cpuTimeSec' | 'bufferGets' | 'diskReads' | 'executions' | 'rowsProcessed'>
+
+const currentLoadSnapshots = new Map<number, Map<string, SqlLoadSnapshot>>()
+
 export async function tuneSql(payload: SqlTuningRequest) {
   const response = await api.post<SqlTuningResponse>('/sql-tuning', payload)
   return response.data
@@ -80,6 +84,10 @@ export async function tuneDirectSql(payload: DirectTuningRequest) {
 }
 
 export async function getDirectTopSql(connectionId: number, options: DirectTopSqlOptions = {}) {
+  if (options.source === 'CURRENT') {
+    return getCurrentLoadTopSql(connectionId, options)
+  }
+
   const response = await api.get<SqlMetricResponse[]>('/sql-tuning/direct/top-sql', {
     params: {
       connectionId,
@@ -87,4 +95,82 @@ export async function getDirectTopSql(connectionId: number, options: DirectTopSq
     }
   })
   return response.data
+}
+
+async function getCurrentLoadTopSql(connectionId: number, options: DirectTopSqlOptions) {
+  const requestedLimit = Number(options.limit || 20)
+  const candidateLimit = 100
+  const sortCriteria = ['ELAPSED', 'BUFFER_GETS', 'DISK_READS', 'EXECUTIONS'] as const
+  const responses = await Promise.all(sortCriteria.map(sortBy =>
+    api.get<SqlMetricResponse[]>('/sql-tuning/direct/top-sql', {
+      params: {
+        connectionId,
+        source: 'CURRENT',
+        limit: candidateLimit,
+        sortBy
+      }
+    })
+  ))
+
+  const candidates = new Map<string, SqlMetricResponse>()
+  for (const response of responses) {
+    for (const row of response.data) {
+      if (row.sqlId && !candidates.has(row.sqlId)) candidates.set(row.sqlId, row)
+    }
+  }
+
+  const previous = currentLoadSnapshots.get(connectionId)
+  const current = new Map<string, SqlLoadSnapshot>()
+  for (const row of candidates.values()) current.set(row.sqlId, snapshot(row))
+  currentLoadSnapshots.set(connectionId, current)
+
+  if (!previous) return []
+
+  return [...candidates.values()]
+    .map(row => toLoadDelta(row, previous.get(row.sqlId)))
+    .filter(row => Number(row.cpuTimeSec || 0) > 0
+      || Number(row.elapsedTimeSec || 0) > 0
+      || Number(row.bufferGets || 0) > 0
+      || Number(row.diskReads || 0) > 0
+      || Number(row.executions || 0) > 0)
+    .sort((left, right) =>
+      Number(right.cpuTimeSec || 0) - Number(left.cpuTimeSec || 0)
+      || Number(right.elapsedTimeSec || 0) - Number(left.elapsedTimeSec || 0)
+      || Number(right.bufferGets || 0) - Number(left.bufferGets || 0))
+    .slice(0, requestedLimit)
+}
+
+function snapshot(row: SqlMetricResponse): SqlLoadSnapshot {
+  return {
+    elapsedTimeSec: Number(row.elapsedTimeSec || 0),
+    cpuTimeSec: Number(row.cpuTimeSec || 0),
+    bufferGets: Number(row.bufferGets || 0),
+    diskReads: Number(row.diskReads || 0),
+    executions: Number(row.executions || 0),
+    rowsProcessed: Number(row.rowsProcessed || 0)
+  }
+}
+
+function toLoadDelta(row: SqlMetricResponse, previous?: SqlLoadSnapshot): SqlMetricResponse {
+  const before = previous || {
+    elapsedTimeSec: Number(row.elapsedTimeSec || 0),
+    cpuTimeSec: Number(row.cpuTimeSec || 0),
+    bufferGets: Number(row.bufferGets || 0),
+    diskReads: Number(row.diskReads || 0),
+    executions: Number(row.executions || 0),
+    rowsProcessed: Number(row.rowsProcessed || 0)
+  }
+  return {
+    ...row,
+    elapsedTimeSec: delta(row.elapsedTimeSec, before.elapsedTimeSec),
+    cpuTimeSec: delta(row.cpuTimeSec, before.cpuTimeSec),
+    bufferGets: Math.round(delta(row.bufferGets, before.bufferGets)),
+    diskReads: Math.round(delta(row.diskReads, before.diskReads)),
+    executions: Math.round(delta(row.executions, before.executions)),
+    rowsProcessed: Math.round(delta(row.rowsProcessed, before.rowsProcessed))
+  }
+}
+
+function delta(current?: number | null, previous?: number | null) {
+  return Math.max(0, Number(current || 0) - Number(previous || 0))
 }

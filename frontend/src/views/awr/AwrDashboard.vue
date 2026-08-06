@@ -5,6 +5,22 @@
         <span class="eyebrow">REAL-TIME SQL ADVISOR</span>
         <h1>대시보드</h1>
       </div>
+    </header>
+
+    <nav class="db-tabs" aria-label="대상 DB 선택">
+      <div class="db-tab-list">
+        <button
+          v-for="connection in dbTabs"
+          :key="connection.id"
+          type="button"
+          :class="{ active: selectedConnectionId === connection.id }"
+          @click="selectedConnectionId = connection.id"
+        >
+          <span class="db-status" :class="connection.status"></span>
+          {{ connection.name }}
+        </button>
+      </div>
+
       <div class="collector-state" :class="{ error: Boolean(errorMessage), loading }">
         <span class="live-dot"></span>
         <div>
@@ -12,19 +28,6 @@
           <small>{{ errorMessage || `마지막 갱신 ${lastUpdated}` }}</small>
         </div>
       </div>
-    </header>
-
-    <nav class="db-tabs" aria-label="대상 DB 선택">
-      <button
-        v-for="connection in dbTabs"
-        :key="connection.id"
-        type="button"
-        :class="{ active: selectedConnectionId === connection.id }"
-        @click="selectedConnectionId = connection.id"
-      >
-        <span class="db-status" :class="connection.status"></span>
-        {{ connection.name }}
-      </button>
     </nav>
 
     <section class="summary-grid">

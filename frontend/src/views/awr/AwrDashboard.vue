@@ -44,11 +44,8 @@
           :class="`metric-${metric.key}`"
         >
           <div class="metric-card-header">
-            <div>
-              <span class="panel-kicker">{{ metric.kicker }}</span>
-              <h2>{{ metric.label }}</h2>
-            </div>
-            <strong>{{ metric.current }}</strong>
+            <span class="panel-kicker">{{ metric.kicker }}</span>
+            <h2>{{ metric.label }}</h2>
           </div>
           <div class="metric-meta">
             <span>평균 {{ metric.average }}</span>
@@ -157,7 +154,6 @@ function buildMetricCard(key: MetricKey, kicker: string, label: string) {
     points,
     areaPath,
     yAxisLabels: [ceiling, ceiling * 0.67, ceiling * 0.33, 0].map(value => formatAxisMetric(value, key)),
-    current: formatMetric(values.at(-1) || 0, key),
     average: formatMetric(average, key),
     max: formatMetric(maxValue, key)
   }

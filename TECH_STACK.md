@@ -11,7 +11,7 @@ SQLAdvisor는 Oracle AWR 분석, 실시간 SQL 모니터링, Direct DB 기반 SQ
 | Worker | Python 3.12 + FastAPI + RQ | PDF/HTML/TXT 텍스트 추출, OCR, 비동기 작업 |
 | Database | PostgreSQL 16 + pgvector | 리포트, 분석 결과, 사용자, 연결정보, RAG chunk/vector 저장 |
 | Queue | Redis 7 | Worker 작업 큐 |
-| Deployment | Docker Compose + Nginx | dev/prod 컨테이너 구성, 정적 파일 서빙, API 프록시 |
+| Deployment | Docker Compose + Nginx | 운영 컨테이너 구성, 정적 파일 서빙, API 프록시 |
 
 ## Frontend
 
@@ -150,12 +150,13 @@ RAG는 AWR section, SQL metric, Wait Event를 chunk로 만들고 SQL_ID 우선 �
 
 외부 LLM이 비활성화되거나 실패하면 로컬 Advisor 결과로 동작할 수 있습니다.
 
-## Deployment
+## 운영 배포
 
 | 항목 | 기술 |
 | --- | --- |
 | Container | Docker |
 | Orchestration | Docker Compose |
+| Compose | `deploy/docker-compose.prod.yml` |
 | Reverse Proxy | Nginx |
 | Backend Image | Eclipse Temurin 17 |
 | Frontend Build | Node 22 Alpine |
@@ -164,7 +165,14 @@ RAG는 AWR section, SQL metric, Wait Event를 chunk로 만들고 SQL_ID 우선 �
 | Database | `pgvector/pgvector:pg16` |
 | Queue | `redis:7-alpine` |
 
-## 개발 및 검증 명령
+운영 배포 명령:
+
+```bash
+sh deploy/init-env.sh --mode prod
+docker compose -f deploy/docker-compose.prod.yml up -d --build
+```
+
+## 빌드 및 검증 명령
 
 ```bash
 # Frontend
@@ -177,9 +185,6 @@ npm run lint
 # Backend
 cd sqladvisor
 ./gradlew test
-
-# 전체 배포
-docker compose -f deploy/docker-compose.prod.yml up -d --build
 ```
 
 ## 운영 고려사항

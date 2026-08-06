@@ -37,7 +37,12 @@
 
     <section class="dashboard-body">
       <div class="chart-grid">
-        <article v-for="metric in metricCards" :key="metric.key" class="panel metric-card">
+        <article
+          v-for="metric in metricCards"
+          :key="metric.key"
+          class="panel metric-card"
+          :class="`metric-${metric.key}`"
+        >
           <div class="metric-card-header">
             <div>
               <span class="panel-kicker">{{ metric.kicker }}</span>

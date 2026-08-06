@@ -237,6 +237,36 @@
 .rank-badge { display:inline-grid; place-items:center; width:25px; height:25px; border-radius:8px; color:#078f4c; background:#eaf7ef; font-size:12px; font-weight:900; }
 .empty-panel { display:grid; place-items:center; color:#7a8780; font-size:12px; font-weight:700; }
 
+/* Header and rows share one exact grid so every column stays aligned. */
+.top-sql-head,
+.top-sql-item {
+  grid-template-columns: 52px minmax(0, 1.75fr) minmax(92px, .95fr) minmax(96px, 1fr) minmax(68px, .7fr);
+  column-gap: 10px;
+  padding-left: 8px;
+  padding-right: 8px;
+}
+
+.top-sql-head .top-sql-cell,
+.top-sql-item .top-sql-cell {
+  width: 100%;
+  min-width: 0;
+  box-sizing: border-box;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  text-align: center;
+}
+
+.top-sql-item .sql-cell {
+  flex-direction: column;
+  gap: 3px;
+}
+
+.top-sql-scroll {
+  padding-right: 0;
+  scrollbar-gutter: stable;
+}
+
 @media (max-width: 1450px) {
   .realtime-dashboard {
     padding-left:10px;
@@ -252,7 +282,9 @@
   }
   .summary-card strong { font-size:22px; }
   .metric-card-header h2,.panel-title-row h2 { font-size:16px; }
-  .top-sql-row {
+  .top-sql-row,
+  .top-sql-head,
+  .top-sql-item {
     grid-template-columns:46px minmax(0,1.65fr) minmax(82px,.92fr) minmax(90px,.95fr) minmax(60px,.65fr);
     column-gap:8px;
   }

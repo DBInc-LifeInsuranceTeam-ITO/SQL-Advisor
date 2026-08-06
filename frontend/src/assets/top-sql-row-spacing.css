@@ -1,0 +1,13 @@
+/* TOP SQL 행 구분선과 데이터 사이 여백 조정 */
+.top-sql-panel tbody td {
+  padding-top: 4px !important;
+  padding-bottom: 18px !important;
+}
+
+.top-sql-panel tbody tr {
+  min-height: 68px !important;
+}
+
+.top-sql-panel tbody td:nth-child(2) small {
+  margin-top: 5px !important;
+}

@@ -8,7 +8,6 @@ import './assets/sql-manual-analysis.css'
 import './assets/realtime-dashboard-compact.css'
 import './assets/realtime-dashboard-fit.css'
 import './assets/top-sql-row-spacing.css'
-import './assets/current-load-dashboard.css'
 import './sqlTuningUiEnhancer'
 
 import { createApp } from 'vue'

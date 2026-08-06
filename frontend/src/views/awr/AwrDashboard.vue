@@ -4,28 +4,30 @@
       <div>
         <span class="eyebrow">REAL-TIME SQL ADVISOR</span>
         <h1>대시보드</h1>
-        <p>연계 분석에 등록된 DB의 실행 SQL을 2초 주기로 확인합니다.</p>
-      </div>
-
-      <div class="header-actions">
-        <label class="db-select">
-          <span>대상 DB</span>
-          <select v-model.number="selectedConnectionId">
-            <option :value="TEST_CONNECTION_ID">TEST</option>
-            <option v-for="connection in connections" :key="connection.id" :value="connection.id">
-              {{ connection.name }}
-            </option>
-          </select>
-        </label>
-        <div class="collector-state" :class="{ error: Boolean(errorMessage), loading }">
-          <span class="live-dot"></span>
-          <div>
-            <strong>{{ errorMessage ? '수집 실패' : loading ? '수집 중' : '수집 정상' }}</strong>
-            <small>{{ errorMessage || `마지막 갱신 ${lastUpdated}` }}</small>
-          </div>
-        </div>
       </div>
     </header>
+
+    <nav class="db-tabs" aria-label="대상 DB 선택">
+      <div class="db-tab-list">
+        <button
+          v-for="connection in dbTabs"
+          :key="connection.id"
+          type="button"
+          :class="{ active: selectedConnectionId === connection.id }"
+          @click="selectedConnectionId = connection.id"
+        >
+          {{ connection.name }}
+        </button>
+      </div>
+
+      <div class="collector-state" :class="{ error: Boolean(errorMessage), loading }">
+        <span class="live-dot"></span>
+        <div>
+          <strong>{{ errorMessage ? '수집 실패' : loading ? '수집 중' : '수집 정상' }}</strong>
+          <small>{{ errorMessage || `마지막 갱신 ${lastUpdated}` }}</small>
+        </div>
+      </div>
+    </nav>
 
     <section class="summary-grid">
       <article v-for="item in summaries" :key="item.label" class="summary-card" :class="item.tone">
@@ -35,37 +37,37 @@
       </article>
     </section>
 
-    <section class="main-grid">
-      <article class="panel activity-panel">
-        <div class="panel-title-row">
-          <div><span class="panel-kicker">DB ACTIVITY</span><h2>실시간 DB 활동 추이</h2></div>
-          <div class="metric-tabs">
-            <button v-for="metric in metricOptions" :key="metric.key" type="button"
-              :class="{ active: selectedMetric === metric.key }" @click="selectedMetric = metric.key">
-              {{ metric.label }}
-            </button>
+    <section class="dashboard-body">
+      <div class="chart-grid">
+        <article
+          v-for="metric in metricCards"
+          :key="metric.key"
+          class="panel metric-card"
+          :class="`metric-${metric.key}`"
+        >
+          <div class="metric-card-header">
+            <span class="panel-kicker">{{ metric.kicker }}</span>
+            <h2>{{ metric.label }}</h2>
           </div>
-        </div>
-
-        <div class="chart-summary">
-          <div><span>현재</span><strong>{{ currentMetricValue }}</strong></div>
-          <div><span>최근 평균</span><strong>{{ averageMetricValue }}</strong></div>
-          <div><span>최고</span><strong>{{ maxMetricValue }}</strong></div>
-        </div>
-
-        <div class="line-chart">
-          <div class="y-axis-labels">
-            <span v-for="label in yAxisLabels" :key="label">{{ label }}</span>
+          <div class="metric-meta">
+            <span>평균 {{ metric.average }}</span>
+            <span>최고 {{ metric.max }}</span>
           </div>
-          <div class="chart-grid-lines"><i v-for="line in 5" :key="line"></i></div>
-          <svg viewBox="0 0 720 220" preserveAspectRatio="none">
-            <defs><linearGradient id="areaGradient" x1="0" y1="0" x2="0" y2="1"><stop offset="0%" stop-color="#16a34a" stop-opacity="0.28"/><stop offset="100%" stop-color="#16a34a" stop-opacity="0"/></linearGradient></defs>
-            <path :d="areaPath" fill="url(#areaGradient)" />
-            <polyline :points="chartPoints" fill="none" stroke="#0b8f49" stroke-width="4" stroke-linecap="round" stroke-linejoin="round" />
-          </svg>
-          <div class="chart-labels"><span v-for="label in chartTimeLabels" :key="label">{{ label }}</span></div>
-        </div>
-      </article>
+          <div class="mini-chart">
+            <div class="chart-y-axis">
+              <span v-for="label in metric.yAxisLabels" :key="label">{{ label }}</span>
+            </div>
+            <div class="chart-plot">
+              <div class="chart-grid-lines"><i v-for="line in 4" :key="line"></i></div>
+              <svg viewBox="0 0 420 120" preserveAspectRatio="none" aria-hidden="true">
+                <path :d="metric.areaPath" class="chart-area" />
+                <polyline :points="metric.points" class="chart-line" />
+              </svg>
+            </div>
+            <div class="chart-time"><span>{{ firstChartTime }}</span><span>{{ lastUpdated }}</span></div>
+          </div>
+        </article>
+      </div>
 
       <article class="panel top-sql-panel">
         <div class="panel-title-row">
@@ -74,22 +76,27 @@
         </div>
 
         <div v-if="topSql.length === 0" class="empty-panel">수집된 업무 SQL이 없습니다.</div>
-        <div v-else class="table-wrap">
-          <table>
-            <thead>
-              <tr><th>순위</th><th>SQL ID</th><th>수행시간</th><th>Buffer Gets</th><th>Disk Reads</th><th>실행</th></tr>
-            </thead>
-            <tbody>
-              <tr v-for="(sql, index) in topSql.slice(0, 10)" :key="`${sql.sqlId}-${index}`">
-                <td><span class="rank-badge">{{ index + 1 }}</span></td>
-                <td><strong class="sql-id">{{ sql.sqlId }}</strong><small>{{ sql.module || sql.sectionName || '모듈 정보 없음' }}</small></td>
-                <td>{{ formatMetricNumber(sql.elapsedTimeSec) }}초</td>
-                <td>{{ formatCompact(sql.bufferGets || 0) }}</td>
-                <td>{{ formatCompact(sql.diskReads || 0) }}</td>
-                <td>{{ formatCompact(sql.executions || 0) }}</td>
-              </tr>
-            </tbody>
-          </table>
+        <div v-else class="top-sql-list">
+          <div class="top-sql-head top-sql-row">
+            <span class="top-sql-cell rank-cell">순위</span>
+            <span class="top-sql-cell sql-cell">SQL ID</span>
+            <span class="top-sql-cell value-cell">수행시간</span>
+            <span class="top-sql-cell value-cell">Buffer Gets</span>
+            <span class="top-sql-cell value-cell">실행</span>
+          </div>
+
+          <div class="top-sql-scroll">
+            <div v-for="(sql, index) in visibleTopSql" :key="`${sql.sqlId}-${index}`" class="top-sql-row top-sql-item">
+              <div class="top-sql-cell rank-cell"><span class="rank-badge">{{ index + 1 }}</span></div>
+              <div class="top-sql-cell sql-cell">
+                <strong class="sql-id">{{ sql.sqlId }}</strong>
+                <small>{{ sql.module || sql.sectionName || '모듈 정보 없음' }}</small>
+              </div>
+              <div class="top-sql-cell value-cell">{{ formatMetricNumber(sql.elapsedTimeSec) }}초</div>
+              <div class="top-sql-cell value-cell">{{ formatCompact(sql.bufferGets || 0) }}</div>
+              <div class="top-sql-cell value-cell">{{ formatCompact(sql.executions || 0) }}</div>
+            </div>
+          </div>
         </div>
       </article>
     </section>
@@ -102,7 +109,7 @@ import { getDirectTopSql, getTargetDbConnections } from '@/api/sqlTuning'
 import { getMonitoringDashboard, type MonitoringDashboardResponse } from '@/api/monitoring'
 import type { SqlMetricResponse, TargetDbConnectionResponse } from '@/types/awr'
 
-type MetricKey = 'activeSessions' | 'cpu' | 'io'
+type MetricKey = 'activeSessions' | 'executions' | 'cpu' | 'io'
 type ActivityPoint = MonitoringDashboardResponse['activity']['points'][number]
 
 const TEST_CONNECTION_ID = -1
@@ -113,48 +120,60 @@ const connections = ref<TargetDbConnectionResponse[]>([])
 const selectedConnectionId = ref(TEST_CONNECTION_ID)
 const dashboard = ref<MonitoringDashboardResponse | null>(null)
 const topSql = ref<SqlMetricResponse[]>([])
-const selectedMetric = ref<MetricKey>('activeSessions')
 const loading = ref(false)
 const errorMessage = ref('')
 let timer: number | undefined
 let topSqlTick = 0
 let testTick = 0
 
-const metricOptions: { key: MetricKey; label: string }[] = [
-  { key: 'activeSessions', label: 'Active Sessions' },
-  { key: 'cpu', label: 'CPU' },
-  { key: 'io', label: 'I/O' }
-]
-
+const dbTabs = computed(() => [
+  { id: TEST_CONNECTION_ID, name: 'TEST', status: 'normal' },
+  ...connections.value.map(connection => ({ id: connection.id, name: connection.name, status: 'normal' }))
+])
 const activityPoints = computed(() => dashboard.value?.activity.points || [])
 const chartWindow = computed(() => buildChartWindow(activityPoints.value))
-const selectedSeries = computed(() => chartWindow.value.map(point => point[selectedMetric.value]))
 const lastUpdated = computed(() => formatTime(dashboard.value?.connection.collectedAt))
+const firstChartTime = computed(() => formatTime(chartWindow.value[0]?.collectedAt))
+const visibleTopSql = computed(() => topSql.value)
 const summaries = computed(() => [
   { label: '현재 실행 SQL', value: `${dashboard.value?.summary.activeSqlCount || 0}건`, description: 'Active 세션 기준', tone: 'normal' },
   { label: '장기 실행 SQL', value: `${dashboard.value?.summary.longRunningSqlCount || 0}건`, description: '30초 이상 수행', tone: 'warning' },
-  { label: '주의 SQL', value: `${dashboard.value?.summary.warningSqlCount || 0}건`, description: '임계값 초과', tone: 'danger' },
+  { label: '고부하 SQL', value: `${dashboard.value?.summary.warningSqlCount || 0}건`, description: '임계값 초과', tone: 'danger' },
   { label: 'Blocking 세션', value: `${dashboard.value?.summary.blockingSessionCount || 0}건`, description: '즉시 확인 필요', tone: 'danger' }
 ])
-const currentMetricValue = computed(() => formatMetric(selectedSeries.value.at(-1) || 0))
-const averageMetricValue = computed(() => formatMetric(selectedSeries.value.reduce((sum, value) => sum + value, 0) / CHART_SLOT_COUNT))
-const maxMetricValue = computed(() => formatMetric(Math.max(...selectedSeries.value, 0)))
-const chartMax = computed(() => niceCeiling(Math.max(...selectedSeries.value, 0), selectedMetric.value))
-const yAxisLabels = computed(() => [1, .75, .5, .25, 0].map(ratio => formatAxisMetric(chartMax.value * ratio)))
-const chartPoints = computed(() => selectedSeries.value
-  .map((value, index) => `${(index / (CHART_SLOT_COUNT - 1)) * 720},${205 - (value / chartMax.value) * 175}`)
-  .join(' '))
-const areaPath = computed(() => `M 0 220 L ${chartPoints.value.replaceAll(' ', ' L ')} L 720 220 Z`)
-const chartTimeLabels = computed(() => [0, 2, 4, 6, 8, 10, 11].map(index => formatTime(chartWindow.value[index]?.collectedAt)))
+
+const metricCards = computed(() => [
+  buildMetricCard('activeSessions', 'DB ACTIVITY', 'Active Sessions'),
+  buildMetricCard('executions', 'SQL THROUGHPUT', 'SQL 실행량'),
+  buildMetricCard('cpu', 'DB CPU', 'CPU 사용시간'),
+  buildMetricCard('io', 'DB I/O', 'I/O 처리량')
+])
+
+function buildMetricCard(key: MetricKey, kicker: string, label: string) {
+  const values = chartWindow.value.map(point => Number(point[key] || 0))
+  const maxValue = Math.max(...values, 0)
+  const ceiling = niceCeiling(maxValue, key)
+  const points = values.map((value, index) => `${(index / (CHART_SLOT_COUNT - 1)) * 420},${110 - (value / ceiling) * 94}`).join(' ')
+  const areaPath = `M 0 120 L ${points.replaceAll(' ', ' L ')} L 420 120 Z`
+  const average = values.reduce((sum, value) => sum + value, 0) / CHART_SLOT_COUNT
+  return {
+    key,
+    kicker,
+    label,
+    points,
+    areaPath,
+    yAxisLabels: [ceiling, ceiling * 0.67, ceiling * 0.33, 0].map(value => formatAxisMetric(value, key)),
+    average: formatMetric(average, key),
+    max: formatMetric(maxValue, key)
+  }
+}
 
 function buildChartWindow(points: ActivityPoint[]): ActivityPoint[] {
-  const sorted = [...points].sort((left, right) => new Date(left.collectedAt).getTime() - new Date(right.collectedAt).getTime())
+  const sorted = [...points].sort((left, right) => parseServerTime(left.collectedAt).getTime() - parseServerTime(right.collectedAt).getTime())
   const end = dashboard.value?.connection.collectedAt ? parseServerTime(dashboard.value.connection.collectedAt).getTime() : Date.now()
-  const first = sorted[0]
-  const fallback: ActivityPoint = first || {
+  const fallback: ActivityPoint = sorted[0] || {
     collectedAt: new Date(end).toISOString(), activeSessions: 0, executions: 0, cpu: 0, io: 0
   }
-
   let cursor = 0
   let latest = fallback
   return Array.from({ length: CHART_SLOT_COUNT }, (_, index) => {
@@ -171,27 +190,20 @@ function niceCeiling(value: number, metric: MetricKey) {
   if (value <= 0) return metric === 'cpu' ? 1 : metric === 'activeSessions' ? 4 : 100
   const magnitude = 10 ** Math.floor(Math.log10(value))
   const normalized = value / magnitude
-  const nice = normalized <= 1 ? 1 : normalized <= 2 ? 2 : normalized <= 5 ? 5 : 10
-  return nice * magnitude
+  return (normalized <= 1 ? 1 : normalized <= 2 ? 2 : normalized <= 5 ? 5 : 10) * magnitude
 }
 
 async function loadConnections() {
-  try {
-    connections.value = await getTargetDbConnections()
-    selectedConnectionId.value = TEST_CONNECTION_ID
-  } catch (error) {
-    selectedConnectionId.value = TEST_CONNECTION_ID
-    errorMessage.value = ''
-  }
+  try { connections.value = await getTargetDbConnections() }
+  catch { connections.value = [] }
 }
 
 async function refreshDashboard() {
   if (loading.value) return
   loading.value = true
   try {
-    if (selectedConnectionId.value === TEST_CONNECTION_ID) {
-      refreshTestDashboard()
-    } else {
+    if (selectedConnectionId.value === TEST_CONNECTION_ID) refreshTestDashboard()
+    else {
       dashboard.value = await getMonitoringDashboard(selectedConnectionId.value)
       if (topSqlTick++ % 3 === 0) {
         topSql.value = await getDirectTopSql(selectedConnectionId.value, { source: 'CURRENT', limit: 20, sortBy: 'ELAPSED' })
@@ -212,24 +224,15 @@ function refreshTestDashboard() {
     const patternIndex = (index + shift) % CHART_SLOT_COUNT
     return {
       collectedAt: new Date(now - (CHART_SLOT_COUNT - 1 - index) * CHART_INTERVAL_MS).toISOString(),
-      activeSessions: activePattern[patternIndex],
-      executions: 40 + patternIndex * 7,
-      cpu: cpuPattern[patternIndex],
-      io: ioPattern[patternIndex]
+      activeSessions: activePattern[patternIndex], executions: 40 + patternIndex * 7,
+      cpu: cpuPattern[patternIndex], io: ioPattern[patternIndex]
     }
   })
-
   dashboard.value = {
     connection: { collectedAt: new Date(now).toISOString() },
-    summary: {
-      activeSqlCount: 18,
-      longRunningSqlCount: 3,
-      warningSqlCount: 5,
-      blockingSessionCount: 1
-    },
+    summary: { activeSqlCount: 18, longRunningSqlCount: 3, warningSqlCount: 5, blockingSessionCount: 1 },
     activity: { points }
   } as MonitoringDashboardResponse
-
   topSql.value = [
     { sqlId: 'testsql00001', module: 'ORDER_BATCH', elapsedTimeSec: 182.4, bufferGets: 1280000, diskReads: 184000, executions: 12 },
     { sqlId: 'testsql00002', module: 'ONLINE_API', elapsedTimeSec: 96.8, bufferGets: 842000, diskReads: 92000, executions: 286 },
@@ -238,7 +241,6 @@ function refreshTestDashboard() {
     { sqlId: 'testsql00005', module: 'CUSTOMER_API', elapsedTimeSec: 31.9, bufferGets: 248000, diskReads: 18000, executions: 612 },
     { sqlId: 'testsql00006', module: 'REPORT', elapsedTimeSec: 22.7, bufferGets: 176000, diskReads: 9000, executions: 43 }
   ] as SqlMetricResponse[]
-
   testTick += 1
 }
 
@@ -256,24 +258,26 @@ function parseServerTime(value: string) {
   if (/[zZ]$|[+-]\d{2}:?\d{2}$/.test(value)) return new Date(value)
   return new Date(`${value}Z`)
 }
-
-function formatMetric(value: number) { return selectedMetric.value === 'cpu' ? `${value.toFixed(1)}초` : Math.round(value).toLocaleString() }
-function formatAxisMetric(value: number) { return selectedMetric.value === 'cpu' ? value.toFixed(value < 1 ? 1 : 0) : Math.round(value).toLocaleString() }
+function formatMetric(value: number, metric: MetricKey) {
+  if (metric === 'cpu') return `${value.toFixed(1)}초`
+  return Math.round(value).toLocaleString()
+}
+function formatAxisMetric(value: number, metric: MetricKey) {
+  if (metric === 'cpu') return value.toFixed(value < 1 ? 1 : 0)
+  if (value >= 1_000_000) return `${(value / 1_000_000).toFixed(1)}M`
+  if (value >= 1_000) return `${Math.round(value / 1_000)}K`
+  return Math.round(value).toLocaleString()
+}
 function formatCompact(value: number) { if (value >= 1_000_000) return `${(value / 1_000_000).toFixed(1)}M`; if (value >= 1_000) return `${Math.round(value / 1_000)}K`; return value.toLocaleString() }
 function formatMetricNumber(value?: number | null) { return (value || 0).toFixed(1) }
 function formatTime(value?: string) {
   if (!value) return '-'
-  return new Intl.DateTimeFormat('ko-KR', {
-    timeZone: 'Asia/Seoul', hour: '2-digit', minute: '2-digit', second: '2-digit', hour12: false
-  }).format(parseServerTime(value))
+  return new Intl.DateTimeFormat('ko-KR', { timeZone: 'Asia/Seoul', hour: '2-digit', minute: '2-digit', second: '2-digit', hour12: false }).format(parseServerTime(value))
 }
 function extractError(error: unknown) { return typeof error === 'object' && error && 'message' in error ? String(error.message) : '실시간 데이터 조회에 실패했습니다.' }
 
-watch(selectedConnectionId, () => restartPolling())
-onMounted(async () => {
-  await loadConnections()
-  restartPolling()
-})
+watch(selectedConnectionId, restartPolling)
+onMounted(async () => { await loadConnections(); restartPolling() })
 onBeforeUnmount(() => { if (timer) window.clearInterval(timer) })
 </script>
 

@@ -42,7 +42,7 @@
 }
 .db-select select:hover { border-color:rgba(9,143,76,.42); background-color:rgba(255,255,255,.82); }
 .db-select select:focus { border-color:#078f4c; box-shadow:0 0 0 3px rgba(7,143,76,.12); }
-.collector-state { display:flex; align-items:center; gap:11px; margin-top:8px; }
+.collector-state { display:flex; align-items:center; gap:11px; }
 .collector-state div { display:grid; gap:3px; }
 .collector-state strong { color:#16713f; font-size:14px; }
 .collector-state.error strong { color:#c62828; }

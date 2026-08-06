@@ -166,6 +166,7 @@
 .top-sql-head {
   padding:0 8px;
   min-height:36px;
+  margin-right:12px;
   border-radius:10px;
   background:#f6f9f7;
 }
@@ -173,16 +174,15 @@
   color:#526a5d;
   font-size:11px;
   font-weight:900;
-  text-align:center;
-  justify-content:center;
 }
 .top-sql-scroll {
   min-height:0;
   height:100%;
-  overflow-y:auto;
+  overflow-y:scroll;
   padding-right:4px;
   display:flex;
   flex-direction:column;
+  scrollbar-gutter:stable;
 }
 .top-sql-scroll::-webkit-scrollbar { width:8px; }
 .top-sql-scroll::-webkit-scrollbar-track { background:transparent; }
@@ -197,29 +197,27 @@
 .top-sql-item:last-child { border-bottom:0; }
 .top-sql-cell {
   min-width:0;
-  color:#30463a;
-  font-size:12px;
-  font-weight:600;
-}
-.rank-cell {
+  width:100%;
+  box-sizing:border-box;
   display:flex;
   align-items:center;
   justify-content:center;
+  color:#30463a;
+  font-size:12px;
+  font-weight:600;
   text-align:center;
 }
+.rank-cell {
+  justify-content:center;
+}
 .sql-cell {
-  display:flex;
   flex-direction:column;
   justify-content:center;
   align-items:center;
   gap:3px;
-  text-align:center;
 }
 .value-cell {
-  display:flex;
-  align-items:center;
   justify-content:center;
-  text-align:center;
   font-variant-numeric:tabular-nums;
 }
 .sql-id { color:#203d2e; font-size:13px; font-weight:900; line-height:1.1; }
@@ -237,36 +235,6 @@
 .rank-badge { display:inline-grid; place-items:center; width:25px; height:25px; border-radius:8px; color:#078f4c; background:#eaf7ef; font-size:12px; font-weight:900; }
 .empty-panel { display:grid; place-items:center; color:#7a8780; font-size:12px; font-weight:700; }
 
-/* Header and rows share one exact grid so every column stays aligned. */
-.top-sql-head,
-.top-sql-item {
-  grid-template-columns: 52px minmax(0, 1.75fr) minmax(92px, .95fr) minmax(96px, 1fr) minmax(68px, .7fr);
-  column-gap: 10px;
-  padding-left: 8px;
-  padding-right: 8px;
-}
-
-.top-sql-head .top-sql-cell,
-.top-sql-item .top-sql-cell {
-  width: 100%;
-  min-width: 0;
-  box-sizing: border-box;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  text-align: center;
-}
-
-.top-sql-item .sql-cell {
-  flex-direction: column;
-  gap: 3px;
-}
-
-.top-sql-scroll {
-  padding-right: 0;
-  scrollbar-gutter: stable;
-}
-
 @media (max-width: 1450px) {
   .realtime-dashboard {
     padding-left:10px;
@@ -282,9 +250,7 @@
   }
   .summary-card strong { font-size:22px; }
   .metric-card-header h2,.panel-title-row h2 { font-size:16px; }
-  .top-sql-row,
-  .top-sql-head,
-  .top-sql-item {
+  .top-sql-row {
     grid-template-columns:46px minmax(0,1.65fr) minmax(82px,.92fr) minmax(90px,.95fr) minmax(60px,.65fr);
     column-gap:8px;
   }

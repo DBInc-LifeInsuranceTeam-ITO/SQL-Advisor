@@ -13,33 +13,22 @@ SQLAdvisor는 Oracle AWR 분석, Direct DB 기반 실시간 SQL 모니터링, AI
 - SQL text, 실행계획, 인덱스, bind 근거 기반 튜닝 권고
 - OpenAI, Gemini, 내부 OpenAI-compatible endpoint, Ollama 연동
 
-## 빠른 시작
+## 실행 및 배포
 
-### Dev
-
-```bash
-sh deploy/init-env.sh --mode dev
-docker compose -f deploy/docker-compose.dev.yml up -d --build
-```
-
-| 구분 | 주소 |
-| --- | --- |
-| 웹 화면 | `http://localhost:5173` |
-| API | `http://localhost:18080/api` |
-
-### Prod
+SQLAdvisor는 운영용 Docker Compose 구성을 기준으로 실행합니다.
 
 ```bash
 sh deploy/init-env.sh --mode prod
 docker compose -f deploy/docker-compose.prod.yml up -d --build
 ```
 
-prod에서는 Nginx가 정적 프론트엔드를 서빙하고 `/api` 요청을 API 컨테이너로 프록시합니다.
+Nginx가 정적 프론트엔드를 서빙하고 `/api` 요청을 API 컨테이너로 프록시합니다.
 
 | 구분 | 주소 |
 | --- | --- |
 | 웹 화면 | `http://<server-host>/` |
 | API | `http://<server-host>/api` |
+| PostgreSQL | `<server-host>:5432` |
 
 ## 기본 사용 흐름
 
@@ -55,27 +44,21 @@ prod에서는 Nginx가 정적 프론트엔드를 서빙하고 `/api` 요청을 A
 
 ```text
 .
-├── deploy/          # dev/prod Compose, 환경 템플릿, Nginx 설정
+├── deploy/          # 운영 Compose, 환경 템플릿, Nginx 설정
 ├── frontend/        # Vue 3 + TypeScript 웹 화면
 ├── sqladvisor/      # Spring Boot API 및 Oracle 모니터링/튜닝 로직
 └── worker/          # OCR, AWR 텍스트 추출, 비동기 작업
 ```
 
-## 배포 구성
-
-| 모드 | 설명 | 노출 포트 |
-| --- | --- | --- |
-| `dev` | 로컬 개발/검증용 | `5173`, `18080`, `5432`, `6379` |
-| `prod` | Nginx 기반 배포 | `80`, `5432` |
-
 ## 주요 환경 파일
 
 | 파일 | 설명 |
 | --- | --- |
-| `deploy/.env.dev.example` | dev 환경 템플릿 |
-| `deploy/.env.prod.example` | prod 환경 템플릿 |
-| `deploy/.env.dev` | dev 실제 환경값, Git 제외 |
-| `deploy/.env.prod` | prod 실제 환경값, Git 제외 |
+| `deploy/.env.prod.example` | 운영 환경 템플릿 |
+| `deploy/.env.prod` | 운영 실제 환경값, Git 제외 |
+| `deploy/config/application-prod.yml` | 운영 API 설정 |
+| `deploy/docker-compose.prod.yml` | 운영 Docker Compose |
+| `deploy/nginx/prod.conf` | 운영 Nginx 설정 |
 
 외부 AI를 사용하지 않을 때:
 
@@ -134,7 +117,7 @@ APP_SESSION_TIMEOUT_MINUTES=120
 
 전체 API는 [API_DOCUMENTATION.md](API_DOCUMENTATION.md)를 참고합니다.
 
-## 자주 쓰는 명령어
+## 운영 명령어
 
 ```bash
 # 상태 확인
@@ -153,7 +136,7 @@ docker compose -f deploy/docker-compose.prod.yml down
 
 ## Git 및 보안 주의
 
-- `deploy/.env.dev`, `deploy/.env.prod`는 커밋하지 않습니다.
+- `deploy/.env.prod`는 커밋하지 않습니다.
 - API Key, DB 비밀번호, 운영 URL은 YAML과 소스에 직접 작성하지 않습니다.
 - 운영 DB 모니터링 계정은 조회 전용 권한을 사용합니다.
 - 실시간 조회 주기를 줄일수록 Oracle 및 API 호출 부하가 증가할 수 있습니다.
@@ -165,7 +148,7 @@ docker compose -f deploy/docker-compose.prod.yml down
 | [사용자 매뉴얼](USER_MANUAL.md) | 화면별 사용법과 운영 흐름 |
 | [API 문서](API_DOCUMENTATION.md) | REST API 상세 |
 | [기술 스택](TECH_STACK.md) | 구성 요소와 사용 기술 |
-| [프론트엔드 README](frontend/README.md) | 화면, 라우팅, 프론트 개발 안내 |
-| [배포 README](deploy/README.md) | Docker Compose 배포 안내 |
+| [프론트엔드 README](frontend/README.md) | 화면, 라우팅, 프론트 구조 안내 |
+| [배포 README](deploy/README.md) | 운영 Docker Compose 배포 안내 |
 | [RAG 아키텍처](RAG_ARCHITECTURE.md) | RAG 저장 및 검색 구조 |
 | [로그인 설계](AUTH_DESIGN.md) | 인증 및 사용자 권한 구조 |

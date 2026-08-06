@@ -77,10 +77,11 @@
   position:relative;
   z-index:2;
 }
-.summary-card,.panel { background:rgba(255,255,255,.96); box-shadow:0 8px 20px rgba(27,67,45,.05); }
+.summary-card,.panel { background:rgba(255,255,255,.96); box-shadow:0 5px 14px rgba(27,67,45,.045); }
 .summary-card {
   min-width:0;
   min-height:0;
+  height:100%;
   padding:8px 13px;
   border:1.5px solid #b9dfca;
   border-radius:14px;
@@ -99,13 +100,16 @@
 
 .dashboard-body {
   min-height: 0;
-  height: 100%;
+  height: calc(100% - 28px);
+  margin-top: 14px;
+  margin-bottom: 14px;
   overflow: hidden;
   display: grid;
   grid-template-columns: minmax(0, 1.35fr) minmax(400px, .95fr);
   gap: 10px;
   position:relative;
   z-index:1;
+  box-sizing:border-box;
 }
 .chart-grid {
   min-width:0;
@@ -156,7 +160,12 @@ td small { display:block; margin-top:2px; color:#74847b; font-size:9px; overflow
     grid-template-rows:60px 34px 68px minmax(0,1fr);
     row-gap:8px;
   }
-  .dashboard-body { grid-template-columns:minmax(0,1.2fr) minmax(360px,.9fr); }
+  .dashboard-body {
+    height:calc(100% - 24px);
+    margin-top:12px;
+    margin-bottom:12px;
+    grid-template-columns:minmax(0,1.2fr) minmax(360px,.9fr);
+  }
   .summary-card strong { font-size:22px; }
   .metric-card-header h2,.panel-title-row h2 { font-size:16px; }
 }

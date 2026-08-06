@@ -16,7 +16,6 @@
           :class="{ active: selectedConnectionId === connection.id }"
           @click="selectedConnectionId = connection.id"
         >
-          <span class="db-status" :class="connection.status"></span>
           {{ connection.name }}
         </button>
       </div>

@@ -1,8 +1,12 @@
 .realtime-dashboard {
   height: 100dvh;
+  min-height: 0;
   overflow: hidden;
   padding: 8px 14px 10px;
   box-sizing: border-box;
+  display: grid;
+  grid-template-rows: 44px 32px 52px minmax(0, 1fr);
+  gap: 6px;
   color: #10231a;
   background:
     radial-gradient(circle at 12% 8%, rgba(59, 191, 125, 0.10), transparent 30%),
@@ -11,7 +15,7 @@
 }
 
 .dashboard-header {
-  height: 44px;
+  min-height: 0;
   display: flex;
   align-items: center;
   justify-content: space-between;
@@ -32,7 +36,7 @@
 @keyframes collectorSpin { to { transform:rotate(360deg); } }
 
 .db-tabs {
-  height: 32px;
+  min-height: 0;
   display: flex;
   align-items: center;
   gap: 6px;
@@ -63,13 +67,19 @@
 .db-tabs button.active .db-status { background:#fff; box-shadow:0 0 0 3px rgba(255,255,255,.18); }
 .db-status.warning { background:#f59e0b; }.db-status.error { background:#ef4444; }
 
-.summary-grid { height:58px; display:grid; grid-template-columns:repeat(4,minmax(0,1fr)); gap:9px; margin:3px 0 7px; }
+.summary-grid {
+  min-height: 0;
+  display:grid;
+  grid-template-columns:repeat(4,minmax(0,1fr));
+  gap:9px;
+}
 .summary-card,.panel { background:rgba(255,255,255,.96); box-shadow:0 8px 20px rgba(27,67,45,.05); }
 .summary-card {
   min-width:0;
-  padding:6px 11px;
+  min-height:0;
+  padding:5px 10px;
   border:1.5px solid #b9dfca;
-  border-radius:13px;
+  border-radius:12px;
   display:grid;
   grid-template-columns:1fr auto;
   grid-template-rows:auto auto;
@@ -78,40 +88,47 @@
 }
 .summary-card:nth-child(2) { border-color:#edc980; }
 .summary-card:nth-child(3),.summary-card:nth-child(4) { border-color:#efaaaa; }
-.summary-card span,.summary-card small { color:#718078; font-size:9px; font-weight:800; }
-.summary-card strong { grid-row:1 / span 2; grid-column:2; margin-left:10px; color:#173c29; font-size:20px; letter-spacing:-.05em; }
+.summary-card span,.summary-card small { color:#718078; font-size:8px; font-weight:800; line-height:1.1; }
+.summary-card strong { grid-row:1 / span 2; grid-column:2; margin-left:9px; color:#173c29; font-size:18px; letter-spacing:-.05em; }
 .summary-card.warning strong { color:#d97706; }.summary-card.danger strong { color:#dc2626; }
 
 .dashboard-body {
-  height: calc(100dvh - 170px);
   min-height: 0;
+  overflow: hidden;
   display: grid;
   grid-template-columns: minmax(0, 1.35fr) minmax(400px, .95fr);
   gap: 9px;
 }
-.chart-grid { min-width:0; min-height:0; display:grid; grid-template-columns:repeat(2,minmax(0,1fr)); grid-template-rows:repeat(2,minmax(0,1fr)); gap:9px; }
-.panel { min-width:0; min-height:0; padding:9px 11px; border:1px solid rgba(214,228,220,.95); border-radius:14px; box-sizing:border-box; overflow:hidden; }
+.chart-grid {
+  min-width:0;
+  min-height:0;
+  overflow:hidden;
+  display:grid;
+  grid-template-columns:repeat(2,minmax(0,1fr));
+  grid-template-rows:repeat(2,minmax(0,1fr));
+  gap:9px;
+}
+.panel { min-width:0; min-height:0; padding:8px 10px; border:1px solid rgba(214,228,220,.95); border-radius:13px; box-sizing:border-box; overflow:hidden; }
 .metric-card { --metric-color:#0b8f49; --metric-fill:rgba(22,163,74,.10); display:grid; grid-template-rows:auto auto minmax(0,1fr); }
 .metric-activeSessions { --metric-color:#16a34a; --metric-fill:rgba(22,163,74,.10); }
 .metric-executions { --metric-color:#2563eb; --metric-fill:rgba(37,99,235,.10); }
 .metric-cpu { --metric-color:#f59e0b; --metric-fill:rgba(245,158,11,.11); }
 .metric-io { --metric-color:#7c3aed; --metric-fill:rgba(124,58,237,.10); }
-.metric-card-header,.panel-title-row { display:flex; align-items:flex-start; justify-content:space-between; gap:9px; }
-.metric-card-header h2,.panel-title-row h2 { font-size:14px; }
-.metric-card-header > strong { color:var(--metric-color); font-size:18px; letter-spacing:-.04em; }
-.metric-meta { display:flex; gap:12px; margin-top:2px; color:#7b8882; font-size:8px; font-weight:800; }
-.mini-chart { min-height:0; position:relative; margin-top:4px; padding:0 0 14px 28px; }
-.chart-plot { position:absolute; inset:0 0 14px 28px; }
+.metric-card-header { min-height:0; }
+.metric-card-header h2,.panel-title-row h2 { font-size:13px; }
+.metric-meta { display:flex; gap:12px; margin-top:1px; color:#7b8882; font-size:7px; font-weight:800; }
+.mini-chart { min-height:0; position:relative; margin-top:3px; padding:0 0 13px 28px; }
+.chart-plot { position:absolute; inset:0 0 13px 28px; }
 .chart-plot svg,.chart-plot .chart-grid-lines { position:absolute; inset:0; width:100%; height:100%; }
 .chart-grid-lines { display:grid; grid-template-rows:repeat(4,1fr); }
 .chart-grid-lines i { border-top:1px dashed #e0e9e4; }
-.chart-y-axis { position:absolute; top:0; bottom:14px; left:0; width:24px; display:flex; flex-direction:column; justify-content:space-between; align-items:flex-end; color:#84918b; font-size:7px; font-weight:700; }
+.chart-y-axis { position:absolute; top:0; bottom:13px; left:0; width:24px; display:flex; flex-direction:column; justify-content:space-between; align-items:flex-end; color:#84918b; font-size:7px; font-weight:700; }
 .chart-line { fill:none; stroke:var(--metric-color); stroke-width:2; stroke-linecap:round; stroke-linejoin:round; }
 .chart-area { fill:var(--metric-fill); }
 .chart-time { position:absolute; right:0; bottom:0; left:28px; display:flex; justify-content:space-between; color:#87948e; font-size:7px; font-weight:700; }
 
-.top-sql-panel { min-height:0; display:grid; grid-template-rows:auto minmax(0,1fr); }
-.panel-title-row { margin-bottom:6px; }
+.top-sql-panel { min-height:0; overflow:hidden; display:grid; grid-template-rows:auto minmax(0,1fr); }
+.panel-title-row { display:flex; align-items:flex-start; justify-content:space-between; gap:9px; margin-bottom:5px; }
 .badge { display:inline-flex; align-items:center; border-radius:999px; padding:4px 7px; color:#557064; background:#eef4f1; font-size:8px; font-weight:900; }
 .table-wrap { min-height:0; overflow:hidden; }
 table { width:100%; border-collapse:collapse; table-layout:fixed; font-size:10px; }
@@ -126,5 +143,5 @@ td small { display:block; margin-top:1px; color:#839189; font-size:7px; overflow
 @media (max-width: 1450px) {
   .realtime-dashboard { padding-left:10px; padding-right:10px; }
   .dashboard-body { grid-template-columns:minmax(0,1.2fr) minmax(360px,.9fr); }
-  .summary-card strong { font-size:18px; }
+  .summary-card strong { font-size:17px; }
 }

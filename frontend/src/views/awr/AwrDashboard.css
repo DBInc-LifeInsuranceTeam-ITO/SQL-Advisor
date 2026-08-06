@@ -29,7 +29,7 @@
 .realtime-dashboard .dashboard-header h1 { font-size:27px !important; line-height:1.05 !important; }
 .collector-state {
   position:absolute;
-  top:20px;
+  top:28px;
   right:14px;
   z-index:5;
   display:flex;
@@ -267,7 +267,7 @@
     grid-template-columns:minmax(0,1.2fr) minmax(360px,.9fr);
   }
   .collector-state {
-    top:18px;
+    top:26px;
     right:10px;
     margin:0;
   }

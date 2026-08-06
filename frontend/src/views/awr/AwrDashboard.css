@@ -162,21 +162,38 @@
 .top-sql-panel table {
   width:100%;
   height:100%;
+  display:grid;
+  grid-template-rows:36px minmax(0,1fr);
   border-collapse:collapse;
   table-layout:fixed;
   font-size:12px;
 }
-.top-sql-panel thead {
-  height:36px;
-}
+.top-sql-panel thead,
 .top-sql-panel tbody {
-  height:calc(100% - 36px);
+  display:block;
+  min-height:0;
+  height:auto;
+}
+.top-sql-panel thead tr,
+.top-sql-panel tbody tr {
+  display:grid;
+  grid-template-columns:42px minmax(0,1.65fr) minmax(82px,.9fr) minmax(90px,.9fr) minmax(64px,.65fr);
+  align-items:center;
+}
+.top-sql-panel thead tr { height:36px; }
+.top-sql-panel tbody {
+  display:grid;
+  grid-template-rows:repeat(6,minmax(0,1fr));
+  overflow:hidden;
 }
 .top-sql-panel tbody tr {
-  height:calc((100% - 1px) / 6);
+  min-height:0;
+  height:auto;
 }
 th { padding:6px 7px; color:#526a5d; background:#f6f9f7; text-align:left; font-size:10px; font-weight:900; }
 td { padding:9px 7px; border-bottom:1px solid #edf2ef; color:#30463a; font-size:12px; font-weight:500; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; vertical-align:middle; }
+.top-sql-panel th,
+.top-sql-panel td { width:auto !important; box-sizing:border-box; }
 th:nth-child(1),td:nth-child(1){width:42px} th:nth-child(2),td:nth-child(2){width:34%}
 td small { display:block; margin-top:2px; color:#74847b; font-size:9px; overflow:hidden; text-overflow:ellipsis; }
 .sql-id { color:#203d2e; font-size:12px; font-weight:900; }
@@ -199,7 +216,7 @@ td small { display:block; margin-top:2px; color:#74847b; font-size:9px; overflow
   .summary-card strong { font-size:22px; }
   .metric-card-header h2,.panel-title-row h2 { font-size:16px; }
   .top-sql-panel { padding-bottom:8px; }
-  .top-sql-panel thead { height:34px; }
-  .top-sql-panel tbody { height:calc(100% - 34px); }
+  .top-sql-panel table { grid-template-rows:34px minmax(0,1fr); }
+  .top-sql-panel thead tr { height:34px; }
   td { padding-top:8px; padding-bottom:8px; }
 }

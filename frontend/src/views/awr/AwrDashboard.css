@@ -233,3 +233,83 @@ td small { display:block; margin-top:2px; color:#74847b; font-size:9px; overflow
   .top-sql-panel thead tr { height:34px; }
   td { padding-top:8px; padding-bottom:8px; }
 }
+
+/* TOP SQL: 행 전체를 패널 하단까지 균등하게 채우고 텍스트 잘림 방지 */
+.top-sql-panel .table-wrap {
+  border-top: 1px solid #e4ece8;
+}
+
+.top-sql-panel thead {
+  flex-basis: 40px;
+}
+
+.top-sql-panel thead tr {
+  height: 40px;
+}
+
+.top-sql-panel tbody {
+  display: grid;
+  grid-template-rows: repeat(6, minmax(0, 1fr));
+  height: 100%;
+}
+
+.top-sql-panel tbody tr {
+  min-height: 64px;
+  height: 100%;
+  border-bottom: 1px solid #e7eeea;
+}
+
+.top-sql-panel tbody tr:last-child {
+  border-bottom: 0;
+}
+
+.top-sql-panel thead tr,
+.top-sql-panel tbody tr {
+  grid-template-columns: 48px minmax(180px, 1.8fr) minmax(92px, .9fr) minmax(100px, 1fr) minmax(70px, .7fr);
+  column-gap: 4px;
+}
+
+.top-sql-panel th {
+  padding: 8px 10px;
+  white-space: nowrap;
+}
+
+.top-sql-panel td {
+  padding: 11px 10px;
+  border-bottom: 0;
+  line-height: 1.3;
+}
+
+.top-sql-panel tbody td:nth-child(2) {
+  min-width: 0;
+  padding-right: 14px;
+}
+
+.top-sql-panel tbody td:nth-child(n+3) {
+  justify-content: flex-start;
+  font-variant-numeric: tabular-nums;
+}
+
+.top-sql-panel .sql-id,
+.top-sql-panel td small {
+  display: block;
+  max-width: 100%;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.top-sql-panel .sql-id {
+  font-size: 12px;
+  line-height: 1.35;
+}
+
+.top-sql-panel td small {
+  margin-top: 4px;
+  line-height: 1.25;
+}
+
+.top-sql-panel .rank-badge {
+  width: 25px;
+  height: 25px;
+}

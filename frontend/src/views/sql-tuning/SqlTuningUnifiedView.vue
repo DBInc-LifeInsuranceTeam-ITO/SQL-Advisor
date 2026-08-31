@@ -364,6 +364,7 @@ async function runSelectedTuning() {
   loadingSelectedTuning.value = true; manualResult.value = null; errorMessage.value = ''; startTuningTimer()
   await nextTick()
   resultPanelElement.value?.scrollIntoView({ behavior: 'smooth', block: 'center' })
+  let tuningCompleted = false
   try {
     const result = await tuneDirectSql({
       connectionId: connectionId.value,
@@ -383,8 +384,13 @@ async function runSelectedTuning() {
     })
     manualResult.value = result
     mode.value = 'MANUAL'
+    tuningCompleted = true
   } catch (error) { setError(error, '선택한 SQL의 AI 튜닝에 실패했습니다.') }
   finally { loadingSelectedTuning.value = false; stopTuningTimer() }
+  if (tuningCompleted) {
+    await nextTick()
+    window.scrollTo({ top: 0, behavior: 'smooth' })
+  }
 }
 function startTuningTimer() {
   stopTuningTimer()

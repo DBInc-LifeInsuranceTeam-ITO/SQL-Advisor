@@ -157,11 +157,6 @@ const menuItems = [
     icon: '<svg viewBox="0 0 24 24"><path d="M4 5h16v14H4V5Zm2 2v10h12V7H6Zm2 2h5v2H8V9Zm0 3h8v2H8v-2Z"/></svg>'
   },
   {
-    name: 'awr-chat',
-    label: 'AI 리포트 분석',
-    icon: '<svg viewBox="0 0 24 24"><path d="M4 4h16v11H7l-3 4V4Zm4 4v2h8V8H8Zm0 4v2h6v-2H8Z"/></svg>'
-  },
-  {
     name: 'awr-upload',
     label: '분석 요청',
     icon: '<svg viewBox="0 0 24 24"><path d="M12 3 7 8h3v6h4V8h3l-5-5ZM5 19h14v-3h2v5H3v-5h2v3Z"/></svg>'
@@ -170,6 +165,11 @@ const menuItems = [
     name: 'awr-reports',
     label: '분석 결과',
     icon: '<svg viewBox="0 0 24 24"><path d="M5 3h14v18H5V3Zm3 4v2h8V7H8Zm0 4v2h8v-2H8Zm0 4v2h5v-2H8Z"/></svg>'
+  },
+  {
+    name: 'awr-chat',
+    label: 'AI 리포트 분석',
+    icon: '<svg viewBox="0 0 24 24"><path d="M4 4h16v11H7l-3 4V4Zm4 4v2h8V8H8Zm0 4v2h6v-2H8Z"/></svg>'
   },
   {
     name: 'awr-ai-settings',

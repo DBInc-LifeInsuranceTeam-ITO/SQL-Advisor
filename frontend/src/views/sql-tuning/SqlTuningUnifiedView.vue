@@ -118,6 +118,18 @@
       </section>
 
       <section class="awr-panel result-panel">
+        <div v-if="loadingSelectedTuning" class="tuning-progress-overlay" role="status" aria-live="polite">
+          <div class="tuning-spinner" aria-hidden="true"></div>
+          <strong>선택한 SQL을 AI로 튜닝하고 있습니다</strong>
+          <p>{{ selectedSqlRow?.sqlId }}의 DB 정보와 실행계획을 수집해 튜닝안을 생성합니다.</p>
+          <div class="tuning-progress-track" aria-hidden="true"><span></span></div>
+          <div class="tuning-progress-steps">
+            <span>DB 컨텍스트 수집</span>
+            <span>실행계획·인덱스 분석</span>
+            <span>AI 튜닝안 생성</span>
+          </div>
+          <small>{{ tuningElapsedSeconds }}초 경과 · 완료되면 결과 화면으로 자동 이동합니다.</small>
+        </div>
         <template v-if="mode === 'AUTO'">
           <div class="awr-panel-header">
             <h2 class="awr-panel-title">자동 진단 결과</h2>
@@ -244,7 +256,7 @@
 </template>
 
 <script setup lang="ts">
-import { computed, onMounted, reactive, ref } from 'vue'
+import { computed, onBeforeUnmount, onMounted, reactive, ref } from 'vue'
 import {
   createTargetDbConnection, deleteTargetDbConnection, getTargetDbConnections,
   testSavedTargetDbConnection, testTargetDbConnection, tuneDirectSql, tuneSql
@@ -263,6 +275,7 @@ const loadingTopSql = ref(false)
 const loadingDiagnosis = ref(false)
 const loadingManual = ref(false)
 const loadingSelectedTuning = ref(false)
+const tuningElapsedSeconds = ref(0)
 const copyStatus = ref('')
 const topSqlLoaded = ref(false)
 const topSqlRows = ref<DirectSqlMetricResponse[]>([])
@@ -275,6 +288,7 @@ const limit = ref<20 | 50 | 100>(20)
 const sortBy = ref('TOTAL_ELAPSED_TIME')
 const connectionForm = reactive({ name: '', dbType: 'ORACLE', jdbcUrl: '', username: '', password: '', visibility: 'PRIVATE', monitoringEnabled: false, monitoringIntervalSec: 60 })
 const manual = reactive({ sqlText: '', question: '', executionPlan: '', schemaDdl: '', existingIndexes: '', bindSamples: '' })
+let tuningElapsedTimer: number | undefined
 
 const selectedConnection = computed(() => connections.value.find(item => item.id === connectionId.value) || null)
 const canTestConnection = computed(() => Boolean(connectionForm.jdbcUrl && connectionForm.username && connectionForm.password))
@@ -286,6 +300,7 @@ const filteredTopSql = computed(() => {
 })
 
 onMounted(loadConnections)
+onBeforeUnmount(stopTuningTimer)
 
 async function loadConnections() {
   try {
@@ -345,7 +360,7 @@ async function diagnose(row: DirectSqlMetricResponse) {
 async function runSelectedTuning() {
   const row = selectedSqlRow.value
   if (!connectionId.value || !row || loadingSelectedTuning.value) return
-  loadingSelectedTuning.value = true; manualResult.value = null; errorMessage.value = ''
+  loadingSelectedTuning.value = true; manualResult.value = null; errorMessage.value = ''; startTuningTimer()
   try {
     const result = await tuneDirectSql({
       connectionId: connectionId.value,
@@ -366,7 +381,18 @@ async function runSelectedTuning() {
     manualResult.value = result
     mode.value = 'MANUAL'
   } catch (error) { setError(error, '선택한 SQL의 AI 튜닝에 실패했습니다.') }
-  finally { loadingSelectedTuning.value = false }
+  finally { loadingSelectedTuning.value = false; stopTuningTimer() }
+}
+function startTuningTimer() {
+  stopTuningTimer()
+  tuningElapsedSeconds.value = 0
+  tuningElapsedTimer = window.setInterval(() => { tuningElapsedSeconds.value += 1 }, 1000)
+}
+function stopTuningTimer() {
+  if (tuningElapsedTimer !== undefined) {
+    window.clearInterval(tuningElapsedTimer)
+    tuningElapsedTimer = undefined
+  }
 }
 async function runManualAnalysis() {
   loadingManual.value = true; manualResult.value = null; errorMessage.value = ''
@@ -393,5 +419,5 @@ function severityClass(value?: string | null) { return `severity-${(value || 'LO
 
 <style src="../awr/awr.css"></style>
 <style scoped>
-.sql-workbench{display:grid;gap:18px}.mode-switch{display:inline-flex;width:max-content;padding:5px;border:1px solid #d8e0e8;border-radius:13px;background:#fff}.mode-switch button{border:0;border-radius:9px;background:transparent;padding:12px 20px;font:inherit;font-weight:800;cursor:pointer}.mode-switch button.active{background:#078f4c;color:#fff}.workbench-grid{align-items:start;grid-template-columns:minmax(460px,.9fr) minmax(560px,1.1fr)}.input-panel,.result-panel{min-width:0}.connection-form{display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-bottom:16px;padding:14px;border:1px solid #dce5ec;border-radius:12px;background:#f8fafc}.connection-form .awr-actions{grid-column:1/-1}.selected-connection{display:grid;grid-template-columns:minmax(0,1fr) auto;align-items:center;gap:18px;margin:14px 0 20px;padding:16px 18px;border:1px solid #cfe4d7;border-left:5px solid #0aa15b;border-radius:12px;background:#f7fbf8}.connection-main{min-width:0;display:grid;gap:8px}.connection-identity{display:flex;align-items:center;gap:10px}.connection-identity strong{font-size:17px}.connection-identity span{padding:4px 10px;border-radius:999px;background:#e5f7eb;color:#087744;font-size:12px;font-weight:800}.selected-connection code{display:block;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;color:#45586b}.connection-actions{display:flex;align-items:center;gap:8px}.top-controls{display:grid;grid-template-columns:165px 205px 92px;align-items:end;gap:12px;margin:18px 0 14px;padding-top:18px;border-top:1px solid #e2e8f0}.query-button{width:92px;min-width:92px;height:40px;padding:0 16px}.top-sql-table{max-height:420px}.top-sql-table tbody tr{cursor:pointer}.sql-link{border:0;background:transparent;color:#2563eb;font:inherit;font-weight:800;cursor:pointer}.main-sql{min-height:220px}.diagnosis-overview{display:grid;grid-template-columns:minmax(0,1fr) 90px;align-items:start;gap:24px;margin-bottom:16px}.diagnosis-copy{min-width:0;padding-top:2px}.diagnosis-sql-id{margin:0;color:#078f4c;font-weight:800}.diagnosis-copy h3{margin:8px 0 0;line-height:1.5;font-size:18px}.score{width:90px;min-height:96px;padding:14px 10px;border-radius:14px;text-align:center;display:flex;flex-direction:column;align-items:center;justify-content:center}.score strong{display:block;font-size:30px;line-height:1}.score span{margin-top:10px;font-size:11px;font-weight:900}.severity-high{background:#fee2e2;color:#b91c1c}.severity-medium{background:#fef3c7;color:#92400e}.severity-low{background:#dcfce7;color:#166534}.sql-box{margin:0 0 16px;padding:14px;border-radius:10px;background:#111827;color:#f8fafc;white-space:pre-wrap;line-height:1.5}.rewritten-sql{max-height:420px;overflow:auto}.rewrite-title{display:flex;align-items:flex-start;justify-content:space-between;gap:16px;margin-bottom:10px}.rewrite-title h4{margin:0}.rewrite-title p{margin:5px 0 0;color:#64748b;font-size:12px}.rewrite-risks,.rewrite-unavailable{padding:12px 14px;border-radius:10px;background:#fff7ed;color:#9a3412}.rewrite-risks ul,.rewrite-unavailable ul{margin-bottom:0}.metric-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:10px;margin:0 0 16px}.metric-grid>div{padding:14px;border-radius:10px;background:#f6f8fb}.metric-grid span{display:block;font-size:11px;color:#64748b}.metric-grid strong{display:block;margin-top:6px}.risk-policy{margin:0 0 16px;padding:13px 15px;border:1px solid #dce5ec;border-radius:11px;background:#fbfcfd}.risk-policy summary{cursor:pointer;font-weight:900}.risk-policy p{margin:12px 0 8px;color:#526274}.risk-policy ul{margin:10px 0 0;padding-left:20px}.risk-levels{display:flex;gap:8px;flex-wrap:wrap}.risk-levels span{padding:6px 9px;border-radius:8px;background:#eef3f7;font-size:12px}.finding-list{display:grid;gap:10px}.finding-card{padding:13px;border:1px solid #dce5ec;border-radius:11px}.finding-card>div:first-child{display:flex;gap:8px;align-items:center;flex-wrap:wrap}.finding-card code{font-size:10px;color:#64748b}.badge{padding:3px 7px;border-radius:999px;font-size:10px;font-weight:900}.finding-card details pre{overflow:auto;max-height:180px;padding:10px;background:#111827;color:#fff;border-radius:8px}.result-block{margin-top:16px;padding-top:10px;border-top:1px solid #e2e8f0}.result-block>summary{font-size:16px;font-weight:900;cursor:pointer;margin-bottom:10px}.danger-row{background:#fff1f2}.table-card h4{display:flex;justify-content:space-between}.table-card small{font-weight:400;color:#64748b}@media(max-width:1200px){.workbench-grid{grid-template-columns:1fr}.metric-grid{grid-template-columns:repeat(2,1fr)}}@media(max-width:720px){.connection-form{grid-template-columns:1fr}.selected-connection{grid-template-columns:1fr}.connection-actions{justify-content:flex-start}.top-controls{grid-template-columns:1fr}.query-button{width:100%}.diagnosis-overview{grid-template-columns:1fr}.score{width:100%;min-height:74px}.metric-grid{grid-template-columns:1fr}.rewrite-title{flex-direction:column}}
+.sql-workbench{display:grid;gap:18px}.mode-switch{display:inline-flex;width:max-content;padding:5px;border:1px solid #d8e0e8;border-radius:13px;background:#fff}.mode-switch button{border:0;border-radius:9px;background:transparent;padding:12px 20px;font:inherit;font-weight:800;cursor:pointer}.mode-switch button.active{background:#078f4c;color:#fff}.workbench-grid{align-items:start;grid-template-columns:minmax(460px,.9fr) minmax(560px,1.1fr)}.input-panel,.result-panel{min-width:0}.result-panel{position:relative}.tuning-progress-overlay{position:absolute;inset:0;z-index:5;display:flex;flex-direction:column;align-items:center;justify-content:center;min-height:520px;padding:32px;border-radius:inherit;background:rgba(255,255,255,.94);text-align:center;backdrop-filter:blur(2px)}.tuning-spinner{width:48px;height:48px;margin-bottom:18px;border:5px solid #d8eee3;border-top-color:#078f4c;border-radius:50%;animation:tuning-spin .8s linear infinite}.tuning-progress-overlay>strong{font-size:20px}.tuning-progress-overlay>p{margin:9px 0 20px;color:#64748b}.tuning-progress-track{width:min(420px,90%);height:8px;overflow:hidden;border-radius:999px;background:#e5eee9}.tuning-progress-track span{display:block;width:42%;height:100%;border-radius:inherit;background:linear-gradient(90deg,#078f4c,#36c27c);animation:tuning-progress 1.3s ease-in-out infinite}.tuning-progress-steps{display:flex;gap:10px;flex-wrap:wrap;justify-content:center;margin:18px 0}.tuning-progress-steps span{padding:7px 10px;border-radius:999px;background:#eef8f2;color:#087744;font-size:12px;font-weight:800}.tuning-progress-overlay small{color:#64748b}@keyframes tuning-spin{to{transform:rotate(360deg)}}@keyframes tuning-progress{0%{transform:translateX(-110%)}100%{transform:translateX(240%)}}.connection-form{display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-bottom:16px;padding:14px;border:1px solid #dce5ec;border-radius:12px;background:#f8fafc}.connection-form .awr-actions{grid-column:1/-1}.selected-connection{display:grid;grid-template-columns:minmax(0,1fr) auto;align-items:center;gap:18px;margin:14px 0 20px;padding:16px 18px;border:1px solid #cfe4d7;border-left:5px solid #0aa15b;border-radius:12px;background:#f7fbf8}.connection-main{min-width:0;display:grid;gap:8px}.connection-identity{display:flex;align-items:center;gap:10px}.connection-identity strong{font-size:17px}.connection-identity span{padding:4px 10px;border-radius:999px;background:#e5f7eb;color:#087744;font-size:12px;font-weight:800}.selected-connection code{display:block;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;color:#45586b}.connection-actions{display:flex;align-items:center;gap:8px}.top-controls{display:grid;grid-template-columns:165px 205px 92px;align-items:end;gap:12px;margin:18px 0 14px;padding-top:18px;border-top:1px solid #e2e8f0}.query-button{width:92px;min-width:92px;height:40px;padding:0 16px}.top-sql-table{max-height:420px}.top-sql-table tbody tr{cursor:pointer}.sql-link{border:0;background:transparent;color:#2563eb;font:inherit;font-weight:800;cursor:pointer}.main-sql{min-height:220px}.diagnosis-overview{display:grid;grid-template-columns:minmax(0,1fr) 90px;align-items:start;gap:24px;margin-bottom:16px}.diagnosis-copy{min-width:0;padding-top:2px}.diagnosis-sql-id{margin:0;color:#078f4c;font-weight:800}.diagnosis-copy h3{margin:8px 0 0;line-height:1.5;font-size:18px}.score{width:90px;min-height:96px;padding:14px 10px;border-radius:14px;text-align:center;display:flex;flex-direction:column;align-items:center;justify-content:center}.score strong{display:block;font-size:30px;line-height:1}.score span{margin-top:10px;font-size:11px;font-weight:900}.severity-high{background:#fee2e2;color:#b91c1c}.severity-medium{background:#fef3c7;color:#92400e}.severity-low{background:#dcfce7;color:#166534}.sql-box{margin:0 0 16px;padding:14px;border-radius:10px;background:#111827;color:#f8fafc;white-space:pre-wrap;line-height:1.5}.rewritten-sql{max-height:420px;overflow:auto}.rewrite-title{display:flex;align-items:flex-start;justify-content:space-between;gap:16px;margin-bottom:10px}.rewrite-title h4{margin:0}.rewrite-title p{margin:5px 0 0;color:#64748b;font-size:12px}.rewrite-risks,.rewrite-unavailable{padding:12px 14px;border-radius:10px;background:#fff7ed;color:#9a3412}.rewrite-risks ul,.rewrite-unavailable ul{margin-bottom:0}.metric-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:10px;margin:0 0 16px}.metric-grid>div{padding:14px;border-radius:10px;background:#f6f8fb}.metric-grid span{display:block;font-size:11px;color:#64748b}.metric-grid strong{display:block;margin-top:6px}.risk-policy{margin:0 0 16px;padding:13px 15px;border:1px solid #dce5ec;border-radius:11px;background:#fbfcfd}.risk-policy summary{cursor:pointer;font-weight:900}.risk-policy p{margin:12px 0 8px;color:#526274}.risk-policy ul{margin:10px 0 0;padding-left:20px}.risk-levels{display:flex;gap:8px;flex-wrap:wrap}.risk-levels span{padding:6px 9px;border-radius:8px;background:#eef3f7;font-size:12px}.finding-list{display:grid;gap:10px}.finding-card{padding:13px;border:1px solid #dce5ec;border-radius:11px}.finding-card>div:first-child{display:flex;gap:8px;align-items:center;flex-wrap:wrap}.finding-card code{font-size:10px;color:#64748b}.badge{padding:3px 7px;border-radius:999px;font-size:10px;font-weight:900}.finding-card details pre{overflow:auto;max-height:180px;padding:10px;background:#111827;color:#fff;border-radius:8px}.result-block{margin-top:16px;padding-top:10px;border-top:1px solid #e2e8f0}.result-block>summary{font-size:16px;font-weight:900;cursor:pointer;margin-bottom:10px}.danger-row{background:#fff1f2}.table-card h4{display:flex;justify-content:space-between}.table-card small{font-weight:400;color:#64748b}@media(max-width:1200px){.workbench-grid{grid-template-columns:1fr}.metric-grid{grid-template-columns:repeat(2,1fr)}}@media(max-width:720px){.connection-form{grid-template-columns:1fr}.selected-connection{grid-template-columns:1fr}.connection-actions{justify-content:flex-start}.top-controls{grid-template-columns:1fr}.query-button{width:100%}.diagnosis-overview{grid-template-columns:1fr}.score{width:100%;min-height:74px}.metric-grid{grid-template-columns:1fr}.rewrite-title{flex-direction:column}.tuning-progress-steps{flex-direction:column}}
 </style>

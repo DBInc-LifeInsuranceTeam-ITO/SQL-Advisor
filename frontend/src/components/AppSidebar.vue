@@ -190,9 +190,9 @@ const directMenuNames = [
 ]
 
 const awrMenuNames = [
-  'awr-chat',
   'awr-upload',
-  'awr-reports'
+  'awr-reports',
+  'awr-chat'
 ]
 
 const systemMenuNames = [

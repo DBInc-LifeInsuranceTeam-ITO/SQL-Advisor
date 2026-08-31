@@ -117,7 +117,7 @@
         </template>
       </section>
 
-      <section class="awr-panel result-panel">
+      <section ref="resultPanelElement" class="awr-panel result-panel">
         <div v-if="loadingSelectedTuning" class="tuning-progress-overlay" role="status" aria-live="polite">
           <div class="tuning-spinner" aria-hidden="true"></div>
           <strong>선택한 SQL을 AI로 튜닝하고 있습니다</strong>
@@ -256,7 +256,7 @@
 </template>
 
 <script setup lang="ts">
-import { computed, onBeforeUnmount, onMounted, reactive, ref } from 'vue'
+import { computed, nextTick, onBeforeUnmount, onMounted, reactive, ref } from 'vue'
 import {
   createTargetDbConnection, deleteTargetDbConnection, getTargetDbConnections,
   testSavedTargetDbConnection, testTargetDbConnection, tuneDirectSql, tuneSql
@@ -277,6 +277,7 @@ const loadingManual = ref(false)
 const loadingSelectedTuning = ref(false)
 const tuningElapsedSeconds = ref(0)
 const copyStatus = ref('')
+const resultPanelElement = ref<HTMLElement | null>(null)
 const topSqlLoaded = ref(false)
 const topSqlRows = ref<DirectSqlMetricResponse[]>([])
 const diagnosis = ref<SqlDiagnosisResponse | null>(null)
@@ -361,6 +362,8 @@ async function runSelectedTuning() {
   const row = selectedSqlRow.value
   if (!connectionId.value || !row || loadingSelectedTuning.value) return
   loadingSelectedTuning.value = true; manualResult.value = null; errorMessage.value = ''; startTuningTimer()
+  await nextTick()
+  resultPanelElement.value?.scrollIntoView({ behavior: 'smooth', block: 'center' })
   try {
     const result = await tuneDirectSql({
       connectionId: connectionId.value,

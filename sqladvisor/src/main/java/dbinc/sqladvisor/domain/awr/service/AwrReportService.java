@@ -326,6 +326,8 @@ public class AwrReportService {
                 selected.symptoms(),
                 selected.indexRecommendations(),
                 selected.rewriteRecommendations(),
+                selected.rewrittenSql(),
+                selected.rewriteRisks(),
                 selected.validationSteps(),
                 selected.missingInputs(),
                 selected.citations(),

@@ -180,6 +180,11 @@ public class AwrLlmAdvisor {
                 Do not put NOLOGGING in the default ddl_candidate. If a large index build may use NOLOGGING,
                 put it only in build_steps and include a follow-up ALTER INDEX ... LOGGING step.
                 Do not invent table names, column names, execution plans, DDL, bind values, or object statistics.
+                When the supplied evidence is sufficient, return one syntactically executable Oracle SQL candidate
+                in rewritten_sql. Preserve the original result semantics, DML target, bind variable names, and
+                transaction behavior. Do not wrap rewritten_sql in Markdown fences and do not add prose inside it.
+                Never replace bind variables with literal sample values. If a semantics-preserving executable rewrite
+                cannot be produced safely, return null for rewritten_sql and explain why in rewrite_risks and missing_inputs.
                 Return JSON only with this schema:
                 {
                   "summary": "string",
@@ -198,6 +203,8 @@ public class AwrLlmAdvisor {
                     }
                   ],
                   "rewrite_recommendations": ["string"],
+                  "rewritten_sql": "executable Oracle SQL string or null",
+                  "rewrite_risks": ["string"],
                   "validation_steps": ["string"],
                   "missing_inputs": ["string"],
                   "confidence": "low|medium|high"
@@ -330,6 +337,8 @@ public class AwrLlmAdvisor {
                     stringList(root.path("symptoms"), localTuning.symptoms()),
                     indexRecommendations(root.path("index_recommendations"), localTuning.indexRecommendations()),
                     stringList(root.path("rewrite_recommendations"), localTuning.rewriteRecommendations()),
+                    textOr(root, "rewritten_sql", localTuning.rewrittenSql()),
+                    stringList(root.path("rewrite_risks"), localTuning.rewriteRisks()),
                     stringList(root.path("validation_steps"), localTuning.validationSteps()),
                     stringList(root.path("missing_inputs"), localTuning.missingInputs()),
                     merge(localTuning.citations(), ragService.citations(ragChunks)),
@@ -349,6 +358,8 @@ public class AwrLlmAdvisor {
                     localTuning.symptoms(),
                     localTuning.indexRecommendations(),
                     localTuning.rewriteRecommendations(),
+                    localTuning.rewrittenSql(),
+                    localTuning.rewriteRisks(),
                     localTuning.validationSteps(),
                     localTuning.missingInputs(),
                     merge(localTuning.citations(), ragService.citations(ragChunks)),

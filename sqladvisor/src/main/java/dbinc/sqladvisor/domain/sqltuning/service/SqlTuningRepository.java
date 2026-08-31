@@ -201,6 +201,8 @@ public class SqlTuningRepository {
                 result.symptoms(),
                 result.indexRecommendations(),
                 result.rewriteRecommendations(),
+                result.rewrittenSql(),
+                result.rewriteRisks(),
                 result.validationSteps(),
                 result.missingInputs(),
                 result.citations(),

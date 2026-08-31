@@ -163,6 +163,8 @@ export interface SqlTuningResponse {
   symptoms: string[]
   indexRecommendations: IndexRecommendationResponse[]
   rewriteRecommendations: string[]
+  rewrittenSql?: string | null
+  rewriteRisks?: string[]
   validationSteps: string[]
   missingInputs: string[]
   citations: string[]

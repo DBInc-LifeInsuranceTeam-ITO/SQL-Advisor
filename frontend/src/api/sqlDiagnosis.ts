@@ -18,9 +18,19 @@ export async function getDetailedTopSql(
   return response.data
 }
 
-export async function getSqlDiagnosis(connectionId: number, sqlId: string, childNumber?: number | null) {
+export async function getSqlDiagnosis(
+  connectionId: number,
+  sqlId: string,
+  childNumber?: number | null,
+  instanceId?: number | null
+) {
   const response = await api.get<SqlDiagnosisResponse>('/sql-tuning/direct/diagnosis', {
-    params: { connectionId, sqlId, childNumber: childNumber ?? undefined }
+    params: {
+      connectionId,
+      sqlId,
+      childNumber: childNumber ?? undefined,
+      instanceId: instanceId ?? undefined
+    }
   })
   return response.data
 }

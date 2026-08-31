@@ -143,7 +143,23 @@ public class TargetDbContextCollector {
                 metric = withSqlText(metric, sqlText);
             }
 
-            SqlChildCursor childCursor = sqlId == null ? null : chooseChildCursor(connection, sqlId, warnings);
+            SqlChildCursor childCursor = sqlId == null
+                    ? null
+                    : chooseChildCursor(
+                            connection,
+                            sqlId,
+                            request.instanceId(),
+                            request.childNumber(),
+                            warnings
+                    );
+            if (sqlId != null && request.childNumber() != null && childCursor == null) {
+                throw new IllegalArgumentException(
+                        "선택한 SQL Child Cursor를 찾을 수 없습니다: SQL_ID="
+                                + sqlId
+                                + ", CHILD_NUMBER="
+                                + request.childNumber()
+                );
+            }
             List<TableReference> tableRefs = sqlId == null
                     ? List.of()
                     : tableReferencesFromExecutionPlan(connection, sqlId, childCursor, warnings);
@@ -829,13 +845,37 @@ public class TargetDbContextCollector {
         }
     }
 
-    private SqlChildCursor chooseChildCursor(Connection connection, String sqlId, List<String> warnings) {
+    private SqlChildCursor chooseChildCursor(
+            Connection connection,
+            String sqlId,
+            Integer requestedInstanceId,
+            Integer requestedChildNumber,
+            List<String> warnings
+    ) {
         List<String> gvWarnings = new ArrayList<>();
-        SqlChildCursor cursor = chooseChildCursorFromView(connection, sqlId, "gv$sql", "inst_id", gvWarnings);
+        SqlChildCursor cursor = chooseChildCursorFromView(
+                connection,
+                sqlId,
+                requestedInstanceId,
+                requestedChildNumber,
+                "gv$sql",
+                "inst_id",
+                true,
+                gvWarnings
+        );
         if (cursor != null) {
             return cursor;
         }
-        cursor = chooseChildCursorFromView(connection, sqlId, "v$sql", "CAST(NULL AS NUMBER)", warnings);
+        cursor = chooseChildCursorFromView(
+                connection,
+                sqlId,
+                null,
+                requestedChildNumber,
+                "v$sql",
+                "CAST(NULL AS NUMBER)",
+                false,
+                warnings
+        );
         if (cursor == null) {
             warnings.addAll(gvWarnings);
         }
@@ -845,10 +885,15 @@ public class TargetDbContextCollector {
     private SqlChildCursor chooseChildCursorFromView(
             Connection connection,
             String sqlId,
+            Integer requestedInstanceId,
+            Integer requestedChildNumber,
             String viewName,
             String instExpression,
+            boolean supportsInstance,
             List<String> warnings
     ) {
+        String instanceClause = supportsInstance && requestedInstanceId != null ? " AND inst_id = ?" : "";
+        String childClause = requestedChildNumber != null ? " AND child_number = ?" : "";
         try (PreparedStatement statement = connection.prepareStatement("""
                 SELECT *
                   FROM (
@@ -859,11 +904,20 @@ public class TargetDbContextCollector {
                                TO_CHAR(last_active_time, 'YYYY-MM-DD HH24:MI:SS') last_active_time
                           FROM %s
                          WHERE sql_id = ?
+                         %s
+                         %s
                          ORDER BY elapsed_time DESC, last_active_time DESC NULLS LAST, child_number DESC
                        )
                  WHERE ROWNUM <= 1
-                """.formatted(instExpression, viewName))) {
-            statement.setString(1, sqlId);
+                """.formatted(instExpression, viewName, instanceClause, childClause))) {
+            int index = 1;
+            statement.setString(index++, sqlId);
+            if (supportsInstance && requestedInstanceId != null) {
+                statement.setInt(index++, requestedInstanceId);
+            }
+            if (requestedChildNumber != null) {
+                statement.setInt(index, requestedChildNumber);
+            }
             statement.setQueryTimeout(10);
             try (ResultSet rs = statement.executeQuery()) {
                 if (!rs.next()) {

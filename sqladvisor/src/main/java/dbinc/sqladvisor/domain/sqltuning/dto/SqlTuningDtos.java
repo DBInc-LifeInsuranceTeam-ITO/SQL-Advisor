@@ -56,6 +56,8 @@ public class SqlTuningDtos {
     public record DirectTuningRequest(
             Long connectionId,
             String sqlId,
+            Integer instanceId,
+            Integer childNumber,
             String sqlText
     ) {
     }

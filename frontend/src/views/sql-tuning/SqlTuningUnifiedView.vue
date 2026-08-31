@@ -88,7 +88,7 @@
             <table class="awr-table compact">
               <thead><tr><th>SQL_ID</th><th>Schema</th><th>평균시간</th><th>Buffer</th><th>Disk</th><th>Rows</th></tr></thead>
               <tbody>
-                <tr v-for="row in filteredTopSql" :key="`${row.sqlId}-${row.childNumber}`" :class="selectedSqlId === row.sqlId ? 'selected' : ''" @click="diagnose(row)">
+                <tr v-for="row in filteredTopSql" :key="`${row.sqlId}-${row.instanceId}-${row.childNumber}`" :class="selectedSqlRow === row ? 'selected' : ''" @click="diagnose(row)">
                   <td><button class="sql-link" type="button">{{ row.sqlId }}</button></td>
                   <td>{{ row.parsingSchemaName || '-' }}</td><td>{{ number(row.averageElapsedTimeSec) }}초</td>
                   <td>{{ number(row.bufferGets) }}</td><td>{{ number(row.diskReads) }}</td><td>{{ number(row.rowsProcessed) }}</td>
@@ -119,7 +119,18 @@
 
       <section class="awr-panel result-panel">
         <template v-if="mode === 'AUTO'">
-          <div class="awr-panel-header"><h2 class="awr-panel-title">자동 진단 결과</h2></div>
+          <div class="awr-panel-header">
+            <h2 class="awr-panel-title">자동 진단 결과</h2>
+            <button
+              v-if="diagnosis && selectedSqlRow"
+              class="awr-btn compact primary"
+              type="button"
+              :disabled="loadingSelectedTuning"
+              @click="runSelectedTuning"
+            >
+              {{ loadingSelectedTuning ? 'AI 튜닝 중...' : '선택 SQL AI 튜닝' }}
+            </button>
+          </div>
           <div v-if="loadingDiagnosis" class="awr-empty">선택한 SQL을 진단하는 중입니다.</div>
           <div v-else-if="!diagnosis" class="awr-empty">왼쪽 부하 SQL 목록에서 SQL_ID를 선택하세요.</div>
           <template v-else>
@@ -215,7 +226,7 @@
 import { computed, onMounted, reactive, ref } from 'vue'
 import {
   createTargetDbConnection, deleteTargetDbConnection, getTargetDbConnections,
-  testSavedTargetDbConnection, testTargetDbConnection, tuneSql
+  testSavedTargetDbConnection, testTargetDbConnection, tuneDirectSql, tuneSql
 } from '@/api/sqlTuning'
 import { getDetailedTopSql, getSqlDiagnosis } from '@/api/sqlDiagnosis'
 import type { SqlTuningResponse, TargetDbConnectionResponse } from '@/types/awr'
@@ -230,11 +241,12 @@ const busyConnection = ref(false)
 const loadingTopSql = ref(false)
 const loadingDiagnosis = ref(false)
 const loadingManual = ref(false)
+const loadingSelectedTuning = ref(false)
 const topSqlLoaded = ref(false)
 const topSqlRows = ref<DirectSqlMetricResponse[]>([])
 const diagnosis = ref<SqlDiagnosisResponse | null>(null)
 const manualResult = ref<SqlTuningResponse | null>(null)
-const selectedSqlId = ref('')
+const selectedSqlRow = ref<DirectSqlMetricResponse | null>(null)
 const searchText = ref('')
 const errorMessage = ref('')
 const limit = ref<20 | 50 | 100>(20)
@@ -288,20 +300,51 @@ async function removeConnection() {
   catch (error) { setError(error, 'DB 연결 삭제에 실패했습니다.') }
   finally { busyConnection.value = false }
 }
-function resetAutoResult() { topSqlRows.value = []; topSqlLoaded.value = false; diagnosis.value = null; selectedSqlId.value = '' }
+function resetAutoResult() {
+  topSqlRows.value = []
+  topSqlLoaded.value = false
+  diagnosis.value = null
+  selectedSqlRow.value = null
+}
 async function loadTopSql() {
   if (!connectionId.value) return
-  loadingTopSql.value = true; errorMessage.value = ''; diagnosis.value = null
+  loadingTopSql.value = true; errorMessage.value = ''; diagnosis.value = null; selectedSqlRow.value = null
   try { const result = await getDetailedTopSql(connectionId.value, limit.value, sortBy.value); topSqlRows.value = result.rows; topSqlLoaded.value = true }
   catch (error) { setError(error, '부하 SQL 조회에 실패했습니다.') }
   finally { loadingTopSql.value = false }
 }
 async function diagnose(row: DirectSqlMetricResponse) {
   if (!connectionId.value) return
-  selectedSqlId.value = row.sqlId; loadingDiagnosis.value = true; diagnosis.value = null; errorMessage.value = ''
-  try { diagnosis.value = await getSqlDiagnosis(connectionId.value, row.sqlId, row.childNumber) }
+  selectedSqlRow.value = row; loadingDiagnosis.value = true; diagnosis.value = null; errorMessage.value = ''
+  try { diagnosis.value = await getSqlDiagnosis(connectionId.value, row.sqlId, row.childNumber, row.instanceId) }
   catch (error) { setError(error, 'SQL 자동 진단에 실패했습니다.') }
   finally { loadingDiagnosis.value = false }
+}
+async function runSelectedTuning() {
+  const row = selectedSqlRow.value
+  if (!connectionId.value || !row || loadingSelectedTuning.value) return
+  loadingSelectedTuning.value = true; manualResult.value = null; errorMessage.value = ''
+  try {
+    const result = await tuneDirectSql({
+      connectionId: connectionId.value,
+      sqlId: row.sqlId,
+      instanceId: row.instanceId,
+      childNumber: row.childNumber,
+      sqlText: row.sqlText || undefined
+    })
+    const input = result.input
+    Object.assign(manual, {
+      sqlText: input?.sqlText || result.metric?.sqlText || row.sqlText || '',
+      question: input?.question || '',
+      executionPlan: input?.executionPlan || '',
+      schemaDdl: input?.schemaDdl || '',
+      existingIndexes: input?.existingIndexes || '',
+      bindSamples: input?.bindSamples || ''
+    })
+    manualResult.value = result
+    mode.value = 'MANUAL'
+  } catch (error) { setError(error, '선택한 SQL의 AI 튜닝에 실패했습니다.') }
+  finally { loadingSelectedTuning.value = false }
 }
 async function runManualAnalysis() {
   loadingManual.value = true; manualResult.value = null; errorMessage.value = ''

@@ -23,6 +23,7 @@ public class StructuredExecutionPlanService {
     public ExecutionPlanDtos.StructuredExecutionPlanResponse collect(
             long connectionId,
             String sqlId,
+            Integer requestedInstanceId,
             Integer requestedChildNumber
     ) {
         String normalizedSqlId = normalizeSqlId(sqlId);
@@ -30,7 +31,13 @@ public class StructuredExecutionPlanService {
         List<String> warnings = new ArrayList<>();
 
         try (Connection connection = connectionService.openConnection(target)) {
-            ChildCursor cursor = resolveCursor(connection, normalizedSqlId, requestedChildNumber, warnings);
+            ChildCursor cursor = resolveCursor(
+                    connection,
+                    normalizedSqlId,
+                    requestedInstanceId,
+                    requestedChildNumber,
+                    warnings
+            );
             if (cursor == null) {
                 throw new IllegalArgumentException("SQL_ID에 해당하는 실행 커서를 찾을 수 없습니다: " + normalizedSqlId);
             }
@@ -106,15 +113,23 @@ public class StructuredExecutionPlanService {
     private ChildCursor resolveCursor(
             Connection connection,
             String sqlId,
+            Integer requestedInstanceId,
             Integer requestedChildNumber,
             List<String> warnings
     ) {
         try {
-            return resolveCursorFromView(connection, "gv$sql", true, sqlId, requestedChildNumber);
+            return resolveCursorFromView(
+                    connection,
+                    "gv$sql",
+                    true,
+                    sqlId,
+                    requestedInstanceId,
+                    requestedChildNumber
+            );
         } catch (SQLException exception) {
             warnings.add("gv$sql 커서 조회 실패로 v$sql을 사용합니다: " + exception.getMessage());
             try {
-                return resolveCursorFromView(connection, "v$sql", false, sqlId, requestedChildNumber);
+                return resolveCursorFromView(connection, "v$sql", false, sqlId, null, requestedChildNumber);
             } catch (SQLException fallbackException) {
                 warnings.add("v$sql 커서 조회 실패: " + fallbackException.getMessage());
                 return null;
@@ -127,8 +142,10 @@ public class StructuredExecutionPlanService {
             String viewName,
             boolean includeInstance,
             String sqlId,
+            Integer requestedInstanceId,
             Integer requestedChildNumber
     ) throws SQLException {
+        String instanceFilter = includeInstance && requestedInstanceId != null ? " AND inst_id = ?" : "";
         String childFilter = requestedChildNumber == null ? "" : " AND child_number = ?";
         String sql = """
                 SELECT *
@@ -140,17 +157,27 @@ public class StructuredExecutionPlanService {
                          WHERE sql_id = ?
                            AND plan_hash_value IS NOT NULL
                            %s
+                           %s
                          ORDER BY last_active_time DESC NULLS LAST,
                                   elapsed_time DESC,
                                   child_number DESC
                        )
                  WHERE ROWNUM <= 1
-                """.formatted(includeInstance ? "inst_id" : "CAST(NULL AS NUMBER)", viewName, childFilter);
+                """.formatted(
+                        includeInstance ? "inst_id" : "CAST(NULL AS NUMBER)",
+                        viewName,
+                        instanceFilter,
+                        childFilter
+                );
 
         try (PreparedStatement statement = connection.prepareStatement(sql)) {
-            statement.setString(1, sqlId);
+            int index = 1;
+            statement.setString(index++, sqlId);
+            if (includeInstance && requestedInstanceId != null) {
+                statement.setInt(index++, requestedInstanceId);
+            }
             if (requestedChildNumber != null) {
-                statement.setInt(2, requestedChildNumber);
+                statement.setInt(index, requestedChildNumber);
             }
             statement.setQueryTimeout(10);
             try (ResultSet resultSet = statement.executeQuery()) {

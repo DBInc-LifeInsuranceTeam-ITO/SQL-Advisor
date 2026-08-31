@@ -18,7 +18,13 @@ public class DirectDbSqlTuningService {
 
     private static final Duration CONTEXT_CACHE_TTL = Duration.ofMinutes(5);
 
-    private record ContextCacheKey(Long connectionId, String sqlId, String sqlText) {
+    private record ContextCacheKey(
+            Long connectionId,
+            String sqlId,
+            Integer instanceId,
+            Integer childNumber,
+            String sqlText
+    ) {
     }
 
     private record CachedContext(SqlTuningDtos.DirectDbContextResponse context, LocalDateTime cachedAt) {
@@ -76,6 +82,8 @@ public class DirectDbSqlTuningService {
         return new ContextCacheKey(
                 request.connectionId(),
                 normalizeKey(request.sqlId()),
+                request.instanceId(),
+                request.childNumber(),
                 normalizeSqlText(request.sqlText())
         );
     }

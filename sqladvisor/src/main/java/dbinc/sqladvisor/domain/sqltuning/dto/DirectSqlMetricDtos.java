@@ -9,6 +9,7 @@ public final class DirectSqlMetricDtos {
 
     public record DirectSqlMetricResponse(
             String sqlId,
+            Integer instanceId,
             Long planHashValue,
             Integer childNumber,
             String parsingSchemaName,

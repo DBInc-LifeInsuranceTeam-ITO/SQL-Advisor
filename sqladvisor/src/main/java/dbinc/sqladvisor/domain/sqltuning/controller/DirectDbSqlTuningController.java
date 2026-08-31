@@ -92,11 +92,13 @@ public class DirectDbSqlTuningController {
     public ResponseEntity<ApiResponse<ExecutionPlanDtos.StructuredExecutionPlanResponse>> structuredExecutionPlan(
             @RequestParam Long connectionId,
             @RequestParam String sqlId,
+            @RequestParam(required = false) Integer instanceId,
             @RequestParam(required = false) Integer childNumber
     ) {
         return ResponseEntity.ok(ApiResponse.success(structuredExecutionPlanService.collect(
                 connectionId,
                 sqlId,
+                instanceId,
                 childNumber
         )));
     }
@@ -105,11 +107,13 @@ public class DirectDbSqlTuningController {
     public ResponseEntity<ApiResponse<SqlDiagnosisDtos.SqlDiagnosisResponse>> diagnose(
             @RequestParam Long connectionId,
             @RequestParam String sqlId,
+            @RequestParam(required = false) Integer instanceId,
             @RequestParam(required = false) Integer childNumber
     ) {
         return ResponseEntity.ok(ApiResponse.success(ruleBasedSqlDiagnosisService.diagnose(
                 connectionId,
                 sqlId,
+                instanceId,
                 childNumber
         )));
     }

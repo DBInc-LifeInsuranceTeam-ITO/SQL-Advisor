@@ -32,6 +32,7 @@ public class RuleBasedSqlDiagnosisService {
     public SqlDiagnosisDtos.SqlDiagnosisResponse diagnose(
             long connectionId,
             String requestedSqlId,
+            Integer instanceId,
             Integer childNumber
     ) {
         String sqlId = normalizeSqlId(requestedSqlId);
@@ -40,6 +41,7 @@ public class RuleBasedSqlDiagnosisService {
         );
         DirectSqlMetricDtos.DirectSqlMetricResponse metric = metricList.rows().stream()
                 .filter(row -> sqlId.equalsIgnoreCase(row.sqlId()))
+                .filter(row -> instanceId == null || instanceId.equals(row.instanceId()))
                 .filter(row -> childNumber == null || childNumber.equals(row.childNumber()))
                 .findFirst()
                 .orElseThrow(() -> new IllegalArgumentException(
@@ -47,7 +49,10 @@ public class RuleBasedSqlDiagnosisService {
                 ));
 
         ExecutionPlanDtos.StructuredExecutionPlanResponse plan = structuredExecutionPlanService.collect(
-                connectionId, sqlId, childNumber == null ? metric.childNumber() : childNumber
+                connectionId,
+                sqlId,
+                instanceId == null ? metric.instanceId() : instanceId,
+                childNumber == null ? metric.childNumber() : childNumber
         );
         TableMetadataDtos.TableMetadataListResponse tableMetadata = tableMetadataService.collect(connectionId, plan);
 

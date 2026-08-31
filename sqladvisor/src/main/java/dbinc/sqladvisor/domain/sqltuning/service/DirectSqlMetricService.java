@@ -71,11 +71,15 @@ public class DirectSqlMetricService {
         String systemFilter = includeSystemSql
                 ? ""
                 : "AND parsing_schema_name NOT IN ('" + String.join("','", SYSTEM_SCHEMAS) + "')";
+        String instanceExpression = "gv$sql".equalsIgnoreCase(viewName)
+                ? "inst_id"
+                : "CAST(NULL AS NUMBER)";
 
         String sql = """
                 SELECT *
                   FROM (
-                        SELECT sql_id,
+                        SELECT %s instance_id,
+                               sql_id,
                                plan_hash_value,
                                child_number,
                                parsing_schema_name,
@@ -114,7 +118,7 @@ public class DirectSqlMetricService {
                          ORDER BY %s DESC, last_active_time DESC NULLS LAST
                        )
                  WHERE ROWNUM <= ?
-                """.formatted(viewName, systemFilter, orderColumn);
+                """.formatted(instanceExpression, viewName, systemFilter, orderColumn);
 
         try (PreparedStatement statement = connection.prepareStatement(sql)) {
             statement.setInt(1, limit);
@@ -132,6 +136,7 @@ public class DirectSqlMetricService {
     private DirectSqlMetricDtos.DirectSqlMetricResponse map(ResultSet resultSet) throws SQLException {
         return new DirectSqlMetricDtos.DirectSqlMetricResponse(
                 resultSet.getString("sql_id"),
+                nullableInteger(resultSet, "instance_id"),
                 nullableLong(resultSet, "plan_hash_value"),
                 nullableInteger(resultSet, "child_number"),
                 resultSet.getString("parsing_schema_name"),

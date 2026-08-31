@@ -226,6 +226,8 @@ export interface TargetDbConnectionTestResponse {
 export interface DirectTuningRequest {
   connectionId?: number | null
   sqlId?: string
+  instanceId?: number | null
+  childNumber?: number | null
   sqlText?: string
 }
 

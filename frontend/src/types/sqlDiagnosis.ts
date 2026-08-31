@@ -1,5 +1,6 @@
 export interface DirectSqlMetricResponse {
   sqlId: string
+  instanceId?: number | null
   planHashValue?: number | null
   childNumber?: number | null
   parsingSchemaName?: string | null

@@ -25,7 +25,13 @@ class DirectDbSqlTuningServiceTest {
                 contextCollector,
                 sqlTuningService
         );
-        SqlTuningDtos.DirectTuningRequest request = new SqlTuningDtos.DirectTuningRequest(3L, "7p6k1x9s2m3ab", null);
+        SqlTuningDtos.DirectTuningRequest request = new SqlTuningDtos.DirectTuningRequest(
+                3L,
+                "7p6k1x9s2m3ab",
+                1,
+                2,
+                null
+        );
         TargetDbConnectionRepository.TargetDbConnectionRecord connection = new TargetDbConnectionRepository.TargetDbConnectionRecord(
                 3L,
                 7L,

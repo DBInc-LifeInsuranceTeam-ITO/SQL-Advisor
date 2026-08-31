@@ -66,3 +66,24 @@ docker compose -f deploy/docker-compose.prod.yml down -v
 - API Key, DB 비밀번호, 운영 URL은 Compose나 YAML에 직접 작성하지 않습니다.
 - 운영 Oracle 연결 계정은 조회 전용 권한을 사용합니다.
 - PostgreSQL `5432` 포트가 외부에 노출되는 경우 접근 대역을 방화벽으로 제한합니다.
+
+## 고객사 독립 설치 패키지 생성
+
+고객사 서버에 소스코드 없이 설치할 오프라인 패키지는 `distribution` 템플릿으로 생성합니다.
+
+Windows PowerShell:
+
+```powershell
+.\deploy\build-package.ps1 -Version 1.0.0
+```
+
+Linux:
+
+```bash
+chmod +x deploy/build-package.sh deploy/distribution/scripts/*.sh
+./deploy/build-package.sh 1.0.0
+```
+
+생성 결과는 Windows에서 `dist/SQLAdvisor-1.0.0.zip`, Linux에서 `dist/SQLAdvisor-1.0.0.tar.gz`입니다. Docker 이미지 빌드와 저장이 포함되므로 충분한 디스크 공간을 확보해야 합니다. 고객사에는 생성된 압축 파일과 별도의 납품 검수 정보만 전달하며 저장소 원본은 전달하지 않습니다.
+
+패키지 내부의 `README.md`에 설치, 운영, 백업, 보안 및 업그레이드 절차가 포함됩니다.

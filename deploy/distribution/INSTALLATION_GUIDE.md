@@ -20,8 +20,7 @@ SQLAdvisor-<버전>/
 ├─ config/
 ├─ nginx/
 ├─ scripts/
-├─ docs/
-│  └─ INSTALLATION_GUIDE.md
+├─ INSTALLATION_GUIDE.md
 ├─ .env.example
 ├─ docker-compose.yml
 ├─ README.md
@@ -322,4 +321,3 @@ docker compose down -v
 - [ ] Oracle DB 연결 테스트
 - [ ] SQL 또는 AWR 분석 테스트
 - [ ] 백업 경로 및 운영 담당자 지정
-

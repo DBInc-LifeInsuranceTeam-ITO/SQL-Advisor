@@ -36,7 +36,7 @@ public class SqlTuningService {
         String sqlText = request.sqlText().trim();
         String sqlId = "manual-" + shortHash(sqlText);
         String question = request.question() == null || request.question().isBlank()
-                ? "Tune this SQL and recommend safe index candidates considering table volume and load/write volume."
+                ? "이 SQL의 병목 원인을 분석하고, 테이블 규모와 읽기·쓰기 부하를 고려한 안전한 SQL 개선안과 인덱스 후보를 제안해줘."
                 : request.question().trim();
         AwrDtos.SqlTuningRequest normalizedRequest = new AwrDtos.SqlTuningRequest(
                 sqlText,
@@ -184,7 +184,7 @@ public class SqlTuningService {
                 ? "direct-" + shortHash(input.sqlText())
                 : metric.sqlId();
         String question = input.question() == null || input.question().isBlank()
-                ? "Tune SQL from direct database context and recommend safe index candidates considering table volume and load/write volume."
+                ? "DB에서 수집한 실행계획과 성능 지표를 바탕으로 이 SQL의 병목 원인을 분석하고, 테이블 규모와 읽기·쓰기 부하를 고려한 안전한 SQL 개선안과 인덱스 후보를 제안해줘."
                 : input.question();
         List<String> citations = new java.util.ArrayList<>();
         citations.add("target_db_connection / " + context.connectionName());

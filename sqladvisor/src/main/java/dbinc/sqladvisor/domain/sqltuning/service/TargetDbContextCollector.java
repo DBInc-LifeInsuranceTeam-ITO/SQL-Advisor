@@ -185,7 +185,7 @@ public class TargetDbContextCollector {
             String bindSamples = sqlId == null ? null : bindSamples(connection, sqlId, warnings);
             AwrDtos.SqlTuningRequest input = new AwrDtos.SqlTuningRequest(
                     sqlText,
-                    "Tune SQL from direct database context and recommend safe index candidates considering table volume and load/write volume.",
+                    "DB에서 수집한 실행계획과 성능 지표를 바탕으로 이 SQL의 병목 원인을 분석하고, 테이블 규모와 읽기·쓰기 부하를 고려한 안전한 SQL 개선안과 인덱스 후보를 제안해줘.",
                     executionPlan,
                     schemaDdl,
                     existingIndexes,

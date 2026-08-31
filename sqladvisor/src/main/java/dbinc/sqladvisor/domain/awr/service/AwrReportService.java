@@ -414,7 +414,8 @@ public class AwrReportService {
         if (request != null && request.question() != null && !request.question().isBlank()) {
             return request.question();
         }
-        return "Tune SQL_ID " + sqlId + " and recommend safe index candidates considering table volume and load/write volume.";
+        return "SQL_ID " + sqlId
+                + "의 병목 원인을 분석하고, 테이블 규모와 읽기·쓰기 부하를 고려한 안전한 SQL 개선안과 인덱스 후보를 제안해줘.";
     }
 
     private AwrRepository.ReportRecord getReportRecord(Long reportId) {

@@ -186,11 +186,11 @@ const menuItems = [
 type MenuItem = typeof menuItems[number]
 const directMenuNames = [
   'awr-dashboard',
-  'sql-tuning',
-  'awr-chat'
+  'sql-tuning'
 ]
 
 const awrMenuNames = [
+  'awr-chat',
   'awr-upload',
   'awr-reports'
 ]

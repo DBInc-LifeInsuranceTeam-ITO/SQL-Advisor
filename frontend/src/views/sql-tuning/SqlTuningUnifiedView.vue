@@ -110,8 +110,8 @@
             <label class="awr-field">테이블 DDL<textarea v-model="manual.schemaDdl" class="awr-textarea" placeholder="CREATE TABLE ..."></textarea></label>
             <label class="awr-field">기존 인덱스<textarea v-model="manual.existingIndexes" class="awr-textarea" placeholder="CREATE INDEX ..."></textarea></label>
             <label class="awr-field">바인드 샘플<textarea v-model="manual.bindSamples" class="awr-textarea" placeholder=":status='A'"></textarea></label>
-            <button class="awr-btn primary" type="button" :disabled="!manual.sqlText.trim() || loadingManual" @click="runManualAnalysis">
-              {{ loadingManual ? '분석 중...' : 'AI 상세 분석' }}
+            <button class="awr-btn primary" type="button" :disabled="!manual.sqlText.trim() || loadingManual || manualAnalysisUnchanged" @click="runManualAnalysis">
+              {{ loadingManual ? '분석 중...' : manualAnalysisUnchanged ? '분석 완료' : 'AI 상세 분석' }}
             </button>
           </div>
         </template>
@@ -260,6 +260,7 @@ const topSqlLoaded = ref(false)
 const topSqlRows = ref<DirectSqlMetricResponse[]>([])
 const diagnosis = ref<SqlDiagnosisResponse | null>(null)
 const manualResult = ref<SqlTuningResponse | null>(null)
+const lastManualAnalysisKey = ref('')
 const selectedSqlRow = ref<DirectSqlMetricResponse | null>(null)
 const searchText = ref('')
 const errorMessage = ref('')
@@ -292,6 +293,10 @@ const tuningMethod = computed(() => {
 const indexDecision = computed(() => manualResult.value?.indexRecommendations.length
   ? `${manualResult.value.indexRecommendations.length}개 생성안`
   : '생성안 없음')
+const currentManualAnalysisKey = computed(() => manualAnalysisKey())
+const manualAnalysisUnchanged = computed(() => Boolean(
+  manualResult.value && lastManualAnalysisKey.value === currentManualAnalysisKey.value
+))
 
 onMounted(loadConnections)
 onBeforeUnmount(stopTuningTimer)
@@ -376,6 +381,7 @@ async function runSelectedTuning() {
       bindSamples: input?.bindSamples || ''
     })
     manualResult.value = result
+    lastManualAnalysisKey.value = manualAnalysisKey()
     mode.value = 'MANUAL'
     tuningCompleted = true
   } catch (error) { setError(error, '선택한 SQL의 AI 튜닝에 실패했습니다.') }
@@ -397,10 +403,25 @@ function stopTuningTimer() {
   }
 }
 async function runManualAnalysis() {
+  const analysisKey = manualAnalysisKey()
+  if (manualResult.value && lastManualAnalysisKey.value === analysisKey) return
   loadingManual.value = true; manualResult.value = null; errorMessage.value = ''
-  try { manualResult.value = await tuneSql({ ...manual }) }
+  try {
+    manualResult.value = await tuneSql({ ...manual })
+    lastManualAnalysisKey.value = analysisKey
+  }
   catch (error) { setError(error, 'SQL 직접 분석에 실패했습니다.') }
   finally { loadingManual.value = false }
+}
+function manualAnalysisKey() {
+  return JSON.stringify([
+    manual.sqlText.trim(),
+    manual.question.trim(),
+    manual.executionPlan.trim(),
+    manual.schemaDdl.trim(),
+    manual.existingIndexes.trim(),
+    manual.bindSamples.trim()
+  ])
 }
 async function copyRewrittenSql() {
   if (!effectiveRewrittenSql.value) return

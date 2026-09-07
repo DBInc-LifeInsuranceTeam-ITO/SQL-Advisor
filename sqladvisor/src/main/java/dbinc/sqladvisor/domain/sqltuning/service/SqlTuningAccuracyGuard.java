@@ -40,6 +40,13 @@ final class SqlTuningAccuracyGuard {
                     + "|delete\\s+(?:/\\*.*?\\*/\\s*)*from\\s+"
                     + ")([A-Za-z0-9_.$#\"]+)"
     );
+    private static final Pattern AGGREGATE_POWER_PATTERN = Pattern.compile(
+            "(?is)\\bPOWER\\s*\\(\\s*(?:COUNT|SUM|AVG|MIN|MAX)\\s*\\("
+    );
+    private static final Pattern AGGREGATE_BINARY_MATH_PATTERN = Pattern.compile(
+            "(?is)\\b(?:COUNT|SUM|AVG|MIN|MAX)\\s*\\([^)]*\\)\\s*[*+/\\-]\\s*"
+                    + "(?:COUNT|SUM|AVG|MIN|MAX)\\s*\\("
+    );
 
     private static final Set<String> SQL_KEYWORDS = Set.of(
             "where", "join", "inner", "left", "right", "full", "cross", "on", "group",
@@ -674,6 +681,10 @@ final class SqlTuningAccuracyGuard {
             return null;
         }
 
+        if (!containsAggregateArithmetic(original) && containsAggregateArithmetic(rewritten)) {
+            return null;
+        }
+
         if (Set.of("INSERT", "UPDATE", "DELETE", "MERGE").contains(originalType)) {
             String originalTarget = dmlTarget(original);
             String rewrittenTarget = dmlTarget(rewritten);
@@ -685,6 +696,12 @@ final class SqlTuningAccuracyGuard {
         }
 
         return rewritten;
+    }
+
+    private static boolean containsAggregateArithmetic(String sql) {
+        return hasText(sql)
+                && (AGGREGATE_POWER_PATTERN.matcher(sql).find()
+                || AGGREGATE_BINARY_MATH_PATTERN.matcher(sql).find());
     }
 
     private static String canonicalSql(String sql) {

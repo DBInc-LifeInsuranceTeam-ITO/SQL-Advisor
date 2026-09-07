@@ -286,6 +286,40 @@ class SqlTuningAccuracyGuardTest {
         assertThat(merged.summary()).isEqualTo(authoritative.summary());
     }
 
+    @Test
+    void rejectsAggregateArithmeticIntroducedByAiRewrite() {
+        String sql = """
+                SELECT COUNT(*)
+                FROM TEST.AX_ORDERS a, TEST.AX_ORDERS b
+                WHERE a.status = b.status
+                  AND a.status = 'CANCEL'
+                """;
+        AwrDtos.SqlMetricResponse metric = metric(sql, 193_385L, 61_037L, 1L, 190.7);
+        AwrDtos.SqlTuningRequest request = new AwrDtos.SqlTuningRequest(
+                sql, "Tune SQL", null, null, null, null
+        );
+        AwrDtos.SqlTuningResponse authoritative = advisor.tune(
+                null, metric.sqlId(), "Tune SQL", metric, request, List.of()
+        );
+
+        for (String candidate : List.of(
+                "SELECT POWER(COUNT(*), 2) FROM TEST.AX_ORDERS WHERE status = 'CANCEL'",
+                "SELECT COUNT(*) * COUNT(*) FROM TEST.AX_ORDERS WHERE status = 'CANCEL'"
+        )) {
+            AwrDtos.SqlTuningResponse llm = new AwrDtos.SqlTuningResponse(
+                    null, null, metric.sqlId(), "Tune SQL", request, metric,
+                    "자기 조인을 집계식으로 변경했습니다.", List.of(), List.of(), List.of(),
+                    candidate, List.of(), List.of(), List.of(), List.of(),
+                    "test-model", "high", LocalDateTime.now()
+            );
+
+            AwrDtos.SqlTuningResponse merged = SqlTuningAccuracyGuard.mergeLlm(authoritative, llm);
+
+            assertThat(merged.rewrittenSql()).isNull();
+            assertThat(merged.summary()).isEqualTo(authoritative.summary());
+        }
+    }
+
     private AwrDtos.SqlMetricResponse metric(
             String sqlText,
             Long bufferGets,

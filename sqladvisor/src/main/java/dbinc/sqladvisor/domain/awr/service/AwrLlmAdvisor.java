@@ -68,6 +68,8 @@ public class AwrLlmAdvisor {
             Preserve statement type, DML target, bind names, result rows and multiplicity, NULL behavior, required order,
             and transaction behavior. Never replace binds with literals. Never return the original SQL, a formatting-only
             variant, or a speculative rewrite whose semantic equivalence cannot be established. Otherwise use null.
+            Do not replace a join cardinality with aggregate arithmetic such as POWER(COUNT(...), 2) or
+            COUNT(...) * COUNT(...); the application cannot prove that algebraic rewrite safe from the supplied evidence.
 
             INDEX RULES
             Recommend an index only when an active predicate or join column maps to a real base table and the supplied

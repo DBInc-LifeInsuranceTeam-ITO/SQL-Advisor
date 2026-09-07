@@ -192,33 +192,40 @@
                 <strong>{{ indexDecision }}</strong>
               </section>
             </div>
-            <div v-if="effectiveRewrittenSql" class="result-block tuning-output-block">
-              <div class="rewrite-title">
-                <div><span class="result-step">01</span><h4>개선 SQL</h4></div>
-                <button class="awr-btn compact" type="button" @click="copyRewrittenSql">
+            <section class="tuning-action-card">
+              <header class="tuning-action-header">
+                <span class="result-step">01</span>
+                <div>
+                  <h4>{{ effectiveRewrittenSql ? '개선 SQL' : '개선 SQL 없음' }}</h4>
+                  <p v-if="!effectiveRewrittenSql">원문과 다른 실행 가능한 SQL 변경안이 없습니다.</p>
+                </div>
+                <button v-if="effectiveRewrittenSql" class="awr-btn compact" type="button" @click="copyRewrittenSql">
                   {{ copyStatus || 'SQL 복사' }}
                 </button>
+              </header>
+              <pre v-if="effectiveRewrittenSql" class="sql-box rewritten-sql">{{ effectiveRewrittenSql }}</pre>
+            </section>
+            <section class="tuning-action-card">
+              <header class="tuning-action-header">
+                <span class="result-step">02</span>
+                <div>
+                  <h4>{{ manualResult.indexRecommendations.length ? '신규 인덱스 생성안' : '신규 인덱스 생성안 없음' }}</h4>
+                  <p v-if="!manualResult.indexRecommendations.length">
+                    {{ effectiveRewrittenSql ? 'SQL 재작성 결과를 우선 적용합니다.' : '새로 생성할 인덱스가 없습니다.' }}
+                  </p>
+                </div>
+              </header>
+              <div v-if="manualResult.indexRecommendations.length" class="index-result-list">
+                <article v-for="item in manualResult.indexRecommendations" :key="`${item.tableName}-${item.columns.join(',')}`" class="index-result-card">
+                  <header><strong>{{ item.tableName || '대상 테이블' }}</strong><span>{{ item.columns.join(', ') }}</span></header>
+                  <pre v-if="item.ddlCandidate" class="sql-box">{{ item.ddlCandidate }}</pre>
+                  <dl>
+                    <div v-if="item.reason"><dt>선정 이유</dt><dd>{{ item.reason }}</dd></div>
+                    <div v-if="item.expectedBenefit"><dt>예상 효과</dt><dd>{{ item.expectedBenefit }}</dd></div>
+                  </dl>
+                </article>
               </div>
-              <pre class="sql-box rewritten-sql">{{ effectiveRewrittenSql }}</pre>
-            </div>
-            <div v-if="manualResult.indexRecommendations.length" class="result-block tuning-output-block">
-              <div class="result-section-title"><span class="result-step">02</span><h4>인덱스 생성안</h4></div>
-              <article v-for="item in manualResult.indexRecommendations" :key="`${item.tableName}-${item.columns.join(',')}`" class="index-result-card">
-                <header><strong>{{ item.tableName || '대상 테이블' }}</strong><span>{{ item.columns.join(', ') }}</span></header>
-                <pre v-if="item.ddlCandidate" class="sql-box">{{ item.ddlCandidate }}</pre>
-                <dl>
-                  <div v-if="item.reason"><dt>선정 이유</dt><dd>{{ item.reason }}</dd></div>
-                  <div v-if="item.expectedBenefit"><dt>예상 효과</dt><dd>{{ item.expectedBenefit }}</dd></div>
-                </dl>
-              </article>
-            </div>
-            <div v-else class="no-index-result">
-              <span class="result-step">02</span>
-              <div>
-                <strong>신규 인덱스 생성안 없음</strong>
-                <p>{{ effectiveRewrittenSql ? 'SQL 재작성 결과를 우선 적용하는 분석 결과입니다.' : '확정할 수 있는 SQL 또는 인덱스 변경안이 없습니다.' }}</p>
-              </div>
-            </div>
+            </section>
           </template>
         </template>
       </section>
@@ -423,4 +430,5 @@ function severityClass(value?: string | null) { return `severity-${(value || 'LO
 <style scoped>
 .sql-workbench{display:grid;gap:18px}.mode-switch{display:inline-flex;width:max-content;padding:5px;border:1px solid #d8e0e8;border-radius:13px;background:#fff}.mode-switch button{border:0;border-radius:9px;background:transparent;padding:12px 20px;font:inherit;font-weight:800;cursor:pointer}.mode-switch button.active{background:#078f4c;color:#fff}.workbench-grid{align-items:start;grid-template-columns:minmax(460px,.9fr) minmax(560px,1.1fr)}.input-panel,.result-panel{min-width:0}.result-panel{position:relative}.tuning-progress-overlay{position:absolute;inset:0;z-index:5;display:flex;flex-direction:column;align-items:center;justify-content:center;min-height:520px;padding:32px;border-radius:inherit;background:rgba(255,255,255,.94);text-align:center;backdrop-filter:blur(2px)}.tuning-spinner{width:48px;height:48px;margin-bottom:18px;border:5px solid #d8eee3;border-top-color:#078f4c;border-radius:50%;animation:tuning-spin .8s linear infinite}.tuning-progress-overlay>strong{font-size:20px}.tuning-progress-overlay>p{margin:9px 0 20px;color:#64748b}.tuning-progress-track{width:min(420px,90%);height:8px;overflow:hidden;border-radius:999px;background:#e5eee9}.tuning-progress-track span{display:block;width:42%;height:100%;border-radius:inherit;background:linear-gradient(90deg,#078f4c,#36c27c);animation:tuning-progress 1.3s ease-in-out infinite}.tuning-progress-steps{display:flex;gap:10px;flex-wrap:wrap;justify-content:center;margin:18px 0}.tuning-progress-steps span{padding:7px 10px;border-radius:999px;background:#eef8f2;color:#087744;font-size:12px;font-weight:800}.tuning-progress-overlay small{color:#64748b}@keyframes tuning-spin{to{transform:rotate(360deg)}}@keyframes tuning-progress{0%{transform:translateX(-110%)}100%{transform:translateX(240%)}}.connection-form{display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-bottom:16px;padding:14px;border:1px solid #dce5ec;border-radius:12px;background:#f8fafc}.connection-form .awr-actions{grid-column:1/-1}.selected-connection{display:grid;grid-template-columns:minmax(0,1fr) auto;align-items:center;gap:18px;margin:14px 0 20px;padding:16px 18px;border:1px solid #cfe4d7;border-left:5px solid #0aa15b;border-radius:12px;background:#f7fbf8}.connection-main{min-width:0;display:grid;gap:8px}.connection-identity{display:flex;align-items:center;gap:10px}.connection-identity strong{font-size:17px}.connection-identity span{padding:4px 10px;border-radius:999px;background:#e5f7eb;color:#087744;font-size:12px;font-weight:800}.selected-connection code{display:block;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;color:#45586b}.connection-actions{display:flex;align-items:center;gap:8px}.top-controls{display:grid;grid-template-columns:165px 205px 92px;align-items:end;gap:12px;margin:18px 0 14px;padding-top:18px;border-top:1px solid #e2e8f0}.query-button{width:92px;min-width:92px;height:40px;padding:0 16px}.top-sql-table{max-height:420px}.top-sql-table tbody tr{cursor:pointer}.sql-link{border:0;background:transparent;color:#2563eb;font:inherit;font-weight:800;cursor:pointer}.main-sql{min-height:220px}.diagnosis-overview{display:grid;grid-template-columns:minmax(0,1fr) 90px;align-items:start;gap:24px;margin-bottom:16px}.diagnosis-copy{min-width:0;padding-top:2px}.diagnosis-sql-id{margin:0;color:#078f4c;font-weight:800}.diagnosis-copy h3{margin:8px 0 0;line-height:1.5;font-size:18px}.score{width:90px;min-height:96px;padding:14px 10px;border-radius:14px;text-align:center;display:flex;flex-direction:column;align-items:center;justify-content:center}.score strong{display:block;font-size:30px;line-height:1}.score span{margin-top:10px;font-size:11px;font-weight:900}.severity-high{background:#fee2e2;color:#b91c1c}.severity-medium{background:#fef3c7;color:#92400e}.severity-low{background:#dcfce7;color:#166534}.sql-box{margin:0 0 16px;padding:14px;border-radius:10px;background:#111827;color:#f8fafc;white-space:pre-wrap;line-height:1.5}.rewritten-sql{max-height:420px;overflow:auto}.rewrite-title{display:flex;align-items:flex-start;justify-content:space-between;gap:16px;margin-bottom:10px}.rewrite-title h4{margin:0}.rewrite-title p{margin:5px 0 0;color:#64748b;font-size:12px}.rewrite-risks,.rewrite-unavailable{padding:12px 14px;border-radius:10px;background:#fff7ed;color:#9a3412}.rewrite-risks ul,.rewrite-unavailable ul{margin-bottom:0}.metric-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:10px;margin:0 0 16px}.metric-grid>div{padding:14px;border-radius:10px;background:#f6f8fb}.metric-grid span{display:block;font-size:11px;color:#64748b}.metric-grid strong{display:block;margin-top:6px}.risk-policy{margin:0 0 16px;padding:13px 15px;border:1px solid #dce5ec;border-radius:11px;background:#fbfcfd}.risk-policy summary{cursor:pointer;font-weight:900}.risk-policy p{margin:12px 0 8px;color:#526274}.risk-policy ul{margin:10px 0 0;padding-left:20px}.risk-levels{display:flex;gap:8px;flex-wrap:wrap}.risk-levels span{padding:6px 9px;border-radius:8px;background:#eef3f7;font-size:12px}.finding-list{display:grid;gap:10px}.finding-card{padding:13px;border:1px solid #dce5ec;border-radius:11px}.finding-card>div:first-child{display:flex;gap:8px;align-items:center;flex-wrap:wrap}.finding-card code{font-size:10px;color:#64748b}.badge{padding:3px 7px;border-radius:999px;font-size:10px;font-weight:900}.finding-card details pre{overflow:auto;max-height:180px;padding:10px;background:#111827;color:#fff;border-radius:8px}.result-block{margin-top:16px;padding-top:10px;border-top:1px solid #e2e8f0}.result-block>summary{font-size:16px;font-weight:900;cursor:pointer;margin-bottom:10px}.danger-row{background:#fff1f2}.table-card h4{display:flex;justify-content:space-between}.table-card small{font-weight:400;color:#64748b}@media(max-width:1200px){.workbench-grid{grid-template-columns:1fr}.metric-grid{grid-template-columns:repeat(2,1fr)}}@media(max-width:720px){.connection-form{grid-template-columns:1fr}.selected-connection{grid-template-columns:1fr}.connection-actions{justify-content:flex-start}.top-controls{grid-template-columns:1fr}.query-button{width:100%}.diagnosis-overview{grid-template-columns:1fr}.score{width:100%;min-height:74px}.metric-grid{grid-template-columns:1fr}.rewrite-title{flex-direction:column}.tuning-progress-steps{flex-direction:column}}
 .tuning-result-summary{margin-top:8px;padding:20px;border:1px solid #bfe2ce;border-left:5px solid #078f4c;border-radius:12px;background:#f4fbf7}.tuning-result-summary span,.tuning-decision-grid span{display:block;margin-bottom:8px;color:#078f4c;font-size:12px;font-weight:900}.tuning-result-summary p{margin:0;color:#1f2937;font-size:17px;font-weight:700;line-height:1.65;white-space:pre-line}.tuning-decision-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:12px;margin-top:14px}.tuning-decision-grid section{padding:15px 17px;border:1px solid #e0e7e4;border-radius:11px;background:#fff}.tuning-decision-grid strong{font-size:15px;color:#16241f}.tuning-output-block{margin-top:24px;padding-top:20px}.rewrite-title>div,.result-section-title{display:flex;align-items:center;gap:9px}.result-step{display:inline-grid;width:28px;height:28px;place-items:center;border-radius:8px;background:#078f4c;color:#fff;font-size:11px;font-weight:900}.index-result-card{margin-top:12px;overflow:hidden;border:1px solid #dce5e1;border-radius:12px;background:#fff}.index-result-card header{display:flex;align-items:center;justify-content:space-between;gap:12px;padding:14px 16px;background:#f5f8f7}.index-result-card header span{padding:4px 9px;border-radius:999px;background:#def5e7;color:#087744;font-size:12px;font-weight:800}.index-result-card .sql-box{margin:0;border-radius:0}.index-result-card dl{display:grid;gap:0;margin:0}.index-result-card dl>div{display:grid;grid-template-columns:90px minmax(0,1fr);gap:12px;padding:13px 16px;border-top:1px solid #edf1ef}.index-result-card dt{color:#64748b;font-size:12px;font-weight:800}.index-result-card dd{margin:0;color:#27352f;line-height:1.55}.no-index-result{display:flex;align-items:flex-start;gap:12px;margin-top:20px;padding:16px;border:1px solid #dce5e1;border-radius:11px;background:#f8faf9}.no-index-result strong{display:block;margin:2px 0 4px}.no-index-result p{margin:0;color:#64748b;font-size:13px}@media(max-width:720px){.tuning-decision-grid{grid-template-columns:1fr}.index-result-card dl>div{grid-template-columns:1fr;gap:5px}}
+.tuning-action-card{margin-top:20px;overflow:hidden;border:1px solid #dce5e1;border-radius:12px;background:#f8faf9}.tuning-action-header{display:grid;grid-template-columns:28px minmax(0,1fr) auto;align-items:start;gap:12px;padding:16px 17px}.tuning-action-header h4{margin:2px 0 0;font-size:15px}.tuning-action-header p{margin:5px 0 0;color:#64748b;font-size:13px}.tuning-action-card>.sql-box{margin:0;border-radius:0}.index-result-list{padding:0 16px 16px}.index-result-list .index-result-card:first-child{margin-top:0}@media(max-width:720px){.tuning-action-header{grid-template-columns:28px minmax(0,1fr)}.tuning-action-header .awr-btn{grid-column:2;width:max-content}}
 </style>

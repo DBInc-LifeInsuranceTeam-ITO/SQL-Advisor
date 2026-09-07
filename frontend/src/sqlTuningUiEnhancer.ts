@@ -140,6 +140,9 @@ function enhanceManualAnalysisForm(): void {
 
     if (!sqlField || !questionField || !planField || !ddlField || !indexField || !bindField || !analyzeButton) return
 
+    if (ddlField.firstChild) ddlField.firstChild.textContent = '테이블 정보'
+    if (indexField.firstChild) indexField.firstChild.textContent = '인덱스 정보'
+
     form.dataset.manualLayout = 'true'
     form.classList.add('manual-analysis-form')
 
@@ -175,7 +178,7 @@ function enhanceManualAnalysisForm(): void {
 
     const intro = document.createElement('div')
     intro.className = 'manual-advanced-intro'
-    intro.innerHTML = '<strong>보유한 정보만 입력하세요.</strong><p>실행계획은 접근 경로 분석에 가장 유용하고, DDL·인덱스·바인드 값은 원인과 개선안을 더 구체화할 때 사용합니다.</p>'
+    intro.innerHTML = '<strong>보유한 정보만 입력하세요.</strong><p>실행계획은 접근 경로 분석에 가장 유용하고, 테이블 정보·인덱스 정보·바인드 값은 원인과 개선안을 더 구체화할 때 사용합니다.</p>'
     advanced.appendChild(intro)
 
     const grid = document.createElement('div')

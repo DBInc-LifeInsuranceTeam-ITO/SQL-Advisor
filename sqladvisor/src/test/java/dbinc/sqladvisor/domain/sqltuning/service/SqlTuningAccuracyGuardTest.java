@@ -25,6 +25,7 @@ class SqlTuningAccuracyGuardTest {
         AwrDtos.SqlTuningRequest request = request(
                 metric.sqlText(),
                 "INDEX RANGE SCAN APP.IDX_ORDERS_OTHER",
+                "APP.ORDERS",
                 50_000_000L,
                 "APP.ORDERS | APP.IDX_ORDERS_OTHER | columns=(ORDER_DATE) | uniqueness=NONUNIQUE | status=VALID | visibility=VISIBLE"
         );
@@ -60,6 +61,7 @@ class SqlTuningAccuracyGuardTest {
         AwrDtos.SqlTuningRequest request = request(
                 metric.sqlText(),
                 "TABLE ACCESS FULL APP.CODE_TABLE",
+                "APP.CODE_TABLE",
                 2_000L,
                 "APP.CODE_TABLE | APP.IDX_CODE_DESC | columns=(DESCRIPTION) | uniqueness=NONUNIQUE | status=VALID | visibility=VISIBLE"
         );
@@ -237,6 +239,7 @@ class SqlTuningAccuracyGuardTest {
     private AwrDtos.SqlTuningRequest request(
             String sqlText,
             String executionPlan,
+            String tableName,
             Long numRows,
             String existingIndexes
     ) {
@@ -244,7 +247,7 @@ class SqlTuningAccuracyGuardTest {
                 sqlText,
                 "Tune SQL",
                 executionPlan,
-                "APP.ORDERS num_rows=" + numRows
+                tableName + " num_rows=" + numRows
                         + ", blocks=900000, avg_row_len=120, sample_size=" + numRows
                         + ", last_analyzed=2026-09-07 10:00:00",
                 existingIndexes,

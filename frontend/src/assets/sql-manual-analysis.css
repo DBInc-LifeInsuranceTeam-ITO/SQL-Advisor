@@ -158,6 +158,11 @@
   padding: 16px;
 }
 
+.sql-workbench .manual-advanced-field {
+  align-self: start;
+  align-content: start;
+}
+
 .sql-workbench .manual-advanced-field:first-child {
   grid-column: 1 / -1;
 }

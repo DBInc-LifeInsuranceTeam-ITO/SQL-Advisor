@@ -244,6 +244,48 @@ class SqlTuningAccuracyGuardTest {
                 });
     }
 
+    @Test
+    void rejectsFormattingOnlySqlRewrite() {
+        String sql = """
+                SELECT status, COUNT(*)
+                FROM TEST.AX_ORDERS_KEEP
+                GROUP BY status
+                ORDER BY COUNT(*) DESC
+                """;
+        AwrDtos.SqlMetricResponse metric = metric(sql, 5_361L, 5_342L, 1L, 1.52);
+        AwrDtos.SqlTuningRequest request = new AwrDtos.SqlTuningRequest(
+                sql, "Tune SQL", null, null, null, null
+        );
+        AwrDtos.SqlTuningResponse authoritative = advisor.tune(
+                null, metric.sqlId(), "Tune SQL", metric, request, List.of()
+        );
+        AwrDtos.SqlTuningResponse llm = new AwrDtos.SqlTuningResponse(
+                null,
+                null,
+                metric.sqlId(),
+                "Tune SQL",
+                request,
+                metric,
+                "SQL을 재작성했습니다.",
+                List.of(),
+                List.of(),
+                List.of(),
+                "select STATUS, count(*) from TEST.AX_ORDERS_KEEP group by STATUS order by count(*) desc",
+                List.of(),
+                List.of(),
+                List.of(),
+                List.of(),
+                "test-model",
+                "high",
+                LocalDateTime.now()
+        );
+
+        AwrDtos.SqlTuningResponse merged = SqlTuningAccuracyGuard.mergeLlm(authoritative, llm);
+
+        assertThat(merged.rewrittenSql()).isNull();
+        assertThat(merged.summary()).isEqualTo(authoritative.summary());
+    }
+
     private AwrDtos.SqlMetricResponse metric(
             String sqlText,
             Long bufferGets,

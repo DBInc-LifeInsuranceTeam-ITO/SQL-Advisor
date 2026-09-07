@@ -192,6 +192,8 @@ public class AwrLlmAdvisor {
                 When the supplied evidence is sufficient, return one syntactically executable Oracle SQL candidate
                 in rewritten_sql. Preserve the original result semantics, DML target, bind variable names, and
                 transaction behavior. Do not wrap rewritten_sql in Markdown fences and do not add prose inside it.
+                Never return the original SQL unchanged or with formatting-only changes. If there is no material
+                executable improvement, return null for rewritten_sql.
                 Never replace bind variables with literal sample values. If a semantics-preserving executable rewrite
                 cannot be produced safely, return null for rewritten_sql and explain why in rewrite_risks and missing_inputs.
                 Return JSON only with this schema:

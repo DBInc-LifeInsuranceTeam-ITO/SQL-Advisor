@@ -115,8 +115,9 @@ final class SqlTuningAccuracyGuard {
         }
 
         String safeRewrite = safeRewrite(authoritative, llm.rewrittenSql());
+        boolean rejectedRewrite = hasText(llm.rewrittenSql()) && safeRewrite == null;
         List<String> rewriteRisks = merge(authoritative.rewriteRisks(), llm.rewriteRisks());
-        if (hasText(llm.rewrittenSql()) && safeRewrite == null) {
+        if (rejectedRewrite) {
             rewriteRisks = merge(
                     rewriteRisks,
                     List.of("AI SQL 재작성안은 문장 유형·DML 대상·바인드 보존 검증을 통과하지 못해 제외했습니다.")
@@ -124,7 +125,7 @@ final class SqlTuningAccuracyGuard {
         }
 
         String summary = authoritative.summary();
-        if (compatibleNarrative(authoritative, llm.summary())) {
+        if (!rejectedRewrite && compatibleNarrative(authoritative, llm.summary())) {
             summary = llm.summary().trim();
         }
 
@@ -656,6 +657,7 @@ final class SqlTuningAccuracyGuard {
         String rewritten = normalizeSql(candidate);
 
         if (!hasText(rewritten) || rewritten.contains(";")) return null;
+        if (canonicalSql(original).equals(canonicalSql(rewritten))) return null;
 
         String originalType = statementType(original);
         String rewrittenType = statementType(rewritten);
@@ -683,6 +685,82 @@ final class SqlTuningAccuracyGuard {
         }
 
         return rewritten;
+    }
+
+    private static String canonicalSql(String sql) {
+        StringBuilder result = new StringBuilder();
+        boolean singleQuoted = false;
+        boolean doubleQuoted = false;
+        boolean lineComment = false;
+        boolean blockComment = false;
+        boolean pendingSpace = false;
+
+        for (int index = 0; index < sql.length(); index++) {
+            char current = sql.charAt(index);
+            char next = index + 1 < sql.length() ? sql.charAt(index + 1) : '\0';
+
+            if (lineComment) {
+                if (current == '\n' || current == '\r') {
+                    lineComment = false;
+                    pendingSpace = true;
+                }
+                continue;
+            }
+            if (blockComment) {
+                if (current == '*' && next == '/') {
+                    blockComment = false;
+                    pendingSpace = true;
+                    index++;
+                }
+                continue;
+            }
+            if (!singleQuoted && !doubleQuoted && current == '-' && next == '-') {
+                lineComment = true;
+                pendingSpace = true;
+                index++;
+                continue;
+            }
+            if (!singleQuoted && !doubleQuoted && current == '/' && next == '*') {
+                blockComment = true;
+                pendingSpace = true;
+                index++;
+                continue;
+            }
+            if (!singleQuoted && !doubleQuoted && Character.isWhitespace(current)) {
+                pendingSpace = result.length() > 0;
+                continue;
+            }
+            if (!singleQuoted && !doubleQuoted && current == ';') {
+                continue;
+            }
+            if (pendingSpace) {
+                if (result.length() > 0) {
+                    result.append(' ');
+                }
+                pendingSpace = false;
+            }
+
+            result.append(singleQuoted || doubleQuoted
+                    ? current
+                    : Character.toUpperCase(current));
+
+            if (!doubleQuoted && current == '\'') {
+                if (singleQuoted && next == '\'') {
+                    result.append(next);
+                    index++;
+                } else {
+                    singleQuoted = !singleQuoted;
+                }
+            } else if (!singleQuoted && current == '"') {
+                if (doubleQuoted && next == '"') {
+                    result.append(next);
+                    index++;
+                } else {
+                    doubleQuoted = !doubleQuoted;
+                }
+            }
+        }
+        return result.toString().trim();
     }
 
     private static String normalizeSql(String sql) {

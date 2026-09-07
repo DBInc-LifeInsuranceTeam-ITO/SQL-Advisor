@@ -192,14 +192,14 @@
                 <strong>{{ indexDecision }}</strong>
               </section>
             </div>
-            <div v-if="manualResult.rewrittenSql" class="result-block tuning-output-block">
+            <div v-if="effectiveRewrittenSql" class="result-block tuning-output-block">
               <div class="rewrite-title">
                 <div><span class="result-step">01</span><h4>개선 SQL</h4></div>
                 <button class="awr-btn compact" type="button" @click="copyRewrittenSql">
                   {{ copyStatus || 'SQL 복사' }}
                 </button>
               </div>
-              <pre class="sql-box rewritten-sql">{{ manualResult.rewrittenSql }}</pre>
+              <pre class="sql-box rewritten-sql">{{ effectiveRewrittenSql }}</pre>
             </div>
             <div v-if="manualResult.indexRecommendations.length" class="result-block tuning-output-block">
               <div class="result-section-title"><span class="result-step">02</span><h4>인덱스 생성안</h4></div>
@@ -216,7 +216,7 @@
               <span class="result-step">02</span>
               <div>
                 <strong>신규 인덱스 생성안 없음</strong>
-                <p>{{ manualResult.rewrittenSql ? 'SQL 재작성 결과를 우선 적용하는 분석 결과입니다.' : '확정할 수 있는 SQL 또는 인덱스 변경안이 없습니다.' }}</p>
+                <p>{{ effectiveRewrittenSql ? 'SQL 재작성 결과를 우선 적용하는 분석 결과입니다.' : '확정할 수 있는 SQL 또는 인덱스 변경안이 없습니다.' }}</p>
               </div>
             </div>
           </template>
@@ -270,9 +270,15 @@ const filteredTopSql = computed(() => {
   if (!q) return topSqlRows.value
   return topSqlRows.value.filter(row => [row.sqlId, row.parsingSchemaName, row.sqlText].some(value => value?.toLowerCase().includes(q)))
 })
+const effectiveRewrittenSql = computed(() => {
+  const rewritten = manualResult.value?.rewrittenSql?.trim()
+  const original = manualResult.value?.input?.sqlText || manual.sqlText
+  if (!rewritten || normalizeSqlForComparison(rewritten) === normalizeSqlForComparison(original)) return null
+  return rewritten
+})
 const tuningMethod = computed(() => {
-  if (manualResult.value?.rewrittenSql && manualResult.value.indexRecommendations.length) return 'SQL 재작성 + 인덱스 생성'
-  if (manualResult.value?.rewrittenSql) return 'SQL 재작성'
+  if (effectiveRewrittenSql.value && manualResult.value?.indexRecommendations.length) return 'SQL 재작성 + 인덱스 생성'
+  if (effectiveRewrittenSql.value) return 'SQL 재작성'
   if (manualResult.value?.indexRecommendations.length) return '인덱스 생성'
   return '변경안 없음'
 })
@@ -390,14 +396,23 @@ async function runManualAnalysis() {
   finally { loadingManual.value = false }
 }
 async function copyRewrittenSql() {
-  if (!manualResult.value?.rewrittenSql) return
+  if (!effectiveRewrittenSql.value) return
   try {
-    await navigator.clipboard.writeText(manualResult.value.rewrittenSql)
+    await navigator.clipboard.writeText(effectiveRewrittenSql.value)
     copyStatus.value = '복사됨'
   } catch {
     copyStatus.value = '복사 실패'
   }
   window.setTimeout(() => { copyStatus.value = '' }, 1500)
+}
+function normalizeSqlForComparison(value?: string | null) {
+  return (value || '')
+    .replace(/\/\*[\s\S]*?\*\//g, ' ')
+    .replace(/--.*$/gm, ' ')
+    .replace(/;\s*$/, '')
+    .replace(/\s+/g, ' ')
+    .trim()
+    .toUpperCase()
 }
 function setError(error: unknown, fallback: string) { errorMessage.value = error instanceof Error ? error.message : fallback }
 function number(value?: number | null) { return value == null ? '-' : new Intl.NumberFormat('ko-KR', { maximumFractionDigits: 3 }).format(value) }

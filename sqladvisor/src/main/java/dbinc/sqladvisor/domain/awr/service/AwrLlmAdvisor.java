@@ -7,17 +7,25 @@ import dbinc.sqladvisor.domain.awr.dto.AwrDtos;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 
+import java.nio.charset.StandardCharsets;
+import java.security.MessageDigest;
+import java.security.NoSuchAlgorithmException;
 import java.time.LocalDateTime;
 import java.util.ArrayList;
+import java.util.HexFormat;
 import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Locale;
 import java.util.Optional;
 import java.util.Set;
+import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.ConcurrentMap;
 
 @Service
 @RequiredArgsConstructor
 public class AwrLlmAdvisor {
+
+    private static final int MAX_SQL_TUNING_CACHE_ENTRIES = 500;
 
     static final String SQL_TUNING_SYSTEM_PROMPT = """
             You are SQLAdvisor, a senior Oracle SQL performance engineer.
@@ -112,6 +120,7 @@ public class AwrLlmAdvisor {
     private final AwrAiClient aiClient;
     private final AwrRagService ragService;
     private final ObjectMapper objectMapper;
+    private final ConcurrentMap<String, AwrAiClient.LlmResult> sqlTuningCache = new ConcurrentHashMap<>();
 
     public Optional<AwrDtos.AnalysisResponse> analyze(
             Long reportId,
@@ -256,12 +265,20 @@ public class AwrLlmAdvisor {
                 """.formatted(
                 sqlId,
                 toJson(request),
-                toJson(localTuning),
+                stableTuningJson(localTuning),
                 ragService.evidenceBlock(ragChunks)
         );
 
-        return aiClient.complete(systemPrompt, userPrompt)
-                .map(result -> toSqlTuning(reportId, sqlId, localTuning, ragChunks, result));
+        String cacheKey = sha256(aiClient.activeLlmModel() + "\n" + systemPrompt + "\n" + userPrompt);
+        if (sqlTuningCache.size() >= MAX_SQL_TUNING_CACHE_ENTRIES) {
+            sqlTuningCache.clear();
+        }
+        AwrAiClient.LlmResult result = sqlTuningCache.computeIfAbsent(
+                cacheKey,
+                ignored -> aiClient.complete(systemPrompt, userPrompt).orElse(null)
+        );
+        return Optional.ofNullable(result)
+                .map(value -> toSqlTuning(reportId, sqlId, localTuning, ragChunks, value));
     }
 
     public Optional<AwrDtos.SqlTuningQuestionResponse> answerSqlTuningQuestion(
@@ -554,6 +571,27 @@ public class AwrLlmAdvisor {
 
     private String safeQuestion(String question) {
         return question == null || question.isBlank() ? "이 AWR 리포트의 전체 부하 특성, 주요 대기 이벤트, 병목 의심 지점과 Top SQL 수행시간을 일반적으로 리뷰해줘" : question;
+    }
+
+    String stableTuningJson(AwrDtos.SqlTuningResponse tuning) {
+        JsonNode node = objectMapper.valueToTree(tuning);
+        if (node.isObject()) {
+            ((com.fasterxml.jackson.databind.node.ObjectNode) node).remove(List.of(
+                    "tuningId",
+                    "createdAt"
+            ));
+        }
+        return toJson(node);
+    }
+
+    private String sha256(String value) {
+        try {
+            byte[] digest = MessageDigest.getInstance("SHA-256")
+                    .digest(value.getBytes(StandardCharsets.UTF_8));
+            return HexFormat.of().formatHex(digest);
+        } catch (NoSuchAlgorithmException exception) {
+            throw new IllegalStateException("SHA-256 is not available.", exception);
+        }
     }
 
     private String toJson(Object value) {

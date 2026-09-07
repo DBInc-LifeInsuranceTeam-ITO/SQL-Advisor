@@ -152,7 +152,7 @@ public class AwrSqlTuningAdvisor {
                 question,
                 request,
                 metric,
-                summary(metric, indexRecommendations, indexContext),
+                summary(metric),
                 symptoms,
                 indexRecommendations,
                 rewriteRecommendations,
@@ -237,13 +237,14 @@ public class AwrSqlTuningAdvisor {
     }
 
     private Map<String, LinkedHashSet<String>> predicateColumnsByTable(String sqlText) {
-        Map<String, String> aliasToTable = tableAliases(sqlText);
+        String executableSql = stripSqlComments(sqlText);
+        Map<String, String> aliasToTable = tableAliases(executableSql);
         String singleTable = aliasToTable.values().stream().distinct().limit(2).count() == 1
                 ? aliasToTable.values().stream().findFirst().orElse(null)
                 : null;
 
         Map<String, LinkedHashSet<String>> columnsByTable = new LinkedHashMap<>();
-        Matcher matcher = PREDICATE_PATTERN.matcher(sqlText);
+        Matcher matcher = PREDICATE_PATTERN.matcher(executableSql);
         while (matcher.find()) {
             String ownerOrColumn = cleanIdentifier(matcher.group(1));
             String column = cleanIdentifier(matcher.group(2));
@@ -260,6 +261,73 @@ public class AwrSqlTuningAdvisor {
             columnsByTable.computeIfAbsent(tableName, key -> new LinkedHashSet<>()).add(column);
         }
         return columnsByTable;
+    }
+
+    private String stripSqlComments(String sqlText) {
+        if (!hasText(sqlText)) {
+            return "";
+        }
+
+        StringBuilder result = new StringBuilder(sqlText.length());
+        boolean singleQuoted = false;
+        boolean doubleQuoted = false;
+        boolean lineComment = false;
+        boolean blockComment = false;
+
+        for (int index = 0; index < sqlText.length(); index++) {
+            char current = sqlText.charAt(index);
+            char next = index + 1 < sqlText.length() ? sqlText.charAt(index + 1) : '\0';
+
+            if (lineComment) {
+                if (current == '\n' || current == '\r') {
+                    lineComment = false;
+                    result.append(current);
+                } else {
+                    result.append(' ');
+                }
+                continue;
+            }
+            if (blockComment) {
+                if (current == '*' && next == '/') {
+                    blockComment = false;
+                    result.append("  ");
+                    index++;
+                } else {
+                    result.append(current == '\n' || current == '\r' ? current : ' ');
+                }
+                continue;
+            }
+            if (!singleQuoted && !doubleQuoted && current == '-' && next == '-') {
+                lineComment = true;
+                result.append("  ");
+                index++;
+                continue;
+            }
+            if (!singleQuoted && !doubleQuoted && current == '/' && next == '*') {
+                blockComment = true;
+                result.append("  ");
+                index++;
+                continue;
+            }
+
+            result.append(current);
+            if (!doubleQuoted && current == '\'') {
+                if (singleQuoted && next == '\'') {
+                    result.append(next);
+                    index++;
+                } else {
+                    singleQuoted = !singleQuoted;
+                }
+            } else if (!singleQuoted && current == '"') {
+                if (doubleQuoted && next == '"') {
+                    result.append(next);
+                    index++;
+                } else {
+                    doubleQuoted = !doubleQuoted;
+                }
+            }
+        }
+        return result.toString();
     }
 
     private Map<String, String> tableAliases(String sqlText) {
@@ -367,39 +435,12 @@ public class AwrSqlTuningAdvisor {
         return missing;
     }
 
-    private String summary(
-            AwrDtos.SqlMetricResponse metric,
-            List<AwrDtos.IndexRecommendationResponse> indexRecommendations,
-            IndexContext indexContext
-    ) {
-        StringBuilder builder = new StringBuilder();
-        builder.append("SQL_ID ").append(metric.sqlId())
-                .append(" is ranked ").append(metric.rankNo())
-                .append(" in ").append(metric.sectionName()).append(".");
-        if (metric.elapsedTimeSec() != null) {
-            builder.append(" elapsed_time_sec=").append(metric.elapsedTimeSec()).append(".");
-        }
-        if (metric.bufferGets() != null) {
-            builder.append(" buffer_gets=").append(metric.bufferGets()).append(".");
-        }
-        if (metric.diskReads() != null) {
-            builder.append(" disk_reads=").append(metric.diskReads()).append(".");
-        }
-        if (indexRecommendations.isEmpty()) {
-            if (containsOracleDictionaryObject(metric.sqlText())) {
-                builder.append(" No index DDL candidate is emitted because the SQL references Oracle data dictionary or dynamic performance views.");
-            } else if (isInsertStatement(metric.sqlText())) {
-                builder.append(" No query index DDL candidate is emitted because this is an INSERT/load statement, not a query predicate pattern.");
-            } else if (hasCoveredCandidates(metric, indexContext)) {
-                builder.append(" No new index DDL candidate is emitted because an existing usable index already covers the candidate leading columns.");
-            } else if (hasCostlyUsedIndex(metric, indexContext)) {
-                builder.append(" Plan Used Indexes are already present, so validate the current access path before creating another index.");
-            } else {
-                builder.append(" No concrete index DDL candidate is emitted until SQL text, plan, and object metadata are sufficient.");
-            }
-        } else {
-            builder.append(" Candidate index recommendations are heuristic and must be validated before use.");
-        }
+    private String summary(AwrDtos.SqlMetricResponse metric) {
+        StringBuilder builder = new StringBuilder("수집된 성능 지표");
+        if (metric.elapsedTimeSec() != null) builder.append(" · 수행시간 ").append(metric.elapsedTimeSec()).append("초");
+        if (metric.bufferGets() != null) builder.append(" · Buffer Gets ").append(metric.bufferGets());
+        if (metric.diskReads() != null) builder.append(" · Disk Reads ").append(metric.diskReads());
+        builder.append("입니다.");
         return builder.toString();
     }
 
@@ -446,28 +487,28 @@ public class AwrSqlTuningAdvisor {
     ) {
         String base;
         if ("Direct DB SQL".equals(metric.sectionName()) && hasFullTableScan(request)) {
-            base = "Direct DB execution plan shows TABLE ACCESS FULL and predicate columns were found in SQL text.";
+            base = "실행계획에서 TABLE ACCESS FULL이 확인됐고 조건절 컬럼을 추출했습니다.";
         } else {
-            base = "Predicate columns were found in SQL text and the AWR metric suggests high logical or physical read cost.";
+            base = "조건절 컬럼과 높은 논리·물리 읽기 비용을 근거로 선정했습니다.";
         }
         if (!trailingMatches.isEmpty()) {
-            base += " Existing index " + trailingMatches.get(0).indexName()
-                    + " contains the candidate column later in the key, but its leading column order may not support this predicate efficiently.";
+            base += " 기존 인덱스 " + trailingMatches.get(0).indexName()
+                    + "에도 후보 컬럼이 있지만 선두 컬럼이 아니라 현재 조건에 효율적으로 사용되기 어렵습니다.";
         }
         if (volumeContext != null && volumeContext.hasAnyEvidence()) {
-            return base + " Table volume/load evidence considered: " + volumeContext.evidenceText() + ".";
+            return base + " 테이블 규모·변경량: " + volumeContext.evidenceText() + ".";
         }
-        return base + " Table volume/load statistics were not available, so validate data size before creating the index.";
+        return base;
     }
 
     private String expectedBenefit(AwrDtos.SqlMetricResponse metric, TableVolumeContext volumeContext) {
         if (volumeContext != null && volumeContext.numRows() != null && volumeContext.numRows() < 10_000) {
-            return "Benefit may be limited because the table is small; full scan can be cheaper than extra index access.";
+            return "테이블이 작아 인덱스보다 전체 스캔이 더 빠를 수 있으므로 개선 효과가 제한적입니다.";
         }
         if (metric.diskReads() != null && metric.diskReads() > 100_000) {
-            return "May reduce physical reads if the predicates are selective and the current plan is scanning too much data.";
+            return "조건 선택도가 충분하면 불필요한 물리 읽기를 줄일 수 있습니다.";
         }
-        return "May reduce logical reads and CPU if the predicates are selective and the optimizer can use the access path.";
+        return "조건 선택도가 충분하면 논리 읽기와 CPU 사용량을 줄일 수 있습니다.";
     }
 
     private List<String> buildSteps(String ddl, String indexName, TableVolumeContext volumeContext) {

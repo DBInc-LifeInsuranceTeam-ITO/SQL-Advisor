@@ -58,12 +58,11 @@ final class SqlTuningAccuracyGuard {
         AwrDtos.SqlTuningRequest input = local.input();
         List<String> deterministicSymptoms = merge(local.symptoms(), perExecutionSymptoms(metric));
 
-        List<String> suppressionReasons = new ArrayList<>();
         List<AwrDtos.IndexRecommendationResponse> refinedIndexes = new ArrayList<>();
         if (local.indexRecommendations() != null) {
             for (AwrDtos.IndexRecommendationResponse recommendation : local.indexRecommendations()) {
                 AwrDtos.IndexRecommendationResponse refined =
-                        refineIndexCandidate(metric, input, recommendation, suppressionReasons);
+                        refineIndexCandidate(metric, input, recommendation);
                 if (refined != null) {
                     refinedIndexes.add(refined);
                 }
@@ -80,12 +79,7 @@ final class SqlTuningAccuracyGuard {
             missingInputs.add("column selectivity statistics such as NUM_DISTINCT/DENSITY");
         }
 
-        String summary = deterministicSummary(
-                local.summary(),
-                metric,
-                refinedIndexes,
-                suppressionReasons
-        );
+        String summary = deterministicSummary(local.summary());
 
         return new AwrDtos.SqlTuningResponse(
                 local.tuningId(),
@@ -131,10 +125,7 @@ final class SqlTuningAccuracyGuard {
 
         String summary = authoritative.summary();
         if (compatibleNarrative(authoritative, llm.summary())) {
-            summary = summary
-                    + System.lineSeparator()
-                    + "AI 보충 설명(규칙 기반 판정은 변경하지 않음): "
-                    + llm.summary().trim();
+            summary = llm.summary().trim();
         }
 
         return new AwrDtos.SqlTuningResponse(
@@ -162,8 +153,7 @@ final class SqlTuningAccuracyGuard {
     private static AwrDtos.IndexRecommendationResponse refineIndexCandidate(
             AwrDtos.SqlMetricResponse metric,
             AwrDtos.SqlTuningRequest input,
-            AwrDtos.IndexRecommendationResponse recommendation,
-            List<String> suppressionReasons
+            AwrDtos.IndexRecommendationResponse recommendation
     ) {
         if (recommendation == null || !hasText(recommendation.tableName())) {
             return null;
@@ -171,13 +161,11 @@ final class SqlTuningAccuracyGuard {
 
         String tableName = recommendation.tableName();
         if (isOracleDictionaryObject(tableName) || isInsert(metric.sqlText())) {
-            suppressionReasons.add(tableName + ": dictionary/load SQL이라 신규 인덱스 후보를 제외했습니다.");
             return null;
         }
 
         Long numRows = tableRows(input, tableName);
         if (numRows != null && numRows < 10_000) {
-            suppressionReasons.add(tableName + ": 소형 테이블(num_rows=" + numRows + ")이라 Full Scan이 더 저렴할 수 있어 후보를 제외했습니다.");
             return null;
         }
 
@@ -186,7 +174,6 @@ final class SqlTuningAccuracyGuard {
         int evidenceScore = evidenceScore(metric, input, tableName, numRows, fullScan);
 
         if ("Manual SQL".equals(metric.sectionName()) && !hasManualEvidence(input)) {
-            suppressionReasons.add(tableName + ": 직접 분석 입력에 실행계획·테이블 정보·기존 인덱스 근거가 부족해 후보를 제외했습니다.");
             return null;
         }
 
@@ -194,12 +181,10 @@ final class SqlTuningAccuracyGuard {
                 && metric.executions() > 0
                 && !strongPerExec
                 && !fullScan) {
-            suppressionReasons.add(tableName + ": 누적 부하는 있으나 실행당 비용이 낮아 신규 인덱스 후보를 제외했습니다.");
             return null;
         }
 
         if (evidenceScore < 50) {
-            suppressionReasons.add(tableName + ": 인덱스 근거 점수 " + evidenceScore + "/100으로 기준(50점)에 미달해 후보를 제외했습니다.");
             return null;
         }
 
@@ -212,17 +197,14 @@ final class SqlTuningAccuracyGuard {
         );
 
         if (columns.isEmpty()) {
-            suppressionReasons.add(tableName + ": 안전하게 확인 가능한 조건 컬럼이 없어 후보를 제외했습니다.");
             return null;
         }
 
         if (onlyLowSelectivityColumns(tableName, columns, input, numRows)) {
-            suppressionReasons.add(tableName + ": 후보 컬럼의 선택도가 낮아 단독/선두 인덱스 효과가 불확실해 제외했습니다.");
             return null;
         }
 
         if (coveredByExistingIndex(tableName, columns, input)) {
-            suppressionReasons.add(tableName + ": 기존 인덱스가 후보 선두 컬럼을 이미 커버해 중복 후보를 제외했습니다.");
             return null;
         }
 
@@ -314,36 +296,8 @@ final class SqlTuningAccuracyGuard {
         return symptoms;
     }
 
-    private static String deterministicSummary(
-            String original,
-            AwrDtos.SqlMetricResponse metric,
-            List<AwrDtos.IndexRecommendationResponse> indexes,
-            List<String> suppressionReasons
-    ) {
-        StringBuilder builder = new StringBuilder(hasText(original) ? original.trim() : "");
-
-        if (metric.executions() != null && metric.executions() > 0) {
-            builder.append(System.lineSeparator())
-                    .append("정확도 보정: 누적값뿐 아니라 실행당 비용을 함께 판정했습니다");
-            Double elapsed = perExecution(metric.elapsedTimeSec(), metric.executions());
-            Double buffer = perExecution(metric.bufferGets(), metric.executions());
-            Double disk = perExecution(metric.diskReads(), metric.executions());
-            if (elapsed != null) builder.append(", elapsed/exec=").append(format(elapsed)).append("초");
-            if (buffer != null) builder.append(", buffer_gets/exec=").append(format(buffer));
-            if (disk != null) builder.append(", disk_reads/exec=").append(format(disk));
-            builder.append(".");
-        }
-
-        if (!suppressionReasons.isEmpty()) {
-            builder.append(System.lineSeparator())
-                    .append("보수적 필터 적용: ")
-                    .append(String.join(" ", suppressionReasons));
-        } else if (!indexes.isEmpty()) {
-            builder.append(System.lineSeparator())
-                    .append("신규 인덱스는 근거 점수·테이블 규모·선택도·기존 인덱스 중복 검사를 통과한 후보만 표시합니다.");
-        }
-
-        return builder.toString().trim();
+    private static String deterministicSummary(String original) {
+        return hasText(original) ? original.trim() : "SQL 성능 분석이 완료되었습니다.";
     }
 
     private static String confidence(

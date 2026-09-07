@@ -43,7 +43,6 @@ class SqlTuningAccuracyGuardTest {
         AwrDtos.SqlTuningResponse refined = SqlTuningAccuracyGuard.refine(raw);
 
         assertThat(refined.indexRecommendations()).isEmpty();
-        assertThat(refined.summary()).contains("실행당 비용이 낮아");
         assertThat(refined.symptoms()).anySatisfy(
                 item -> assertThat(item).contains("실행당 Buffer Gets")
         );
@@ -79,7 +78,6 @@ class SqlTuningAccuracyGuardTest {
         AwrDtos.SqlTuningResponse refined = SqlTuningAccuracyGuard.refine(raw);
 
         assertThat(refined.indexRecommendations()).isEmpty();
-        assertThat(refined.summary()).contains("소형 테이블");
     }
 
     @Test
@@ -209,6 +207,41 @@ class SqlTuningAccuracyGuardTest {
         assertThat(merged.rewriteRisks()).anySatisfy(
                 item -> assertThat(item).contains("검증을 통과하지 못해 제외")
         );
+    }
+
+    @Test
+    void ignoresPredicateInsideLineCommentWhenBuildingIndexCandidate() {
+        String sql = """
+                SELECT COUNT(*)
+                FROM TEST.AX_ORDERS a, TEST.AX_ORDERS b
+                WHERE a.status = b.status
+                -- AND a.amount + b.amount > 0
+                AND a.status = 'CANCEL'
+                """;
+        AwrDtos.SqlMetricResponse metric = metric(sql, 193_385L, 61_037L, 1L, 190.7);
+        AwrDtos.SqlTuningRequest request = request(
+                sql,
+                "TABLE ACCESS FULL TEST.AX_ORDERS",
+                "TEST.AX_ORDERS",
+                1_000_000L,
+                "TEST.AX_ORDERS | TEST.IDX_AX_ORDERS_ID | columns=(ORDER_ID) | uniqueness=UNIQUE | status=VALID | visibility=VISIBLE"
+        );
+
+        AwrDtos.SqlTuningResponse response = advisor.tune(
+                null,
+                metric.sqlId(),
+                "Tune SQL",
+                metric,
+                request,
+                List.of()
+        );
+
+        assertThat(response.indexRecommendations())
+                .isNotEmpty()
+                .allSatisfy(item -> {
+                    assertThat(item.tableName()).isNotEqualToIgnoringCase("b");
+                    assertThat(item.columns()).noneMatch(column -> column.equalsIgnoreCase("amount"));
+                });
     }
 
     private AwrDtos.SqlMetricResponse metric(

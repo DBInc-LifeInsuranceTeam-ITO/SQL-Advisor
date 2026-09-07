@@ -23,6 +23,7 @@ import java.util.Optional;
 public class AwrAiClient {
 
     private static final int MAX_EMBEDDING_TEXT_LENGTH = 12_000;
+    private static final double DETERMINISTIC_TEMPERATURE = 0.0;
 
     private final ObjectMapper objectMapper;
     private final HttpClient httpClient;
@@ -127,7 +128,7 @@ public class AwrAiClient {
     private LlmResult callOpenAiChat(AwrAiConfigService.ActiveAiSettings settings, String systemPrompt, String userPrompt) {
         ObjectNode body = objectMapper.createObjectNode();
         body.put("model", settings.openaiChatModel());
-        body.put("temperature", 0.2);
+        body.put("temperature", DETERMINISTIC_TEMPERATURE);
         ArrayNode messages = body.putArray("messages");
         messages.addObject()
                 .put("role", "system")
@@ -160,7 +161,7 @@ public class AwrAiClient {
         content.putArray("parts")
                 .addObject()
                 .put("text", userPrompt);
-        body.putObject("generationConfig").put("temperature", 0.2);
+        body.putObject("generationConfig").put("temperature", DETERMINISTIC_TEMPERATURE);
 
         JsonNode response = postJson(
                 URI.create("https://generativelanguage.googleapis.com/v1beta/" + geminiModelPath(settings.geminiChatModel()) + ":generateContent?key=" + settings.geminiApiKey()),
@@ -192,7 +193,7 @@ public class AwrAiClient {
         messages.addObject()
                 .put("role", "user")
                 .put("content", userPrompt);
-        body.putObject("options").put("temperature", 0.2);
+        body.putObject("options").put("temperature", DETERMINISTIC_TEMPERATURE);
 
         JsonNode response = postJson(
                 ollamaUri(settings.ollamaBaseUrl(), "/api/chat"),
@@ -209,7 +210,7 @@ public class AwrAiClient {
     private LlmResult callInternalChat(AwrAiConfigService.ActiveAiSettings settings, String systemPrompt, String userPrompt) {
         ObjectNode body = objectMapper.createObjectNode();
         body.put("model", settings.internalChatModel());
-        body.put("temperature", 0.2);
+        body.put("temperature", DETERMINISTIC_TEMPERATURE);
         ArrayNode messages = body.putArray("messages");
         messages.addObject()
                 .put("role", "system")

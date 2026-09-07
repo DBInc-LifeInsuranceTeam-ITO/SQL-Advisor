@@ -36,7 +36,7 @@ public class SqlTuningService {
         String sqlText = request.sqlText().trim();
         String sqlId = "manual-" + shortHash(sqlText);
         String question = request.question() == null || request.question().isBlank()
-                ? "이 SQL의 병목 원인을 분석하고, 테이블 규모와 읽기·쓰기 부하를 고려한 안전한 SQL 개선안과 인덱스 후보를 제안해줘."
+                ? "병목 원인과 실행 가능한 튜닝 SQL을 간결하게 제시하고, 꼭 필요한 경우에만 인덱스 생성안을 알려줘."
                 : request.question().trim();
 
         AwrDtos.SqlTuningRequest normalizedRequest = new AwrDtos.SqlTuningRequest(
@@ -227,7 +227,7 @@ public class SqlTuningService {
                 : metric.sqlId();
 
         String question = input.question() == null || input.question().isBlank()
-                ? "DB에서 수집한 실행계획과 성능 지표를 바탕으로 이 SQL의 병목 원인을 분석하고, 테이블 규모와 읽기·쓰기 부하를 고려한 안전한 SQL 개선안과 인덱스 후보를 제안해줘."
+                ? "DB 실행계획과 성능 지표를 기준으로 병목 원인과 실행 가능한 튜닝 SQL을 간결하게 제시하고, 꼭 필요한 경우에만 인덱스 생성안을 알려줘."
                 : input.question();
 
         List<String> citations = new java.util.ArrayList<>();

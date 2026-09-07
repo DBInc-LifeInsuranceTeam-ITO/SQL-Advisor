@@ -164,90 +164,41 @@
               <div><span>Rows</span><strong>{{ number(diagnosis.metric.rowsProcessed) }}</strong></div>
               <div><span>Plan Hash</span><strong>{{ number(diagnosis.metric.planHashValue) }}</strong></div>
             </div>
-
-            <details class="risk-policy">
-              <summary>위험도 산정 기준</summary>
-              <p>AI 판단이 아니라 서버의 고정 규칙 점수를 합산하며, 최대 점수는 100점입니다.</p>
-              <div class="risk-levels">
-                <span><strong>HIGH</strong> 70점 이상</span>
-                <span><strong>MEDIUM</strong> 40~69점</span>
-                <span><strong>LOW</strong> 39점 이하</span>
-              </div>
-              <ul>
-                <li>TABLE ACCESS FULL 발견: +40점</li>
-                <li>Buffer Gets 10,000 이상: +20점</li>
-                <li>Disk Reads 1,000 이상: +20점</li>
-                <li>처리 행 1,000,000건 이상: +20점</li>
-                <li>통계정보 미수집 또는 30일 초과: +15점</li>
-                <li>Full Scan 대상에 사용 가능한 인덱스 없음: +15점</li>
-                <li>예상 행과 처리 행 차이 10배 이상: +15점</li>
-              </ul>
-            </details>
-
             <div class="finding-list">
               <article v-for="finding in diagnosis.findings" :key="finding.code" class="finding-card">
-                <div><span :class="['badge', severityClass(finding.severity)]">{{ finding.severity }}</span><strong>{{ finding.title }}</strong><code>{{ finding.code }}</code></div>
+                <div><span :class="['badge', severityClass(finding.severity)]">{{ finding.severity }}</span><strong>{{ finding.title }}</strong></div>
                 <p>{{ finding.description }}</p>
-                <ul><li v-for="item in finding.recommendations" :key="item">{{ item }}</li></ul>
-                <details><summary>판정 근거</summary><pre>{{ pretty(finding.evidence) }}</pre></details>
               </article>
             </div>
-            <details open class="result-block"><summary>실행계획</summary>
-              <div class="awr-table-wrap"><table class="awr-table compact"><thead><tr><th>ID</th><th>Operation</th><th>Object</th><th>Cost</th><th>예상 Rows</th></tr></thead><tbody>
-                <tr v-for="node in diagnosis.executionPlan.nodes" :key="`${node.id}-${node.operation}`" :class="node.operation === 'TABLE ACCESS' && node.options === 'FULL' ? 'danger-row' : ''">
-                  <td>{{ node.id }}</td><td :style="{ paddingLeft: `${(node.depth || 0) * 14 + 10}px` }">{{ [node.operation, node.options].filter(Boolean).join(' ') }}</td>
-                  <td>{{ [node.objectOwner, node.objectName].filter(Boolean).join('.') || '-' }}</td><td>{{ number(node.cost) }}</td><td>{{ number(node.cardinality) }}</td>
-                </tr>
-              </tbody></table></div>
-            </details>
-            <details open class="result-block"><summary>테이블 및 인덱스</summary>
-              <article v-for="table in diagnosis.tableMetadata.tables" :key="`${table.owner}.${table.tableName}`" class="table-card">
-                <h4>{{ table.owner }}.{{ table.tableName }} <small>Rows {{ number(table.numRows) }} · 통계 {{ date(table.lastAnalyzed) }}</small></h4>
-                <div class="awr-table-wrap"><table class="awr-table compact"><thead><tr><th>인덱스</th><th>컬럼</th><th>상태</th><th>가시성</th><th>현재 Plan</th></tr></thead><tbody>
-                  <tr v-for="index in table.indexes" :key="index.indexName"><td>{{ index.indexName }}</td><td>{{ index.columns.join(', ') }}</td><td>{{ index.status }}</td><td>{{ index.visibility }}</td><td>{{ index.usedInCurrentPlan ? '사용' : '미사용' }}</td></tr>
-                  <tr v-if="!table.indexes.length"><td colspan="5">인덱스 없음</td></tr>
-                </tbody></table></div>
-              </article>
-            </details>
-            <div v-if="diagnosis.warnings.length" class="awr-empty compact"><ul><li v-for="warning in diagnosis.warnings" :key="warning">{{ warning }}</li></ul></div>
           </template>
         </template>
 
         <template v-else>
-          <div class="awr-panel-header"><h2 class="awr-panel-title">AI 분석 결과</h2></div>
+          <div class="awr-panel-header"><h2 class="awr-panel-title">튜닝 결과</h2></div>
           <div v-if="loadingManual" class="awr-empty">SQL을 분석하는 중입니다.</div>
           <div v-else-if="!manualResult" class="awr-empty">왼쪽에 SQL과 참고 정보를 입력하고 AI 상세 분석을 실행하세요.</div>
           <template v-else>
             <h3>{{ manualResult.summary }}</h3>
-            <div class="result-block"><h4>증상</h4><ul><li v-for="item in manualResult.symptoms" :key="item">{{ item }}</li></ul></div>
             <div v-if="manualResult.rewrittenSql" class="result-block">
               <div class="rewrite-title">
-                <div>
-                  <h4>실행 가능한 튜닝 SQL 후보</h4>
-                  <p>운영 반영 전 원본 SQL과 결과 정합성 및 실행계획을 반드시 비교하세요.</p>
-                </div>
+                <h4>튜닝 SQL</h4>
                 <button class="awr-btn compact" type="button" @click="copyRewrittenSql">
                   {{ copyStatus || 'SQL 복사' }}
                 </button>
               </div>
               <pre class="sql-box rewritten-sql">{{ manualResult.rewrittenSql }}</pre>
-              <div v-if="manualResult.rewriteRisks?.length" class="rewrite-risks">
-                <strong>적용 전 주의사항</strong>
-                <ul><li v-for="item in manualResult.rewriteRisks" :key="item">{{ item }}</li></ul>
-              </div>
             </div>
-            <div v-else class="result-block rewrite-unavailable">
-              <h4>튜닝 SQL 후보</h4>
-              <p>현재 수집된 근거만으로는 결과 의미를 유지하는 실행 가능한 SQL을 안전하게 생성하지 못했습니다.</p>
-              <ul v-if="manualResult.rewriteRisks?.length"><li v-for="item in manualResult.rewriteRisks" :key="item">{{ item }}</li></ul>
-            </div>
-            <div class="result-block"><h4>SQL 재작성 권고</h4><ul><li v-for="item in manualResult.rewriteRecommendations" :key="item">{{ item }}</li></ul></div>
-            <div class="result-block"><h4>인덱스 권고</h4>
+            <div v-if="manualResult.indexRecommendations.length" class="result-block"><h4>인덱스 생성안</h4>
               <article v-for="item in manualResult.indexRecommendations" :key="`${item.tableName}-${item.columns.join(',')}`" class="finding-card">
-                <strong>{{ item.tableName || '대상 테이블' }} ({{ item.columns.join(', ') }})</strong><p>{{ item.reason }}</p><pre v-if="item.ddlCandidate">{{ item.ddlCandidate }}</pre>
+                <strong>{{ item.tableName || '대상 테이블' }} ({{ item.columns.join(', ') }})</strong>
+                <pre v-if="item.ddlCandidate" class="sql-box">{{ item.ddlCandidate }}</pre>
+                <p v-if="item.reason">{{ item.reason }}</p>
+                <p v-if="item.expectedBenefit"><strong>예상 효과</strong> {{ item.expectedBenefit }}</p>
               </article>
             </div>
-            <div class="result-block"><h4>검증 절차</h4><ol><li v-for="item in manualResult.validationSteps" :key="item">{{ item }}</li></ol></div>
+            <div v-if="!manualResult.rewrittenSql && !manualResult.indexRecommendations.length" class="awr-empty compact">
+              생성된 SQL 또는 인덱스 변경안이 없습니다.
+            </div>
           </template>
         </template>
       </section>
@@ -421,8 +372,6 @@ async function copyRewrittenSql() {
 }
 function setError(error: unknown, fallback: string) { errorMessage.value = error instanceof Error ? error.message : fallback }
 function number(value?: number | null) { return value == null ? '-' : new Intl.NumberFormat('ko-KR', { maximumFractionDigits: 3 }).format(value) }
-function date(value?: string | null) { return value ? new Intl.DateTimeFormat('ko-KR').format(new Date(value)) : '-' }
-function pretty(value: Record<string, unknown>) { return JSON.stringify(value, null, 2) }
 function severityClass(value?: string | null) { return `severity-${(value || 'LOW').toLowerCase()}` }
 </script>
 

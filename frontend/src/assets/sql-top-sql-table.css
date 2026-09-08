@@ -102,7 +102,7 @@
 .sql-workbench .top-sql-table tbody td:nth-child(n+2) {
   overflow: visible;
   text-overflow: clip;
-  text-align: right !important;
+  text-align: center !important;
   font-variant-numeric: tabular-nums;
 }
 

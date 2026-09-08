@@ -22,6 +22,7 @@ public class RuleBasedSqlDiagnosisService {
     private static final long LARGE_ROW_THRESHOLD = 1_000_000L;
     private static final long HIGH_BUFFER_GETS_THRESHOLD = 10_000L;
     private static final long HIGH_DISK_READS_THRESHOLD = 1_000L;
+    private static final double SLOW_AVERAGE_ELAPSED_THRESHOLD_SEC = 1.0;
     private static final long STALE_STATISTICS_DAYS = 30L;
     private static final double CARDINALITY_MISMATCH_RATIO = 10.0;
 
@@ -57,6 +58,32 @@ public class RuleBasedSqlDiagnosisService {
         TableMetadataDtos.TableMetadataListResponse tableMetadata = tableMetadataService.collect(connectionId, plan);
 
         List<SqlDiagnosisDtos.FindingResponse> findings = new ArrayList<>();
+
+        String selfJoinRewrite = SqlTuningAccuracyGuard.redundantCountSelfJoinRewrite(metric.sqlText());
+        if (selfJoinRewrite != null) {
+            findings.add(finding(
+                    "REDUNDANT_SELF_JOIN",
+                    "불필요한 동일 테이블 자기조인",
+                    "동일 테이블 자기조인으로 필터 대상 N건이 N×N건으로 증가합니다.",
+                    evidence("sqlText", metric.sqlText(), "rewriteCandidate", selfJoinRewrite),
+                    List.of("단일 테이블의 필터 건수 조회가 목적이라면 자기조인을 제거합니다.")
+            ));
+        }
+
+        if (value(metric.averageElapsedTimeSec()) >= SLOW_AVERAGE_ELAPSED_THRESHOLD_SEC) {
+            findings.add(finding(
+                    "SLOW_AVERAGE_ELAPSED_TIME",
+                    "평균 수행시간 기준 초과",
+                    "SQL 1회 평균 수행시간이 현재 점검 기준값 이상입니다.",
+                    evidence(
+                            "averageElapsedTimeSec", metric.averageElapsedTimeSec(),
+                            "totalElapsedTimeSec", metric.totalElapsedTimeSec(),
+                            "executions", metric.executions(),
+                            "thresholdSec", SLOW_AVERAGE_ELAPSED_THRESHOLD_SEC
+                    ),
+                    List.of("가장 많은 시간을 소비하는 실행계획 단계와 SQL 구조를 우선 개선합니다.")
+            ));
+        }
 
         List<ExecutionPlanDtos.ExecutionPlanNodeResponse> fullScanNodes = plan.nodes().stream()
                 .filter(this::isFullTableScan)
@@ -204,7 +231,13 @@ public class RuleBasedSqlDiagnosisService {
 
     private String summary(List<SqlDiagnosisDtos.FindingResponse> findings) {
         if (findings.isEmpty()) return "현재 점검 기준에 해당하는 성능 특성이 발견되지 않았습니다.";
-        return String.format(Locale.ROOT, "%d개의 성능 점검 항목이 확인되었습니다.", findings.size());
+        if (findings.size() == 1) return findings.get(0).description();
+        return String.format(
+                Locale.ROOT,
+                "%s 외 %d개의 성능 점검 항목이 확인되었습니다.",
+                findings.get(0).description(),
+                findings.size() - 1
+        );
     }
 
     private String normalizeSqlId(String value) {
@@ -215,5 +248,6 @@ public class RuleBasedSqlDiagnosisService {
     }
 
     private long value(Long value) { return value == null ? 0L : value; }
+    private double value(Double value) { return value == null ? 0.0 : value; }
     private String nullToEmpty(String value) { return value == null ? "" : value; }
 }

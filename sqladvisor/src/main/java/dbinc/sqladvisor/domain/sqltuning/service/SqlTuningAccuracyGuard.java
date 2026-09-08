@@ -716,7 +716,7 @@ final class SqlTuningAccuracyGuard {
                 || AGGREGATE_BINARY_MATH_PATTERN.matcher(sql).find());
     }
 
-    private static String redundantCountSelfJoinRewrite(String sql) {
+    static String redundantCountSelfJoinRewrite(String sql) {
         String normalized = canonicalSql(normalizeSql(sql));
         Matcher matcher = SIMPLE_COUNT_SELF_JOIN_PATTERN.matcher(normalized);
         if (!matcher.matches() || !matcher.group(1).equalsIgnoreCase(matcher.group(3))) {

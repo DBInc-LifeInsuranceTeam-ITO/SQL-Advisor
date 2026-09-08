@@ -176,7 +176,7 @@
 }
 .top-sql-row {
   display:grid;
-  grid-template-columns:52px minmax(0,1.75fr) minmax(92px,.95fr) minmax(96px,1fr) minmax(68px,.7fr);
+  grid-template-columns:46px minmax(0,2.3fr) minmax(78px,.85fr) minmax(78px,.85fr) minmax(58px,.6fr);
   column-gap:10px;
   align-items:center;
 }
@@ -231,14 +231,26 @@
 .sql-cell {
   flex-direction:column;
   justify-content:center;
-  align-items:center;
+  align-items:flex-start;
   gap:3px;
+  text-align:left;
 }
 .value-cell {
   justify-content:center;
   font-variant-numeric:tabular-nums;
 }
-.sql-id { color:#203d2e; font-size:13px; font-weight:900; line-height:1.1; }
+.sql-preview {
+  display:-webkit-box;
+  max-width:100%;
+  overflow:hidden;
+  color:#203d2e;
+  font-size:12px;
+  font-weight:800;
+  line-height:1.25;
+  white-space:normal;
+  -webkit-box-orient:vertical;
+  -webkit-line-clamp:2;
+}
 .top-sql-cell small {
   display:block;
   max-width:100%;
@@ -274,7 +286,7 @@
   .summary-card strong { font-size:22px; }
   .metric-card-header h2,.panel-title-row h2 { font-size:16px; }
   .top-sql-row {
-    grid-template-columns:46px minmax(0,1.65fr) minmax(82px,.92fr) minmax(90px,.95fr) minmax(60px,.65fr);
+    grid-template-columns:42px minmax(0,2fr) minmax(72px,.8fr) minmax(72px,.8fr) minmax(52px,.55fr);
     column-gap:8px;
   }
   .top-sql-item {
@@ -282,6 +294,6 @@
     min-height:56px;
   }
   .top-sql-cell { font-size:11px; }
-  .sql-id { font-size:12px; }
+  .sql-preview { font-size:11px; }
   .top-sql-cell small { font-size:9px; }
 }

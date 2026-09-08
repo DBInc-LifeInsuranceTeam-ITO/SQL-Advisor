@@ -79,9 +79,9 @@
         <div v-else class="top-sql-list">
           <div class="top-sql-head top-sql-row">
             <span class="top-sql-cell rank-cell">순위</span>
-            <span class="top-sql-cell sql-cell">SQL ID</span>
-            <span class="top-sql-cell value-cell">수행시간</span>
-            <span class="top-sql-cell value-cell">Buffer Gets</span>
+            <span class="top-sql-cell sql-cell">SQL</span>
+            <span class="top-sql-cell value-cell">평균시간</span>
+            <span class="top-sql-cell value-cell">총시간</span>
             <span class="top-sql-cell value-cell">실행</span>
           </div>
 
@@ -89,11 +89,11 @@
             <div v-for="(sql, index) in visibleTopSql" :key="`${sql.sqlId}-${index}`" class="top-sql-row top-sql-item">
               <div class="top-sql-cell rank-cell"><span class="rank-badge">{{ index + 1 }}</span></div>
               <div class="top-sql-cell sql-cell">
-                <strong class="sql-id">{{ sql.sqlId }}</strong>
+                <strong class="sql-preview" :title="sql.sqlText || 'SQL 원문 없음'">{{ sqlPreview(sql.sqlText) }}</strong>
                 <small>{{ sql.module || sql.sectionName || '모듈 정보 없음' }}</small>
               </div>
+              <div class="top-sql-cell value-cell">{{ formatMetricNumber(averageElapsedTime(sql)) }}초</div>
               <div class="top-sql-cell value-cell">{{ formatMetricNumber(sql.elapsedTimeSec) }}초</div>
-              <div class="top-sql-cell value-cell">{{ formatCompact(sql.bufferGets || 0) }}</div>
               <div class="top-sql-cell value-cell">{{ formatCompact(sql.executions || 0) }}</div>
             </div>
           </div>
@@ -272,6 +272,10 @@ function formatAxisMetric(value: number, metric: MetricKey) {
 }
 function formatCompact(value: number) { if (value >= 1_000_000) return `${(value / 1_000_000).toFixed(1)}M`; if (value >= 1_000) return `${Math.round(value / 1_000)}K`; return value.toLocaleString() }
 function formatMetricNumber(value?: number | null) { return (value || 0).toFixed(1) }
+function averageElapsedTime(sql: SqlMetricResponse) {
+  return sql.executions && sql.executions > 0 ? (sql.elapsedTimeSec || 0) / sql.executions : 0
+}
+function sqlPreview(value?: string | null) { return value?.replace(/\s+/g, ' ').trim() || 'SQL 원문 없음' }
 function formatTime(value?: string) {
   if (!value) return '-'
   return new Intl.DateTimeFormat('ko-KR', { timeZone: 'Asia/Seoul', hour: '2-digit', minute: '2-digit', second: '2-digit', hour12: false }).format(parseServerTime(value))

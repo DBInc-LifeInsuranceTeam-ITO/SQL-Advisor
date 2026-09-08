@@ -5,6 +5,7 @@ import dbinc.sqladvisor.domain.sqltuning.dto.SqlTuningDtos;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 
+import java.sql.CallableStatement;
 import java.sql.Connection;
 import java.sql.PreparedStatement;
 import java.sql.ResultSet;
@@ -214,6 +215,7 @@ public class TargetDbContextCollector {
     ) {
         TopSqlOptions options = TopSqlOptions.from(request);
         try (Connection connection = connectionService.openConnection(target)) {
+            markAdvisorSession(connection);
             if (options.historical()) {
                 return topSqlFromHistory(connection, options);
             }
@@ -225,16 +227,6 @@ public class TargetDbContextCollector {
                 }
             } catch (SQLException sqlAreaException) {
                 currentSourceException = sqlAreaException;
-            }
-            if (!options.hasCurrentMetadataFilters()) {
-                try {
-                    List<AwrDtos.SqlMetricResponse> sqlStatsRows = topSqlFromSqlStats(connection, options);
-                    if (!sqlStatsRows.isEmpty()) {
-                        return sqlStatsRows;
-                    }
-                } catch (SQLException sqlStatsException) {
-                    currentSourceException = sqlStatsException;
-                }
             }
             try {
                 List<AwrDtos.SqlMetricResponse> sqlRows = topSqlFromSql(connection, options);
@@ -250,6 +242,16 @@ public class TargetDbContextCollector {
             return List.of();
         } catch (SQLException exception) {
             throw new IllegalArgumentException("Target DB Top SQL collection failed: " + exception.getMessage(), exception);
+        }
+    }
+
+    private void markAdvisorSession(Connection connection) {
+        try (CallableStatement statement = connection.prepareCall("BEGIN DBMS_APPLICATION_INFO.SET_MODULE(?, ?); END;")) {
+            statement.setString(1, "SQL_ADVISOR");
+            statement.setString(2, "DASHBOARD_TOP_SQL");
+            statement.execute();
+        } catch (SQLException ignored) {
+            // SQL text filters below still prevent the collector queries from appearing in Top SQL.
         }
     }
 
@@ -286,8 +288,10 @@ public class TargetDbContextCollector {
                          WHERE sql_id IS NOT NULL
                            AND sql_text IS NOT NULL
                            AND parsing_schema_name IS NOT NULL
-                           AND parsing_schema_name NOT IN ('SYS', 'SYSTEM', 'DBSNMP', 'SYSMAN', 'OUTLN')
+                           AND parsing_schema_name NOT IN ('SYS', 'SYSTEM', 'DBSNMP', 'SYSMAN', 'OUTLN', 'ORACLE_OCM', 'MDSYS', 'XDB', 'WMSYS', 'CTXSYS', 'AUDSYS', 'OJVMSYS', 'DVSYS', 'DVF', 'LBACSYS', 'GGSYS', 'APPQOSSYS', 'GSMADMIN_INTERNAL', 'GSMCATUSER', 'GSMUSER', 'DIP', 'ANONYMOUS', 'XS$NULL')
                            AND command_type IN (2, 3, 6, 7, 189)
+                           AND NVL(module, '-') NOT LIKE 'SQL_ADVISOR%%'
+                           AND NVL(module, '-') NOT LIKE 'DBMS_SCHEDULER%%'
                            %s
                            %s
                          GROUP BY sql_id
@@ -296,47 +300,6 @@ public class TargetDbContextCollector {
                  WHERE ROWNUM <= %d
                 """.formatted(viewName, selfQueryExclusions("sql_text"), metadataFilters, currentOrderExpression(options.sortBy(), "SUM"), options.limit()))) {
             bindParams(statement, params);
-            statement.setQueryTimeout(10);
-            try (ResultSet rs = statement.executeQuery()) {
-                return mapTopSql(rs, "Direct DB Top SQL", "Collected from target database " + viewName + " aggregate, sorted by " + options.sortBy().toLowerCase(Locale.ROOT) + ".");
-            }
-        }
-    }
-
-    private List<AwrDtos.SqlMetricResponse> topSqlFromSqlStats(Connection connection, TopSqlOptions options) throws SQLException {
-        try {
-            return topSqlFromSqlStatsView(connection, options, "gv$sqlstats");
-        } catch (SQLException gvException) {
-            return topSqlFromSqlStatsView(connection, options, "v$sqlstats");
-        }
-    }
-
-    private List<AwrDtos.SqlMetricResponse> topSqlFromSqlStatsView(
-            Connection connection,
-            TopSqlOptions options,
-            String viewName
-    ) throws SQLException {
-        try (PreparedStatement statement = connection.prepareStatement("""
-                SELECT *
-                  FROM (
-                        SELECT sql_id,
-                               SUM(elapsed_time) / 1000000 elapsed_time_sec,
-                               SUM(cpu_time) / 1000000 cpu_time_sec,
-                               SUM(buffer_gets) buffer_gets,
-                               SUM(disk_reads) disk_reads,
-                               SUM(executions) executions,
-                               SUM(rows_processed) rows_processed,
-                               MAX(plan_hash_value) KEEP (DENSE_RANK LAST ORDER BY elapsed_time) plan_hash_value,
-                               MAX(sql_text) KEEP (DENSE_RANK LAST ORDER BY elapsed_time) sql_text
-                          FROM %s
-                         WHERE sql_id IS NOT NULL
-                           AND sql_text IS NOT NULL
-                           %s
-                         GROUP BY sql_id
-                         ORDER BY %s DESC
-                       )
-                 WHERE ROWNUM <= %d
-                """.formatted(viewName, selfQueryExclusions("sql_text"), currentOrderExpression(options.sortBy(), "SUM"), options.limit()))) {
             statement.setQueryTimeout(10);
             try (ResultSet rs = statement.executeQuery()) {
                 return mapTopSql(rs, "Direct DB Top SQL", "Collected from target database " + viewName + " aggregate, sorted by " + options.sortBy().toLowerCase(Locale.ROOT) + ".");
@@ -377,8 +340,10 @@ public class TargetDbContextCollector {
                          WHERE sql_id IS NOT NULL
                            AND sql_text IS NOT NULL
                            AND parsing_schema_name IS NOT NULL
-                           AND parsing_schema_name NOT IN ('SYS', 'SYSTEM', 'DBSNMP', 'SYSMAN', 'OUTLN')
+                           AND parsing_schema_name NOT IN ('SYS', 'SYSTEM', 'DBSNMP', 'SYSMAN', 'OUTLN', 'ORACLE_OCM', 'MDSYS', 'XDB', 'WMSYS', 'CTXSYS', 'AUDSYS', 'OJVMSYS', 'DVSYS', 'DVF', 'LBACSYS', 'GGSYS', 'APPQOSSYS', 'GSMADMIN_INTERNAL', 'GSMCATUSER', 'GSMUSER', 'DIP', 'ANONYMOUS', 'XS$NULL')
                            AND command_type IN (2, 3, 6, 7, 189)
+                           AND NVL(module, '-') NOT LIKE 'SQL_ADVISOR%%'
+                           AND NVL(module, '-') NOT LIKE 'DBMS_SCHEDULER%%'
                            %s
                            %s
                          GROUP BY sql_id, parsing_schema_name
@@ -420,8 +385,10 @@ public class TargetDbContextCollector {
                  WHERE s.sql_id IS NOT NULL
                    AND t.sql_text IS NOT NULL
                    AND s.parsing_schema_name IS NOT NULL
-                   AND s.parsing_schema_name NOT IN ('SYS', 'SYSTEM', 'DBSNMP', 'SYSMAN', 'OUTLN')
+                   AND s.parsing_schema_name NOT IN ('SYS', 'SYSTEM', 'DBSNMP', 'SYSMAN', 'OUTLN', 'ORACLE_OCM', 'MDSYS', 'XDB', 'WMSYS', 'CTXSYS', 'AUDSYS', 'OJVMSYS', 'DVSYS', 'DVF', 'LBACSYS', 'GGSYS', 'APPQOSSYS', 'GSMADMIN_INTERNAL', 'GSMCATUSER', 'GSMUSER', 'DIP', 'ANONYMOUS', 'XS$NULL')
                    AND t.command_type IN (2, 3, 6, 7, 189)
+                   AND NVL(s.module, '-') NOT LIKE 'SQL_ADVISOR%%'
+                   AND NVL(s.module, '-') NOT LIKE 'DBMS_SCHEDULER%%'
                    %s
                    %s
                  GROUP BY s.sql_id,
@@ -487,7 +454,22 @@ public class TargetDbContextCollector {
         return """
                            AND LOWER(%s) NOT LIKE '%%lower(sql_text) not like%%'
                            AND LOWER(%s) NOT LIKE '%%dbms_xplan.display_cursor%%'
-                """.formatted(sqlExpression, sqlExpression).stripTrailing();
+                           AND LOWER(%s) NOT LIKE '%%from v$sqlstats%%'
+                           AND LOWER(%s) NOT LIKE '%%from gv$sqlstats%%'
+                           AND LOWER(%s) NOT LIKE '%%from v$session%%'
+                           AND LOWER(%s) NOT LIKE '%%from gv$session%%'
+                           AND LOWER(%s) NOT LIKE '%%from v$sqlarea%%'
+                           AND LOWER(%s) NOT LIKE '%%from gv$sqlarea%%'
+                """.formatted(
+                        sqlExpression,
+                        sqlExpression,
+                        sqlExpression,
+                        sqlExpression,
+                        sqlExpression,
+                        sqlExpression,
+                        sqlExpression,
+                        sqlExpression
+                ).stripTrailing();
     }
 
     private String currentMetadataFilters(

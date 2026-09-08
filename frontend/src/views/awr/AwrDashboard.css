@@ -142,7 +142,7 @@
 .panel { min-width:0; min-height:0; padding:10px 12px; border:1px solid rgba(214,228,220,.95); border-radius:15px; box-sizing:border-box; overflow:hidden; }
 .metric-card { --metric-color:#0b8f49; --metric-fill:rgba(22,163,74,.10); display:grid; grid-template-rows:auto minmax(0,1fr); }
 .metric-activeSessions { --metric-color:#16a34a; --metric-fill:rgba(22,163,74,.10); }
-.metric-executions { --metric-color:#2563eb; --metric-fill:rgba(37,99,235,.10); }
+.metric-lockSessions { --metric-color:#dc2626; --metric-fill:rgba(220,38,38,.10); }
 .metric-cpu { --metric-color:#f59e0b; --metric-fill:rgba(245,158,11,.11); }
 .metric-io { --metric-color:#7c3aed; --metric-fill:rgba(124,58,237,.10); }
 .metric-card-header { min-height:0; }

@@ -144,7 +144,7 @@ const summaries = computed(() => [
 
 const metricCards = computed(() => [
   buildMetricCard('activeSessions', 'DB ACTIVITY', 'Active Sessions'),
-  buildMetricCard('lockSessions', 'DB LOCK', 'Lock 대기 세션'),
+  buildMetricCard('lockSessions', 'DB LOCK', 'Blocking 세션'),
   buildMetricCard('cpu', 'DB CPU', 'CPU 사용시간'),
   buildMetricCard('io', 'DB I/O', 'I/O 처리량')
 ])

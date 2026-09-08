@@ -109,7 +109,7 @@ import { getDirectTopSql, getTargetDbConnections } from '@/api/sqlTuning'
 import { getMonitoringDashboard, type MonitoringDashboardResponse } from '@/api/monitoring'
 import type { SqlMetricResponse, TargetDbConnectionResponse } from '@/types/awr'
 
-type MetricKey = 'activeSessions' | 'executions' | 'cpu' | 'io'
+type MetricKey = 'activeSessions' | 'lockSessions' | 'cpu' | 'io'
 type ActivityPoint = MonitoringDashboardResponse['activity']['points'][number]
 
 const TEST_CONNECTION_ID = -1
@@ -144,7 +144,7 @@ const summaries = computed(() => [
 
 const metricCards = computed(() => [
   buildMetricCard('activeSessions', 'DB ACTIVITY', 'Active Sessions'),
-  buildMetricCard('executions', '초당 실행 건수', 'SQL 처리량'),
+  buildMetricCard('lockSessions', 'DB LOCK', 'Lock 대기 세션'),
   buildMetricCard('cpu', 'DB CPU', 'CPU 사용시간'),
   buildMetricCard('io', 'DB I/O', 'I/O 처리량')
 ])
@@ -172,7 +172,7 @@ function buildChartWindow(points: ActivityPoint[]): ActivityPoint[] {
   const sorted = [...points].sort((left, right) => parseServerTime(left.collectedAt).getTime() - parseServerTime(right.collectedAt).getTime())
   const end = dashboard.value?.connection.collectedAt ? parseServerTime(dashboard.value.connection.collectedAt).getTime() : Date.now()
   const fallback: ActivityPoint = sorted[0] || {
-    collectedAt: new Date(end).toISOString(), activeSessions: 0, executions: 0, cpu: 0, io: 0
+    collectedAt: new Date(end).toISOString(), activeSessions: 0, lockSessions: 0, cpu: 0, io: 0
   }
   let cursor = 0
   let latest = fallback
@@ -217,6 +217,7 @@ async function refreshDashboard() {
 function refreshTestDashboard() {
   const now = Date.now()
   const activePattern = [5, 7, 6, 9, 12, 10, 14, 11, 16, 13, 18, 15]
+  const lockPattern = [0, 0, 0, 1, 1, 0, 0, 2, 1, 0, 0, 0]
   const cpuPattern = [0.6, 0.9, 0.7, 1.2, 1.8, 1.4, 2.1, 1.6, 2.5, 2.0, 2.8, 2.3]
   const ioPattern = [120, 180, 150, 260, 420, 310, 560, 440, 720, 610, 840, 760]
   const shift = testTick % CHART_SLOT_COUNT
@@ -224,7 +225,7 @@ function refreshTestDashboard() {
     const patternIndex = (index + shift) % CHART_SLOT_COUNT
     return {
       collectedAt: new Date(now - (CHART_SLOT_COUNT - 1 - index) * CHART_INTERVAL_MS).toISOString(),
-      activeSessions: activePattern[patternIndex], executions: 40 + patternIndex * 7,
+      activeSessions: activePattern[patternIndex], lockSessions: lockPattern[patternIndex],
       cpu: cpuPattern[patternIndex], io: ioPattern[patternIndex]
     }
   })
@@ -260,7 +261,7 @@ function parseServerTime(value: string) {
 }
 function formatMetric(value: number, metric: MetricKey) {
   if (metric === 'cpu') return `${value.toFixed(1)}초`
-  if (metric === 'executions') return `${value.toFixed(1)}건/초`
+  if (metric === 'lockSessions') return `${value.toFixed(1)}개`
   return Math.round(value).toLocaleString()
 }
 function formatAxisMetric(value: number, metric: MetricKey) {

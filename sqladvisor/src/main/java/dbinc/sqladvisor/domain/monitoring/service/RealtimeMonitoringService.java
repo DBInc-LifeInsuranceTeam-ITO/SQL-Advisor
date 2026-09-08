@@ -10,7 +10,6 @@ import java.sql.Connection;
 import java.sql.PreparedStatement;
 import java.sql.ResultSet;
 import java.sql.SQLException;
-import java.time.Duration;
 import java.time.LocalDateTime;
 import java.util.ArrayDeque;
 import java.util.ArrayList;
@@ -55,8 +54,7 @@ public class RealtimeMonitoringService {
             """;
 
     private static final String TOTAL_METRIC_SQL = """
-            SELECT NVL(SUM(executions), 0) executions,
-                   NVL(SUM(cpu_time), 0) cpu_time,
+            SELECT NVL(SUM(cpu_time), 0) cpu_time,
                    NVL(SUM(disk_reads), 0) disk_reads
               FROM v$sqlstats
             """;
@@ -94,7 +92,7 @@ public class RealtimeMonitoringService {
 
     private final TargetDbConnectionService connectionService;
     private final Map<Long, Deque<MonitoringDtos.ActivityPoint>> history = new ConcurrentHashMap<>();
-    private final Map<Long, RawSample> previousTotals = new ConcurrentHashMap<>();
+    private final Map<Long, RawTotals> previousTotals = new ConcurrentHashMap<>();
 
     public MonitoringDtos.DashboardResponse collect(long connectionId) {
         TargetDbConnectionRepository.TargetDbConnectionRecord target = connectionService.getVisibleRecord(connectionId);
@@ -118,7 +116,13 @@ public class RealtimeMonitoringService {
                     .filter(item -> item.diskReads() >= PHYSICAL_READ_WARNING)
                     .count();
 
-            MonitoringDtos.ActivityPoint point = buildActivityPoint(connectionId, collectedAt, activeCount, totals);
+            MonitoringDtos.ActivityPoint point = buildActivityPoint(
+                    connectionId,
+                    collectedAt,
+                    activeCount,
+                    blockingCount,
+                    totals
+            );
             List<MonitoringDtos.ActivityPoint> points = appendHistory(connectionId, point);
 
             return new MonitoringDtos.DashboardResponse(
@@ -141,26 +145,22 @@ public class RealtimeMonitoringService {
             long connectionId,
             LocalDateTime collectedAt,
             long activeCount,
+            long blockingCount,
             RawTotals current
     ) {
-        RawSample previous = previousTotals.put(connectionId, new RawSample(collectedAt, current));
+        RawTotals previous = previousTotals.put(connectionId, current);
         if (previous == null) {
-            return new MonitoringDtos.ActivityPoint(collectedAt, activeCount, 0, 0, 0);
+            return new MonitoringDtos.ActivityPoint(collectedAt, activeCount, blockingCount, 0, 0);
         }
 
-        long executionsDelta = nonNegative(current.executions() - previous.totals().executions());
-        long cpuMicrosDelta = nonNegative(current.cpuTimeMicros() - previous.totals().cpuTimeMicros());
-        long diskReadsDelta = nonNegative(current.diskReads() - previous.totals().diskReads());
-        double elapsedSeconds = Duration.between(previous.collectedAt(), collectedAt).toNanos() / 1_000_000_000.0;
-        double executionsPerSecond = elapsedSeconds > 0
-                ? Math.round((executionsDelta / elapsedSeconds) * 10.0) / 10.0
-                : 0;
+        long cpuMicrosDelta = nonNegative(current.cpuTimeMicros() - previous.cpuTimeMicros());
+        long diskReadsDelta = nonNegative(current.diskReads() - previous.diskReads());
 
         double cpuSeconds = Math.round((cpuMicrosDelta / 1_000_000.0) * 10.0) / 10.0;
         return new MonitoringDtos.ActivityPoint(
                 collectedAt,
                 activeCount,
-                executionsPerSecond,
+                blockingCount,
                 cpuSeconds,
                 diskReadsDelta
         );
@@ -253,10 +253,9 @@ public class RealtimeMonitoringService {
             statement.setQueryTimeout(5);
             try (ResultSet rs = statement.executeQuery()) {
                 if (!rs.next()) {
-                    return new RawTotals(0, 0, 0);
+                    return new RawTotals(0, 0);
                 }
                 return new RawTotals(
-                        rs.getLong("executions"),
                         rs.getLong("cpu_time"),
                         rs.getLong("disk_reads")
                 );
@@ -280,10 +279,7 @@ public class RealtimeMonitoringService {
         return Math.max(value, 0);
     }
 
-    private record RawTotals(long executions, long cpuTimeMicros, long diskReads) {
-    }
-
-    private record RawSample(LocalDateTime collectedAt, RawTotals totals) {
+    private record RawTotals(long cpuTimeMicros, long diskReads) {
     }
 
     private record Risk(String level, String label, String issueType, String issueLabel) {

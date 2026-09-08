@@ -18,7 +18,7 @@ export interface MonitoringSummary {
 export interface ActivityPoint {
   collectedAt: string
   activeSessions: number
-  executions: number
+  lockSessions: number
   cpu: number
   io: number
 }

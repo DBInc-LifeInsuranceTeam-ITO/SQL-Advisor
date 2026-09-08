@@ -33,7 +33,7 @@ public class DirectSqlMetricService {
             boolean includeSystemSql
     ) {
         String orderColumn = normalizeSortColumn(requestedSortBy);
-        int limit = normalizeLimit(requestedLimit);
+        Integer limit = normalizeLimit(requestedLimit);
         TargetDbConnectionRepository.TargetDbConnectionRecord target = connectionService.getVisibleRecord(connectionId);
         List<String> warnings = new ArrayList<>();
 
@@ -64,7 +64,7 @@ public class DirectSqlMetricService {
             Connection connection,
             String viewName,
             String orderColumn,
-            int limit,
+            Integer limit,
             boolean includeSystemSql,
             List<String> warnings
     ) throws SQLException {
@@ -75,6 +75,7 @@ public class DirectSqlMetricService {
                 ? "inst_id"
                 : "CAST(NULL AS NUMBER)";
 
+        String rowLimitClause = limit == null ? "" : "WHERE ROWNUM <= ?";
         String sql = """
                 SELECT *
                   FROM (
@@ -117,11 +118,13 @@ public class DirectSqlMetricService {
                            AND NVL(module, '-') NOT LIKE 'DBMS_SCHEDULER%%'
                          ORDER BY %s DESC, last_active_time DESC NULLS LAST
                        )
-                 WHERE ROWNUM <= ?
-                """.formatted(instanceExpression, viewName, systemFilter, orderColumn);
+                 %s
+                """.formatted(instanceExpression, viewName, systemFilter, orderColumn, rowLimitClause);
 
         try (PreparedStatement statement = connection.prepareStatement(sql)) {
-            statement.setInt(1, limit);
+            if (limit != null) {
+                statement.setInt(1, limit);
+            }
             statement.setQueryTimeout(10);
             try (ResultSet resultSet = statement.executeQuery()) {
                 List<DirectSqlMetricDtos.DirectSqlMetricResponse> rows = new ArrayList<>();
@@ -159,9 +162,12 @@ public class DirectSqlMetricService {
         );
     }
 
-    private int normalizeLimit(Integer requestedLimit) {
+    private Integer normalizeLimit(Integer requestedLimit) {
         if (requestedLimit == null) {
             return DEFAULT_LIMIT;
+        }
+        if (requestedLimit <= 0) {
+            return null;
         }
         return Math.max(1, Math.min(requestedLimit, MAX_LIMIT));
     }

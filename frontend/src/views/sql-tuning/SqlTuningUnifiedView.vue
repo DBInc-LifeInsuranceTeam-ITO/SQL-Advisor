@@ -69,7 +69,10 @@
             </label>
             <label class="awr-field compact">조회 건수
               <select v-model.number="limit" class="awr-input compact">
-                <option :value="20">20건</option><option :value="50">50건</option><option :value="100">100건</option>
+                <option :value="20">20건</option>
+                <option :value="50">50건</option>
+                <option :value="100">100건</option>
+                <option :value="0">전체</option>
               </select>
             </label>
             <label class="awr-field compact">정렬
@@ -86,7 +89,7 @@
           </div>
 
           <p class="top-sql-criteria">
-            {{ topSqlSortLabel }} 기준 상위 {{ limit }}건 · 실행 1회 이상 · 시스템 SQL 제외
+            {{ topSqlSortLabel }} 기준 {{ topSqlLimitLabel }} · 실행 1회 이상 · 시스템 SQL 제외
           </p>
 
           <div v-if="filteredTopSql.length" class="awr-table-wrap top-sql-table">
@@ -273,7 +276,7 @@ const lastManualAnalysisKey = ref('')
 const selectedSqlRow = ref<DirectSqlMetricResponse | null>(null)
 const searchText = ref('')
 const errorMessage = ref('')
-const limit = ref<20 | 50 | 100>(20)
+const limit = ref<0 | 20 | 50 | 100>(20)
 const sortBy = ref('TOTAL_ELAPSED_TIME')
 const connectionForm = reactive({ name: '', dbType: 'ORACLE', jdbcUrl: '', username: '', password: '', visibility: 'PRIVATE', monitoringEnabled: false, monitoringIntervalSec: 60 })
 const manual = reactive({ sqlText: '', question: '', executionPlan: '', schemaDdl: '', existingIndexes: '', bindSamples: '' })
@@ -308,6 +311,7 @@ const topSqlSortLabel = computed(() => ({
   DISK_READS: 'Disk Reads',
   EXECUTIONS: '실행 횟수'
 }[sortBy.value] || '총 수행시간'))
+const topSqlLimitLabel = computed(() => limit.value === 0 ? '전체 조회' : `상위 ${limit.value}건`)
 const currentManualAnalysisKey = computed(() => manualAnalysisKey())
 const manualAnalysisUnchanged = computed(() => Boolean(
   manualResult.value && lastManualAnalysisKey.value === currentManualAnalysisKey.value

@@ -1,6 +1,6 @@
 .sql-workbench .top-controls {
   display: grid !important;
-  grid-template-columns: 130px minmax(150px, 1fr) 74px !important;
+  grid-template-columns: minmax(190px, 1fr) 90px 130px 74px !important;
   align-items: end !important;
   gap: 10px !important;
 }
@@ -14,7 +14,7 @@
 }
 
 .sql-workbench .top-controls > .query-button {
-  grid-column: 3;
+  grid-column: 4;
   justify-self: end;
   width: 74px !important;
   min-width: 74px !important;
@@ -70,19 +70,20 @@
 }
 
 .sql-workbench .top-sql-table th:nth-child(1),
-.sql-workbench .top-sql-table td:nth-child(1) { width: 44%; text-align: left !important; }
+.sql-workbench .top-sql-table td:nth-child(1) { width: 40%; text-align: left !important; }
 .sql-workbench .top-sql-table th:nth-child(2),
-.sql-workbench .top-sql-table td:nth-child(2) { width: 18%; }
+.sql-workbench .top-sql-table td:nth-child(2) { width: 20%; }
 .sql-workbench .top-sql-table th:nth-child(3),
-.sql-workbench .top-sql-table td:nth-child(3) { width: 13%; }
+.sql-workbench .top-sql-table td:nth-child(3) { width: 14%; }
 .sql-workbench .top-sql-table th:nth-child(4),
 .sql-workbench .top-sql-table td:nth-child(4) { width: 12%; }
 .sql-workbench .top-sql-table th:nth-child(5),
-.sql-workbench .top-sql-table td:nth-child(5) { width: 13%; padding-right: 12px !important; }
+.sql-workbench .top-sql-table td:nth-child(5) { width: 14%; padding-right: 14px !important; }
 
 .sql-workbench .top-sql-table tbody td:nth-child(n+2) {
   overflow: visible;
   text-overflow: clip;
+  text-align: right !important;
   font-variant-numeric: tabular-nums;
 }
 
@@ -170,6 +171,7 @@
 }
 
 .sql-workbench .top-sql-criteria {
+  grid-column: 1 / -1;
   margin: 8px 2px 10px;
   color: #64748b;
   font-size: 11px;
@@ -178,6 +180,22 @@
 @media (max-width: 760px) {
   .sql-workbench .top-controls {
     grid-template-columns: 1fr 1fr 74px !important;
+  }
+
+  .sql-workbench .top-controls > .top-search-field {
+    grid-column: 1 / -1;
+  }
+
+  .sql-workbench .top-controls > .awr-field:nth-child(2) {
+    grid-column: 1;
+  }
+
+  .sql-workbench .top-controls > .awr-field:nth-child(3) {
+    grid-column: 2;
+  }
+
+  .sql-workbench .top-controls > .query-button {
+    grid-column: 3;
   }
 
   .sql-workbench .top-sql-table {

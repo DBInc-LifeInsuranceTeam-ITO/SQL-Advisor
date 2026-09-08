@@ -134,7 +134,7 @@
 
 .sql-workbench .top-controls {
   display: grid !important;
-  grid-template-columns: minmax(0, 1fr) 140px 74px !important;
+  grid-template-columns: minmax(190px, 1fr) 90px 130px 74px !important;
   align-items: end !important;
   gap: 10px !important;
   grid-column: 1 / -1;
@@ -143,29 +143,26 @@
   border-top: 1px solid #e7ece9;
 }
 
-.sql-workbench .top-controls > .awr-field:first-child {
-  display: none !important;
-}
-
-.sql-workbench .top-controls > input.awr-input {
+.sql-workbench .top-controls > .top-search-field {
   grid-column: 1;
   width: 100%;
-  height: 42px !important;
-  min-height: 42px !important;
   margin: 0 !important;
 }
 
-.sql-workbench .top-controls > .awr-field:nth-of-type(2) {
+.sql-workbench .top-controls > .awr-field:nth-child(2) {
   grid-column: 2;
+}
+
+.sql-workbench .top-controls > .awr-field:nth-child(3) {
+  grid-column: 3;
   min-width: 0;
   margin: 0 !important;
-  font-size: 0 !important;
 }
 
-.sql-workbench .top-controls > .awr-field:nth-of-type(2) select {
+.sql-workbench .top-controls select {
   appearance: none !important;
   -webkit-appearance: none !important;
-  width: 140px !important;
+  width: 100% !important;
   height: 42px !important;
   min-height: 42px !important;
   padding: 0 36px 0 12px !important;
@@ -183,13 +180,13 @@
   cursor: pointer;
 }
 
-.sql-workbench .top-controls > .awr-field:nth-of-type(2) select:focus {
+.sql-workbench .top-controls select:focus {
   border-color: #078f4c !important;
   outline: 3px solid rgba(7, 143, 76, 0.10) !important;
 }
 
 .sql-workbench .query-button {
-  grid-column: 3;
+  grid-column: 4;
   justify-self: end;
   width: 74px !important;
   min-width: 74px !important;
@@ -259,11 +256,7 @@
 
 @media (max-width: 900px) {
   .sql-workbench .top-controls {
-    grid-template-columns: minmax(0, 1fr) 130px 74px !important;
-  }
-
-  .sql-workbench .top-controls > .awr-field:nth-of-type(2) select {
-    width: 130px !important;
+    grid-template-columns: minmax(170px, 1fr) 86px 120px 74px !important;
   }
 }
 
@@ -281,22 +274,22 @@
   }
 
   .sql-workbench .top-controls {
-    grid-template-columns: 1fr 74px !important;
+    grid-template-columns: 1fr 1fr 74px !important;
   }
 
-  .sql-workbench .top-controls > input.awr-input {
+  .sql-workbench .top-controls > .top-search-field {
     grid-column: 1 / -1;
   }
 
-  .sql-workbench .top-controls > .awr-field:nth-of-type(2) {
+  .sql-workbench .top-controls > .awr-field:nth-child(2) {
     grid-column: 1;
   }
 
-  .sql-workbench .top-controls > .awr-field:nth-of-type(2) select {
-    width: 100% !important;
+  .sql-workbench .top-controls > .awr-field:nth-child(3) {
+    grid-column: 2;
   }
 
   .sql-workbench .query-button {
-    grid-column: 2;
+    grid-column: 3;
   }
 }

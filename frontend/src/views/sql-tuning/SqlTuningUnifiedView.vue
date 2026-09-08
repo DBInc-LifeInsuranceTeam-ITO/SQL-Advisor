@@ -64,6 +64,9 @@
           </div>
 
           <div class="top-controls">
+            <label class="awr-field top-search-field">SQL 검색
+              <input v-model="searchText" class="awr-input compact" placeholder="SQL 문장, SQL_ID, Schema" />
+            </label>
             <label class="awr-field compact">조회 건수
               <select v-model.number="limit" class="awr-input compact">
                 <option :value="20">20건</option><option :value="50">50건</option><option :value="100">100건</option>
@@ -82,7 +85,6 @@
             </button>
           </div>
 
-          <input v-model="searchText" class="awr-input" placeholder="SQL_ID, Schema, SQL 문장 검색" />
           <p class="top-sql-criteria">
             {{ topSqlSortLabel }} 기준 상위 {{ limit }}건 · 실행 1회 이상 · 시스템 SQL 제외
           </p>

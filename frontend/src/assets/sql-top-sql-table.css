@@ -1,24 +1,20 @@
 .sql-workbench .top-controls {
   display: grid !important;
-  grid-template-columns: minmax(0, 1fr) 74px !important;
-  align-items: center !important;
+  grid-template-columns: 130px minmax(150px, 1fr) 74px !important;
+  align-items: end !important;
   gap: 10px !important;
 }
 
 .sql-workbench .top-controls > .awr-field {
-  display: none !important;
-}
-
-.sql-workbench .top-controls > input.awr-input {
-  grid-column: 1;
-  width: 100% !important;
-  height: 42px !important;
-  min-height: 42px !important;
+  display: grid !important;
+  gap: 6px;
   margin: 0 !important;
+  color: #52635e;
+  font-size: 12px;
 }
 
 .sql-workbench .top-controls > .query-button {
-  grid-column: 2;
+  grid-column: 3;
   justify-self: end;
   width: 74px !important;
   min-width: 74px !important;
@@ -64,7 +60,7 @@
 }
 
 .sql-workbench .top-sql-table tbody td {
-  height: 54px;
+  height: 72px;
   padding: 10px 8px !important;
   overflow: hidden;
   text-overflow: ellipsis;
@@ -74,19 +70,17 @@
 }
 
 .sql-workbench .top-sql-table th:nth-child(1),
-.sql-workbench .top-sql-table td:nth-child(1) { width: 26%; }
+.sql-workbench .top-sql-table td:nth-child(1) { width: 44%; text-align: left !important; }
 .sql-workbench .top-sql-table th:nth-child(2),
-.sql-workbench .top-sql-table td:nth-child(2) { width: 12%; }
+.sql-workbench .top-sql-table td:nth-child(2) { width: 18%; }
 .sql-workbench .top-sql-table th:nth-child(3),
-.sql-workbench .top-sql-table td:nth-child(3) { width: 15%; }
+.sql-workbench .top-sql-table td:nth-child(3) { width: 13%; }
 .sql-workbench .top-sql-table th:nth-child(4),
-.sql-workbench .top-sql-table td:nth-child(4) { width: 16%; }
+.sql-workbench .top-sql-table td:nth-child(4) { width: 12%; }
 .sql-workbench .top-sql-table th:nth-child(5),
-.sql-workbench .top-sql-table td:nth-child(5) { width: 15%; }
-.sql-workbench .top-sql-table th:nth-child(6),
-.sql-workbench .top-sql-table td:nth-child(6) { width: 16%; padding-right: 12px !important; }
+.sql-workbench .top-sql-table td:nth-child(5) { width: 13%; padding-right: 12px !important; }
 
-.sql-workbench .top-sql-table tbody td:nth-child(n+3) {
+.sql-workbench .top-sql-table tbody td:nth-child(n+2) {
   overflow: visible;
   text-overflow: clip;
   font-variant-numeric: tabular-nums;
@@ -133,21 +127,57 @@
   box-shadow: inset 3px 0 0 #078f4c !important;
 }
 
-.sql-workbench .sql-link {
-  display: block;
+.sql-workbench .sql-summary-button {
+  display: grid;
+  gap: 5px;
   width: 100%;
   max-width: 100%;
   padding: 0 !important;
+  border: 0;
+  background: transparent;
   overflow: hidden;
-  text-align: center !important;
+  color: inherit;
+  text-align: left !important;
+  font-family: inherit !important;
+  cursor: pointer;
+}
+
+.sql-workbench .sql-summary-button strong {
+  display: -webkit-box;
+  overflow: hidden;
+  color: #172033;
+  font-size: 13px;
+  line-height: 1.35;
+  white-space: normal;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 2;
+}
+
+.sql-workbench .sql-summary-button small,
+.sql-workbench .elapsed-cell small {
+  display: block;
+  overflow: hidden;
+  color: #64748b;
+  font-size: 10px;
+  font-weight: 600;
   text-overflow: ellipsis;
   white-space: nowrap;
-  font-family: inherit !important;
+}
+
+.sql-workbench .elapsed-cell strong {
+  display: block;
+  margin-bottom: 4px;
+}
+
+.sql-workbench .top-sql-criteria {
+  margin: 8px 2px 10px;
+  color: #64748b;
+  font-size: 11px;
 }
 
 @media (max-width: 760px) {
   .sql-workbench .top-controls {
-    grid-template-columns: minmax(0, 1fr) 74px !important;
+    grid-template-columns: 1fr 1fr 74px !important;
   }
 
   .sql-workbench .top-sql-table {
@@ -157,6 +187,6 @@
 
   .sql-workbench .top-sql-table table,
   .sql-workbench .top-sql-table .awr-table {
-    min-width: 620px !important;
+    min-width: 720px !important;
   }
 }

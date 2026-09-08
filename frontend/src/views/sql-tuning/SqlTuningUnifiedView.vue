@@ -83,14 +83,22 @@
           </div>
 
           <input v-model="searchText" class="awr-input" placeholder="SQL_ID, Schema, SQL 문장 검색" />
+          <p class="top-sql-criteria">
+            {{ topSqlSortLabel }} 기준 상위 {{ limit }}건 · 실행 1회 이상 · 시스템 SQL 제외
+          </p>
 
           <div v-if="filteredTopSql.length" class="awr-table-wrap top-sql-table">
             <table class="awr-table compact">
-              <thead><tr><th>SQL_ID</th><th>Schema</th><th>평균시간</th><th>Buffer</th><th>Disk</th><th>Rows</th></tr></thead>
+              <thead><tr><th>SQL</th><th>평균 / 총시간</th><th>Buffer</th><th>Disk</th><th>Rows</th></tr></thead>
               <tbody>
                 <tr v-for="row in filteredTopSql" :key="`${row.sqlId}-${row.instanceId}-${row.childNumber}`" :class="selectedSqlRow === row ? 'selected' : ''" @click="diagnose(row)">
-                  <td><button class="sql-link" type="button">{{ row.sqlId }}</button></td>
-                  <td>{{ row.parsingSchemaName || '-' }}</td><td>{{ number(row.averageElapsedTimeSec) }}초</td>
+                  <td class="sql-summary-cell">
+                    <button class="sql-summary-button" type="button" :title="row.sqlText || row.sqlId">
+                      <strong>{{ sqlPreview(row.sqlText) }}</strong>
+                      <small>{{ row.parsingSchemaName || '-' }} · {{ row.sqlId }}</small>
+                    </button>
+                  </td>
+                  <td class="elapsed-cell"><strong>{{ number(row.averageElapsedTimeSec) }}초</strong><small>총 {{ number(row.totalElapsedTimeSec) }}초</small></td>
                   <td>{{ number(row.bufferGets) }}</td><td>{{ number(row.diskReads) }}</td><td>{{ number(row.rowsProcessed) }}</td>
                 </tr>
               </tbody>
@@ -293,6 +301,12 @@ const tuningMethod = computed(() => {
 const indexDecision = computed(() => manualResult.value?.indexRecommendations.length
   ? `${manualResult.value.indexRecommendations.length}개 생성안`
   : '생성안 없음')
+const topSqlSortLabel = computed(() => ({
+  TOTAL_ELAPSED_TIME: '총 수행시간',
+  BUFFER_GETS: 'Buffer Gets',
+  DISK_READS: 'Disk Reads',
+  EXECUTIONS: '실행 횟수'
+}[sortBy.value] || '총 수행시간'))
 const currentManualAnalysisKey = computed(() => manualAnalysisKey())
 const manualAnalysisUnchanged = computed(() => Boolean(
   manualResult.value && lastManualAnalysisKey.value === currentManualAnalysisKey.value
@@ -422,6 +436,9 @@ function manualAnalysisKey() {
     manual.existingIndexes.trim(),
     manual.bindSamples.trim()
   ])
+}
+function sqlPreview(value?: string | null) {
+  return value?.replace(/\s+/g, ' ').trim() || 'SQL 원문 없음'
 }
 async function copyRewrittenSql() {
   if (!effectiveRewrittenSql.value) return

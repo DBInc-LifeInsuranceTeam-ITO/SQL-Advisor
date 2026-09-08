@@ -287,7 +287,7 @@ class SqlTuningAccuracyGuardTest {
     }
 
     @Test
-    void rejectsAggregateArithmeticIntroducedByAiRewrite() {
+    void replacesAggregateArithmeticWithDeterministicSelfJoinRewrite() {
         String sql = """
                 SELECT COUNT(*)
                 FROM TEST.AX_ORDERS a, TEST.AX_ORDERS b
@@ -298,9 +298,15 @@ class SqlTuningAccuracyGuardTest {
         AwrDtos.SqlTuningRequest request = new AwrDtos.SqlTuningRequest(
                 sql, "Tune SQL", null, null, null, null
         );
-        AwrDtos.SqlTuningResponse authoritative = advisor.tune(
-                null, metric.sqlId(), "Tune SQL", metric, request, List.of()
+        AwrDtos.SqlTuningResponse authoritative = SqlTuningAccuracyGuard.refine(
+                advisor.tune(null, metric.sqlId(), "Tune SQL", metric, request, List.of())
         );
+
+        assertThat(authoritative.rewrittenSql()).isEqualTo("""
+                SELECT COUNT(*)
+                FROM TEST.AX_ORDERS
+                WHERE STATUS = 'CANCEL'""");
+        assertThat(authoritative.summary()).contains("단일 테이블의 필터 건수 조회가 목적이라는 전제");
 
         for (String candidate : List.of(
                 "SELECT POWER(COUNT(*), 2) FROM TEST.AX_ORDERS WHERE status = 'CANCEL'",
@@ -315,7 +321,7 @@ class SqlTuningAccuracyGuardTest {
 
             AwrDtos.SqlTuningResponse merged = SqlTuningAccuracyGuard.mergeLlm(authoritative, llm);
 
-            assertThat(merged.rewrittenSql()).isNull();
+            assertThat(merged.rewrittenSql()).isEqualTo(authoritative.rewrittenSql());
             assertThat(merged.summary()).isEqualTo(authoritative.summary());
         }
     }

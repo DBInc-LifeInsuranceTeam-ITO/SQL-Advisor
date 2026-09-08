@@ -47,6 +47,11 @@ final class SqlTuningAccuracyGuard {
             "(?is)\\b(?:COUNT|SUM|AVG|MIN|MAX)\\s*\\([^)]*\\)\\s*[*+/\\-]\\s*"
                     + "(?:COUNT|SUM|AVG|MIN|MAX)\\s*\\("
     );
+    private static final Pattern SIMPLE_COUNT_SELF_JOIN_PATTERN = Pattern.compile(
+            "(?is)^SELECT\\s+COUNT\\s*\\(\\s*\\*\\s*\\)\\s+FROM\\s+"
+                    + "([A-Z0-9_.$#\"]+)\\s+([A-Z][A-Z0-9_$#]*)\\s*,\\s*"
+                    + "([A-Z0-9_.$#\"]+)\\s+([A-Z][A-Z0-9_$#]*)\\s+WHERE\\s+(.+)$"
+    );
 
     private static final Set<String> SQL_KEYWORDS = Set.of(
             "where", "join", "inner", "left", "right", "full", "cross", "on", "group",
@@ -87,6 +92,13 @@ final class SqlTuningAccuracyGuard {
         }
 
         String summary = deterministicSummary(local.summary());
+        String deterministicRewrite = redundantCountSelfJoinRewrite(
+                input == null ? null : input.sqlText()
+        );
+        if (deterministicRewrite != null) {
+            summary = "동일 테이블 자기조인으로 필터 대상 N건이 N×N건으로 증가합니다. "
+                    + "단일 테이블의 필터 건수 조회가 목적이라는 전제로 자기조인을 제거했습니다.";
+        }
 
         return new AwrDtos.SqlTuningResponse(
                 local.tuningId(),
@@ -99,7 +111,7 @@ final class SqlTuningAccuracyGuard {
                 deterministicSymptoms,
                 refinedIndexes,
                 local.rewriteRecommendations(),
-                local.rewrittenSql(),
+                deterministicRewrite != null ? deterministicRewrite : local.rewrittenSql(),
                 local.rewriteRisks(),
                 local.validationSteps(),
                 missingInputs,
@@ -147,7 +159,7 @@ final class SqlTuningAccuracyGuard {
                 authoritative.symptoms(),
                 authoritative.indexRecommendations(),
                 merge(authoritative.rewriteRecommendations(), llm.rewriteRecommendations()),
-                safeRewrite != null ? safeRewrite : authoritative.rewrittenSql(),
+                hasText(authoritative.rewrittenSql()) ? authoritative.rewrittenSql() : safeRewrite,
                 rewriteRisks,
                 authoritative.validationSteps(),
                 authoritative.missingInputs(),
@@ -702,6 +714,57 @@ final class SqlTuningAccuracyGuard {
         return hasText(sql)
                 && (AGGREGATE_POWER_PATTERN.matcher(sql).find()
                 || AGGREGATE_BINARY_MATH_PATTERN.matcher(sql).find());
+    }
+
+    private static String redundantCountSelfJoinRewrite(String sql) {
+        String normalized = canonicalSql(normalizeSql(sql));
+        Matcher matcher = SIMPLE_COUNT_SELF_JOIN_PATTERN.matcher(normalized);
+        if (!matcher.matches() || !matcher.group(1).equalsIgnoreCase(matcher.group(3))) {
+            return null;
+        }
+
+        String table = matcher.group(1);
+        String leftAlias = matcher.group(2);
+        String rightAlias = matcher.group(4);
+        String[] conditions = matcher.group(5).split("(?i)\\s+AND\\s+");
+        if (conditions.length != 2) {
+            return null;
+        }
+
+        Pattern joinPattern = Pattern.compile(
+                "(?i)^(?:" + Pattern.quote(leftAlias) + "\\.([A-Z][A-Z0-9_$#]*)\\s*=\\s*"
+                        + Pattern.quote(rightAlias) + "\\.\\1|"
+                        + Pattern.quote(rightAlias) + "\\.([A-Z][A-Z0-9_$#]*)\\s*=\\s*"
+                        + Pattern.quote(leftAlias) + "\\.\\2)$"
+        );
+        String joinColumn = null;
+        String filterCondition = null;
+        for (String condition : conditions) {
+            String trimmed = condition.trim();
+            Matcher joinMatcher = joinPattern.matcher(trimmed);
+            if (joinMatcher.matches()) {
+                joinColumn = joinMatcher.group(1) != null
+                        ? joinMatcher.group(1)
+                        : joinMatcher.group(2);
+            } else {
+                filterCondition = trimmed;
+            }
+        }
+        if (joinColumn == null || filterCondition == null) {
+            return null;
+        }
+
+        Pattern filterPattern = Pattern.compile(
+                "(?i)^(?:" + Pattern.quote(leftAlias) + "|" + Pattern.quote(rightAlias) + ")\\."
+                        + Pattern.quote(joinColumn)
+                        + "\\s*=\\s*('(?:''|[^'])*'|[-+]?\\d+(?:\\.\\d+)?)$"
+        );
+        Matcher filterMatcher = filterPattern.matcher(filterCondition);
+        if (!filterMatcher.matches()) {
+            return null;
+        }
+
+        return "SELECT COUNT(*)\nFROM " + table + "\nWHERE " + joinColumn + " = " + filterMatcher.group(1);
     }
 
     private static String canonicalSql(String sql) {

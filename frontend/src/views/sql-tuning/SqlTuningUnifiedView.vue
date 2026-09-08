@@ -122,8 +122,8 @@
             <label class="awr-field">테이블 DDL<textarea v-model="manual.schemaDdl" class="awr-textarea" placeholder="CREATE TABLE ..."></textarea></label>
             <label class="awr-field">기존 인덱스<textarea v-model="manual.existingIndexes" class="awr-textarea" placeholder="CREATE INDEX ..."></textarea></label>
             <label class="awr-field">바인드 샘플<textarea v-model="manual.bindSamples" class="awr-textarea" placeholder=":status='A'"></textarea></label>
-            <button class="awr-btn primary" type="button" :disabled="!manual.sqlText.trim() || loadingManual || manualAnalysisUnchanged" @click="runManualAnalysis">
-              {{ loadingManual ? '분석 중...' : manualAnalysisUnchanged ? '분석 완료' : 'AI 상세 분석' }}
+            <button class="awr-btn primary" type="button" :disabled="!manual.sqlText.trim() || loadingManual" @click="runManualAnalysis">
+              {{ loadingManual ? '분석 중...' : reusedResultNotice ? '기존 결과 유지' : manualAnalysisUnchanged ? '다시 분석' : 'AI 상세 분석' }}
             </button>
           </div>
         </template>
@@ -267,6 +267,7 @@ const loadingManual = ref(false)
 const loadingSelectedTuning = ref(false)
 const tuningElapsedSeconds = ref(0)
 const copyStatus = ref('')
+const reusedResultNotice = ref(false)
 const resultPanelElement = ref<HTMLElement | null>(null)
 const topSqlLoaded = ref(false)
 const topSqlRows = ref<DirectSqlMetricResponse[]>([])
@@ -423,7 +424,14 @@ function stopTuningTimer() {
 }
 async function runManualAnalysis() {
   const analysisKey = manualAnalysisKey()
-  if (manualResult.value && lastManualAnalysisKey.value === analysisKey) return
+  if (manualResult.value && lastManualAnalysisKey.value === analysisKey) {
+    reusedResultNotice.value = true
+    await nextTick()
+    resultPanelElement.value?.scrollIntoView({ behavior: 'smooth', block: 'center' })
+    window.setTimeout(() => { reusedResultNotice.value = false }, 1500)
+    return
+  }
+  reusedResultNotice.value = false
   loadingManual.value = true; manualResult.value = null; errorMessage.value = ''
   try {
     manualResult.value = await tuneSql({ ...manual })

@@ -134,7 +134,7 @@
 
 .sql-workbench .top-controls {
   display: grid !important;
-  grid-template-columns: minmax(190px, 1fr) 90px 130px 74px !important;
+  grid-template-columns: repeat(4, minmax(0, 1fr)) !important;
   align-items: end !important;
   gap: 10px !important;
   grid-column: 1 / -1;
@@ -187,9 +187,9 @@
 
 .sql-workbench .query-button {
   grid-column: 4;
-  justify-self: end;
-  width: 74px !important;
-  min-width: 74px !important;
+  justify-self: stretch;
+  width: 100% !important;
+  min-width: 0 !important;
   height: 42px !important;
   min-height: 42px !important;
   margin: 0 !important;
@@ -256,7 +256,7 @@
 
 @media (max-width: 900px) {
   .sql-workbench .top-controls {
-    grid-template-columns: minmax(170px, 1fr) 86px 120px 74px !important;
+    grid-template-columns: repeat(4, minmax(0, 1fr)) !important;
   }
 }
 
@@ -274,22 +274,22 @@
   }
 
   .sql-workbench .top-controls {
-    grid-template-columns: 1fr 1fr 74px !important;
+    grid-template-columns: repeat(2, minmax(0, 1fr)) !important;
   }
 
   .sql-workbench .top-controls > .top-search-field {
-    grid-column: 1 / -1;
-  }
-
-  .sql-workbench .top-controls > .awr-field:nth-child(2) {
     grid-column: 1;
   }
 
-  .sql-workbench .top-controls > .awr-field:nth-child(3) {
+  .sql-workbench .top-controls > .awr-field:nth-child(2) {
     grid-column: 2;
   }
 
+  .sql-workbench .top-controls > .awr-field:nth-child(3) {
+    grid-column: 1;
+  }
+
   .sql-workbench .query-button {
-    grid-column: 3;
+    grid-column: 2;
   }
 }

@@ -65,7 +65,7 @@
 
           <div class="top-controls">
             <label class="awr-field top-search-field">SQL 검색
-              <input v-model="searchText" class="awr-input compact" placeholder="SQL 문장, SQL_ID, Schema" />
+              <input v-model="searchText" class="awr-input compact" placeholder="SQL 문장 검색" />
             </label>
             <label class="awr-field compact">조회 건수
               <select v-model.number="limit" class="awr-input compact">
@@ -97,7 +97,6 @@
                   <td class="sql-summary-cell">
                     <button class="sql-summary-button" type="button" :title="row.sqlText || row.sqlId">
                       <strong>{{ sqlPreview(row.sqlText) }}</strong>
-                      <small>{{ row.parsingSchemaName || '-' }} · {{ row.sqlId }}</small>
                     </button>
                   </td>
                   <td class="elapsed-cell"><strong>{{ number(row.averageElapsedTimeSec) }}초</strong><small>총 {{ number(row.totalElapsedTimeSec) }}초</small></td>
@@ -286,7 +285,7 @@ const canSaveConnection = computed(() => Boolean(connectionForm.name && canTestC
 const filteredTopSql = computed(() => {
   const q = searchText.value.trim().toLowerCase()
   if (!q) return topSqlRows.value
-  return topSqlRows.value.filter(row => [row.sqlId, row.parsingSchemaName, row.sqlText].some(value => value?.toLowerCase().includes(q)))
+  return topSqlRows.value.filter(row => row.sqlText?.toLowerCase().includes(q))
 })
 const effectiveRewrittenSql = computed(() => {
   const rewritten = manualResult.value?.rewrittenSql?.trim()

@@ -90,7 +90,7 @@
               <div class="top-sql-cell rank-cell"><span class="rank-badge">{{ index + 1 }}</span></div>
               <div class="top-sql-cell sql-cell">
                 <strong class="sql-preview" :title="sql.sqlText || 'SQL 원문 없음'">{{ sqlPreview(sql.sqlText) }}</strong>
-                <small>{{ sql.module || sql.sectionName || '모듈 정보 없음' }}</small>
+                <small v-if="programName(sql.module)">{{ programName(sql.module) }}</small>
               </div>
               <div class="top-sql-cell value-cell">{{ formatMetricNumber(averageElapsedTime(sql)) }}초</div>
               <div class="top-sql-cell value-cell">{{ formatMetricNumber(sql.elapsedTimeSec) }}초</div>
@@ -276,6 +276,11 @@ function averageElapsedTime(sql: SqlMetricResponse) {
   return sql.executions && sql.executions > 0 ? (sql.elapsedTimeSec || 0) / sql.executions : 0
 }
 function sqlPreview(value?: string | null) { return value?.replace(/\s+/g, ' ').trim() || 'SQL 원문 없음' }
+function programName(value?: string | null) {
+  const normalized = value?.trim()
+  if (!normalized) return ''
+  return normalized.match(/^[A-Za-z][A-Za-z0-9_+*-]*/)?.[0] || normalized.split(/[\s?]/, 1)[0]
+}
 function formatTime(value?: string) {
   if (!value) return '-'
   return new Intl.DateTimeFormat('ko-KR', { timeZone: 'Asia/Seoul', hour: '2-digit', minute: '2-digit', second: '2-digit', hour12: false }).format(parseServerTime(value))

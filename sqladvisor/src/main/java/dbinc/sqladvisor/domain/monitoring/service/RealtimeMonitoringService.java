@@ -10,6 +10,7 @@ import java.sql.Connection;
 import java.sql.PreparedStatement;
 import java.sql.ResultSet;
 import java.sql.SQLException;
+import java.time.Duration;
 import java.time.LocalDateTime;
 import java.util.ArrayDeque;
 import java.util.ArrayList;
@@ -93,7 +94,7 @@ public class RealtimeMonitoringService {
 
     private final TargetDbConnectionService connectionService;
     private final Map<Long, Deque<MonitoringDtos.ActivityPoint>> history = new ConcurrentHashMap<>();
-    private final Map<Long, RawTotals> previousTotals = new ConcurrentHashMap<>();
+    private final Map<Long, RawSample> previousTotals = new ConcurrentHashMap<>();
 
     public MonitoringDtos.DashboardResponse collect(long connectionId) {
         TargetDbConnectionRepository.TargetDbConnectionRecord target = connectionService.getVisibleRecord(connectionId);
@@ -142,20 +143,24 @@ public class RealtimeMonitoringService {
             long activeCount,
             RawTotals current
     ) {
-        RawTotals previous = previousTotals.put(connectionId, current);
+        RawSample previous = previousTotals.put(connectionId, new RawSample(collectedAt, current));
         if (previous == null) {
             return new MonitoringDtos.ActivityPoint(collectedAt, activeCount, 0, 0, 0);
         }
 
-        long executionsDelta = nonNegative(current.executions() - previous.executions());
-        long cpuMicrosDelta = nonNegative(current.cpuTimeMicros() - previous.cpuTimeMicros());
-        long diskReadsDelta = nonNegative(current.diskReads() - previous.diskReads());
+        long executionsDelta = nonNegative(current.executions() - previous.totals().executions());
+        long cpuMicrosDelta = nonNegative(current.cpuTimeMicros() - previous.totals().cpuTimeMicros());
+        long diskReadsDelta = nonNegative(current.diskReads() - previous.totals().diskReads());
+        double elapsedSeconds = Duration.between(previous.collectedAt(), collectedAt).toNanos() / 1_000_000_000.0;
+        double executionsPerSecond = elapsedSeconds > 0
+                ? Math.round((executionsDelta / elapsedSeconds) * 10.0) / 10.0
+                : 0;
 
         double cpuSeconds = Math.round((cpuMicrosDelta / 1_000_000.0) * 10.0) / 10.0;
         return new MonitoringDtos.ActivityPoint(
                 collectedAt,
                 activeCount,
-                executionsDelta,
+                executionsPerSecond,
                 cpuSeconds,
                 diskReadsDelta
         );
@@ -276,6 +281,9 @@ public class RealtimeMonitoringService {
     }
 
     private record RawTotals(long executions, long cpuTimeMicros, long diskReads) {
+    }
+
+    private record RawSample(LocalDateTime collectedAt, RawTotals totals) {
     }
 
     private record Risk(String level, String label, String issueType, String issueLabel) {

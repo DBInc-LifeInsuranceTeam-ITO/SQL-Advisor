@@ -144,7 +144,7 @@ const summaries = computed(() => [
 
 const metricCards = computed(() => [
   buildMetricCard('activeSessions', 'DB ACTIVITY', 'Active Sessions'),
-  buildMetricCard('executions', 'SQL THROUGHPUT', 'SQL 실행량'),
+  buildMetricCard('executions', '초당 실행 건수', 'SQL 처리량'),
   buildMetricCard('cpu', 'DB CPU', 'CPU 사용시간'),
   buildMetricCard('io', 'DB I/O', 'I/O 처리량')
 ])
@@ -260,6 +260,7 @@ function parseServerTime(value: string) {
 }
 function formatMetric(value: number, metric: MetricKey) {
   if (metric === 'cpu') return `${value.toFixed(1)}초`
+  if (metric === 'executions') return `${value.toFixed(1)}건/초`
   return Math.round(value).toLocaleString()
 }
 function formatAxisMetric(value: number, metric: MetricKey) {

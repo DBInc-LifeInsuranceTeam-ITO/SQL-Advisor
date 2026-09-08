@@ -42,7 +42,7 @@ public final class MonitoringDtos {
     public record ActivityPoint(
             LocalDateTime collectedAt,
             long activeSessions,
-            long executions,
+            double executions,
             double cpu,
             long io
     ) {

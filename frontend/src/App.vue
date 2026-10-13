@@ -92,11 +92,11 @@ onBeforeUnmount(() => {
 }
 
 .main-content.dashboard-main-content {
-  height: 100vh;
   min-height: 100vh;
+  height: auto;
   gap: 0;
   padding: 0;
-  overflow: hidden;
+  overflow: visible;
 }
 
 @media (max-width: 760px) {

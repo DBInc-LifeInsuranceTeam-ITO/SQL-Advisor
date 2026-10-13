@@ -607,7 +607,8 @@
   gap: 1.1rem;
 }
 
-.dashboard-header {
+/* Scope the legacy dashboard header to its own page; don't style realtime dashboard after route navigation. */
+.dashboard-page > .dashboard-header {
   border: 1px solid var(--awr-border);
   border-radius: var(--awr-radius);
   background: var(--awr-bg);

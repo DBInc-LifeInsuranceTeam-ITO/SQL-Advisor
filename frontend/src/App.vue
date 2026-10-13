@@ -92,8 +92,8 @@ onBeforeUnmount(() => {
 }
 
 .main-content.dashboard-main-content {
-  height: 100vh;
-  min-height: 100vh;
+  height: 100dvh;
+  min-height: 0;
   gap: 0;
   padding: 0;
   overflow: hidden;

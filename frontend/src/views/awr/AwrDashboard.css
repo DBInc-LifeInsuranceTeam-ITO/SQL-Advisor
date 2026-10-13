@@ -300,32 +300,46 @@
 
 
 /*
- * Responsive dashboard layout.
- * Use content-driven sizing for shorter viewports instead of clipping rows.
- * Keep the 2x2 metrics + top SQL composition on desktop.
+ * Responsive layout: maintain intentional spacing regardless of browser zoom.
+ * Do not stretch the charts indefinitely on tall CSS viewports (e.g. 80% zoom).
  */
 .realtime-dashboard {
   height: auto;
   min-height: 100vh;
   overflow: visible;
-  grid-template-rows: 64px 36px minmax(88px, auto) minmax(520px, 1fr);
+  align-content: start;
+  grid-template-rows: 64px 36px 88px auto;
+  row-gap: 14px;
+  padding-bottom: 24px;
 }
-.summary-grid { min-height: 88px; }
-.summary-card { min-height: 88px; }
+.summary-grid {
+  height: 88px;
+  min-height: 88px;
+  margin: 0;
+}
+.summary-card {
+  height: 88px;
+  min-height: 0;
+}
 .dashboard-body {
-  height: auto;
-  min-height: 520px;
-  margin-top: 0;
-  margin-bottom: 0;
+  height: clamp(500px, calc(100vh - 280px), 640px);
+  min-height: 500px;
+  margin: 6px 0 0;
   overflow: visible;
   grid-template-columns: minmax(0, 1.35fr) minmax(360px, .95fr);
+  gap: 12px;
 }
-.chart-grid { min-height: 520px; }
+.chart-grid {
+  height: 100%;
+  min-height: 0;
+  gap: 12px;
+}
 .top-sql-panel { min-height: 0; }
 
 @media (max-width: 1450px) {
   .realtime-dashboard {
-    grid-template-rows: 60px 34px minmax(88px, auto) minmax(520px, 1fr);
+    grid-template-rows: 60px 34px 88px auto;
+    row-gap: 12px;
   }
   .dashboard-body {
     grid-template-columns: minmax(0, 1.15fr) minmax(340px, 1fr);
@@ -337,30 +351,35 @@
     grid-template-rows: 60px 34px auto auto;
   }
   .summary-grid {
+    height: auto;
+    min-height: 0;
     grid-template-columns: repeat(2, minmax(0, 1fr));
   }
   .dashboard-body {
-    grid-template-columns: minmax(0, 1fr);
+    height: auto;
     min-height: 0;
-    overflow: visible;
+    grid-template-columns: minmax(0, 1fr);
+    margin-top: 6px;
   }
   .chart-grid {
+    height: 520px;
     min-height: 520px;
   }
   .top-sql-panel {
-    min-height: 360px;
     height: 360px;
+    min-height: 360px;
   }
 }
 
 @media (max-width: 600px) {
   .realtime-dashboard { padding: 10px; }
   .chart-grid {
-    grid-template-columns: minmax(0, 1fr);
-    grid-template-rows: repeat(4, minmax(180px, auto));
+    height: auto;
     min-height: 0;
+    grid-template-columns: minmax(0, 1fr);
+    grid-template-rows: repeat(4, 190px);
   }
-  .metric-card { min-height: 180px; }
+  .metric-card { min-height: 0; }
   .top-sql-row {
     grid-template-columns: 30px minmax(0, 1.8fr) minmax(54px, .65fr) minmax(54px, .65fr) minmax(36px, .4fr);
     column-gap: 4px;
